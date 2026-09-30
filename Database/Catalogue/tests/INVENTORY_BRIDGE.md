@@ -12,7 +12,8 @@ The empty root password is only for this network-isolated, unexposed instance.
 ```sh
 docker run --name brightbuy-catalogue-bridge-test --network none \
   --memory 1g --cpus 2 -e MYSQL_ALLOW_EMPTY_PASSWORD=yes -d \
-  mysql:8.0 --mysqlx=OFF
+  mysql@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b \
+  --mysqlx=OFF
 docker logs brightbuy-catalogue-bridge-test
 docker exec brightbuy-catalogue-bridge-test mysqladmin --protocol=socket -u root ping
 ```
@@ -50,6 +51,17 @@ docker exec -i brightbuy-catalogue-bridge-test mysql -u root \
   < Database/Catalogue/06_catalogue_procedures.sql
 docker exec -i brightbuy-catalogue-bridge-test mysql -u root \
   < Database/Catalogue/tests/test_foundation.sql
+docker exec -i brightbuy-catalogue-bridge-test mysql -u root \
+  < Database/Catalogue/tests/test_procedures.sql
+docker exec -i brightbuy-catalogue-bridge-test mysql -u root \
+  < Database/Catalogue/05_variant_integration.sql
+docker exec -i brightbuy-catalogue-bridge-test mysql -u root \
+  < Database/Catalogue/05b_catalogue_variant_seed.sql
+sed '/^CALL seed_catalogue_variants();/,$d' \
+  Database/Catalogue/05b_catalogue_variant_seed.sql |
+  docker exec -i brightbuy-catalogue-bridge-test mysql -u root
+docker exec -i brightbuy-catalogue-bridge-test mysql -u root \
+  < Database/Catalogue/tests/test_variant_seed.sql
 )
 ```
 
@@ -62,12 +74,36 @@ Do not blindly rerun it against partially completed data.
 
 The legacy `test_preintegration.sql` starts from an inventory schema with no
 product FK and five seeded variants; it is not the entry point for this setup.
-The older procedure suite's negative-stock fixture conflicts with the new CHECK;
-its historical results are not a current full-suite pass. This focused bridge
-suite does not test inventory audit or checkout stock-decrement triggers.
+The current procedure suite verifies negative stock is rejected with MySQL
+error 3819 and leaves existing quantities unchanged. NULL stock remains allowed
+by inventory's CHECK, so it separately verifies catalogue filtering of NULLs.
+No constraints are disabled. This focused setup does not test inventory audit
+or checkout stock-decrement triggers.
 
-No runtime pass is recorded until these commands actually succeed. Stop the
-disposable container afterward without deleting it if you want to inspect it:
+## Validation record — 2026-09-30
+
+Passed on isolated MySQL **8.0.46**, using the pinned image above,
+`lower_case_table_names=0`, `foreign_key_checks=1` and strict SQL mode:
+
+- 19 current-inventory bridge assertions.
+- 32 foundation assertions.
+- 67 procedure assertions.
+- 8 seed-safety assertions.
+
+**126 assertions passed.** Full `05` and `05b` script reruns also succeeded.
+Final fixture counts: 40 products, 48 variants and 3 warehouses.
+Test container: `brightbuy-catalogue-bridge-verified`.
+
+The first run in `brightbuy-catalogue-bridge-test` exposed MySQL error 1826:
+DROP/ADD of the same FK name in one ALTER is rejected. The migration now selects
+an unused schema-wide FK name while retaining a single ALTER and enabled FK
+checks. The successful run started from a separate fresh instance, not a
+partially applied migration. Both containers were retained, stopped, for inspection.
+
+This is a catalogue validation result, **not full-team database sign-off**.
+Auth/checkout/delivery dependency resolution remains outside this test setup.
+
+Stop your disposable container afterward without deleting it if you want to inspect it:
 
 ```sh
 docker stop brightbuy-catalogue-bridge-test

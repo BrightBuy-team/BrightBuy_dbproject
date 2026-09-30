@@ -125,14 +125,16 @@ The merged inventory now lives in `Database/Inventory/`. The old
   mechanism: `ProcessCheckout` already updates stock before inserting order
   items, while the incoming `after_order_item_insert` trigger deducts it again.
 - **All owners:** agree the revised schema/seed/logic execution order and rerun
-  integration tests. The catalogue procedure suite deliberately writes invalid
-  stock to test read filtering; an enforced stock CHECK changes that test setup.
-  Review those cases and audit-trigger side effects on a fresh disposable
-  instance before claiming compatibility with the incoming schema.
+  full-team integration tests, including audit-trigger side effects. Catalogue's
+  procedure suite now checks rejection of negative stock and filtering of NULL
+  stock without disabling inventory's CHECK.
 
 No teammate SQL is changed by this bridge. It is not a verified whole-project
 installer. See [bridge tests](tests/INVENTORY_BRIDGE.md). The existing 119-check
 record applies only to its documented schema, fixtures and MySQL settings.
+The current catalogue-only setup passed **126 assertions on MySQL 8.0.46**
+with case-sensitive table names on 2026-09-30; see that bridge-test guide for
+the exact image, commands and coverage limits.
 
 ### MySQL CLI examples
 
