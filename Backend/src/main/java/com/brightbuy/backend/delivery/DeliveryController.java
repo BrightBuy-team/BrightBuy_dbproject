@@ -6,6 +6,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -15,6 +16,13 @@ public class DeliveryController {
 
     @Autowired
     private DeliveryService deliveryService;
+
+    // GET /api/delivery/cities
+    // Frontend needs this to show a dropdown list of cities to the customer!
+    @GetMapping("/cities")
+    public ResponseEntity<List<City>> getAllCities() {
+        return ResponseEntity.ok(deliveryService.getAllCities());
+    }
 
     // GET /api/delivery/estimate?cityId=1&orderId=101
     // Your React Frontend Checkout page will call this to display the delivery
