@@ -4,6 +4,65 @@ Use a disposable MySQL instance only. These tests are for the milestone-2
 fixtures: forty products, ten categories, forty-eight variants and eighty mappings. No Python
 or application backend is required. Do not change the team's shared database.
 
+Before preparing a fresh instance, read the [fresh-install blockers](../README.md#fresh-install-blockers-to-resolve-with-the-owners).
+The inventory files are now under `Database/Inventory & Delivery/`, and the
+shared seed also inserts deliveries that need checkout tables and orders
+101–104. The tests do not supply those dependencies. Do not continue after a
+failed setup script or treat the historical MySQL 9.7.1 results as a successful
+run of the current combined installer.
+
+Checkout's corrected schema is now `Database/Checkout/01_checkout_schema.sql`.
+The customer schema and required order fixtures are still missing from this
+checkout; `03_checkout_seed_data.sql` does not supply a compatible combined
+dataset. Follow the parent README's prerequisite stop before step 6.
+The unmerged inventory update has different fixtures, foreign-key behavior,
+stock constraints and triggers: see the
+[pending inventory integration checklist](../README.md#pending-inventory-branch-integration)
+before applying it. The existing test results do not validate that branch.
+
+For a catalogue-only environment without those checkout dependencies, see
+[isolated MySQL 8 Docker validation](MYSQL8_DOCKER.md). On 2026-09-26, both
+suites passed on MySQL **8.0.46** (97 assertions), including after installer
+reruns. The record explains the deliberately limited shared-seed subset and
+why this does not verify the full-project installer or case-sensitive setup.
+
+## Read-only setup diagnostic
+
+`check_setup_prerequisites.sql` is separate from the assertion suites below.
+Run it before the shared seed (step 6), after steps 1–5 and the owners' schema
+setup. It is also safe to run earlier to see missing prerequisites. From
+`Database/Catalogue`, select your test instance explicitly:
+
+```sh
+mysql --socket=/path/to/disposable/mysql.sock -u root -p < tests/check_setup_prerequisites.sql
+```
+
+The script uses only SELECT statements and does not require a selected database.
+It can report missing `brightbuy` tables without trying to query those tables.
+Use an account allowed to inspect all required tables; hidden metadata can look
+like a missing object. It checks server/version information, session foreign-key,
+unique and strict-mode settings, inventory casing risk, eight base tables and
+the seven checkout columns needed by the delivery seed/order reference.
+
+- `BLOCK`: do not continue setup until the issue is resolved.
+- `REVIEW`: manual verification remains necessary, including exact-version tests.
+- `PASS`: only that individual metadata/session check passed.
+
+This is a diagnostic report, not an automated gate: BLOCK rows do not cause a
+nonzero client exit code. No result certifies a successful full installation.
+It does not inspect existing rows, validate all column types/foreign keys or
+detect duplicate seed IDs. Ask the owners to verify the checkout/auth contract
+and orders 101–104 before step 6; do not use this report to justify rerunning a
+failed shared seed. MySQL 9 results do not establish MySQL 8 compatibility.
+
+Diagnostic validation (2026-09-26, existing disposable MySQL 9.7.1 instance):
+the script completed and reported the missing `orders` table/column. A separate
+connection with foreign-key checks, unique checks and strict mode disabled
+reported all three as `BLOCK`. An in-memory copy targeting a nonexistent schema
+reported all eight tables and seven columns as `BLOCK` without SQL errors.
+No stored data or schema was changed. Case-sensitive-server and MySQL 8 execution
+remain unverified; the full assertion suites were not rerun for this milestone.
+
 ## Automated foundation assertions
 
 Follow the parent README's setup order, then execute `test_foundation.sql` in
@@ -75,8 +134,40 @@ again after removing it.
 
 ## Pre-integration failure checks
 
+### Automated SQL regression
+
+`test_preintegration.sql` adds **14 assertions** for null/orphan rejection,
+unchanged product-column nullability/indexes/foreign keys on rejection,
+incompatible foreign-key rejection, recovery, supporting-index reuse and a
+second successful integration. It loads the real integration helper definition;
+no production SQL is duplicated or modified. See the
+[separate Docker setup](MYSQL8_DOCKER.md#separate-pre-integration-test-instance)
+for executable commands that omit only the installer's final CALL/DROP from
+the input stream before the test runs.
+
+Use a **new disposable instance** before running `05` or `05b`, with only the
+five original inventory variants. Do not run this against the already-integrated
+`brightbuy-catalogue-mysql8` container or any shared database. Tests add and
+remove invalid fixture 99999, create/remove one incompatible test FK, and leave
+the instance successfully integrated using `idx_preintegration_product`.
+DDL commits independently: on unexpected failure, stop, inspect the instance,
+and rebuild it before retrying. Do not assume ROLLBACK resets the schema.
+Successful completion removes test/integration helper procedures; failed runs
+can leave helpers or intermediate test state. This suite is intentionally not
+rerunnable on its successfully integrated output.
+
+Validated on a separate MySQL **8.0.46** container: all 14 assertions passed.
+The unchanged `05` installer then ran twice, the remaining catalogue fixtures
+and procedures were installed, and all 32 foundation, eight seed-safety and
+65 procedure assertions passed (**119 distinct checks** across the four suites).
+No teammate source files were edited. Checkout/delivery and case-sensitive
+server setup remain outside this catalogue-only validation.
+
+### Manual alternative
+
 On a separate fresh disposable instance, run setup through the inventory seed
-(steps 1–6 in the parent README). Do NOT run `05_variant_integration.sql` yet.
+(steps 1–6 in the parent README, including the owners' prerequisites before
+step 6). Do NOT run `05_variant_integration.sql` yet.
 Run each case below separately and inspect the expected error before proceeding.
 
 1. Insert a null product reference:
@@ -122,6 +213,56 @@ Finally, execute `05_variant_integration.sql` successfully twice, then run
 No inventory source files need to be modified.
 
 ## Variant seed preservation and collision checks
+
+### Automated SQL regression
+
+`test_variant_seed.sql` checks price/stock preservation, repeatability, the exact
+collision error, no partial insert, retry after correcting a conflict, and
+restoration of the two touched fixtures (eight assertions). Use only the
+prepared disposable Docker catalogue database, with application writes paused.
+
+The production seed commits internally and drops its helper after execution.
+For this test, load that **same procedure definition**, omitting only the final
+CALL and DROP lines from the input stream. No source file or production seed
+behavior is changed. Run from the repository root:
+
+```sh
+(
+set -e
+set -o pipefail
+docker exec -i brightbuy-catalogue-mysql8 mysql --protocol=socket -u root \
+  < Database/Catalogue/tests/test_foundation.sql
+sed '/^CALL seed_catalogue_variants();$/d; /^DROP PROCEDURE seed_catalogue_variants;$/d' \
+  Database/Catalogue/05b_catalogue_variant_seed.sql \
+  | docker exec -i brightbuy-catalogue-mysql8 mysql --protocol=socket -u root
+docker exec -i brightbuy-catalogue-mysql8 mysql --protocol=socket -u root \
+  < Database/Catalogue/tests/test_variant_seed.sql
+docker exec -i brightbuy-catalogue-mysql8 mysql --protocol=socket -u root \
+  < Database/Catalogue/tests/test_foundation.sql
+docker exec -i brightbuy-catalogue-mysql8 mysql --protocol=socket -u root \
+  < Database/Catalogue/tests/test_procedures.sql
+)
+```
+
+Expect eight PASS results and a summary from the new suite, then 32 foundation
+and 65 procedure assertions. An unexpected error stops the block; never use
+`--force`. The suite explicitly restores variants 1004 and 1040 from a temporary
+snapshot on success or SQL error, rather than claiming that one ROLLBACK undoes
+the seed's commits. If the server/connection dies or restoration itself fails,
+rebuild the disposable test database before proceeding. Helper DDL is not
+rolled back; a failed run can leave test routines installed. Rerun the full
+block after resolving the failure to replace them and remove them on success.
+Inspect the extraction command if the seed installer structure changes.
+
+Validated on the isolated MySQL **8.0.46** container: all eight assertions passed,
+then all 32 foundation and 65 procedure assertions passed (**105 distinct checks**).
+A container-only helper with an intentionally wrong collision error message
+made the suite fail as expected; variants 1004 and 1040 were restored and all
+32 foundation assertions still passed. Reloading the unmodified seed definition
+made all eight checks pass again and removed the seed/test helper routines.
+The production source file was not changed for this fault-injection check.
+
+### Manual alternative
 
 After a successful full setup on the disposable instance, change a catalogue
 variant's stock and price:

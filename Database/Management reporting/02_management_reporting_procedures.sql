@@ -122,7 +122,7 @@ BEGIN
 		cu.first_name,
 		cu.last_name,
 		SUM(o.total_amount) AS lifetime_spend,
-		GROUP_CONCAT(DISTINCT p.payment_status) AS payment_statuses
+		GROUP_CONCAT(DISTINCT p.payment_status) AS payment_status
 	FROM customer cu
 	JOIN orders o ON o.customer_id = cu.customer_id
 	LEFT JOIN payment p ON p.order_id = o.order_id
