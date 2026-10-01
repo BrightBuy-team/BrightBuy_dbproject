@@ -20,23 +20,23 @@ public class ReportRepository {
 
     public ReportRepository(JdbcTemplate jdbcTemplate) {
         this.quarterlySalesCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_quarterly_sales_report")
-                                                                  .returningResultSet("#result-set-1",
+                                                                  .returningResultSet("#resultSet1",
                                                                                        BeanPropertyRowMapper.newInstance(QuarterlySales.class));
 
         this.topSellingProductsCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_top_selling_products")
-                                                                      .returningResultSet("#result-set-1",
+                                                                      .returningResultSet("#resultSet1",
                                                                                            BeanPropertyRowMapper.newInstance(TopSellingProduct.class));
 
         this.categoryOrderCountsCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_category_order_counts")
-                                                                       .returningResultSet("#result-set-1",
+                                                                       .returningResultSet("#resultSet1",
                                                                                             BeanPropertyRowMapper.newInstance(CategoryOrderCount.class));
 
         this.deliveryEstimatesCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_upcoming_delivery_estimates")
-                                                                     .returningResultSet("#result-set-1",
+                                                                     .returningResultSet("#resultSet1",
                                                                                           BeanPropertyRowMapper.newInstance(DeliveryTimeEstimate.class));
 
         this.customerOrderSummaryCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_customer_order_summary")
-                                                                        .returningResultSet("#result-set-1",
+                                                                        .returningResultSet("#resultSet1",
                                                                                              BeanPropertyRowMapper.newInstance(CustomerWiseOrderSummary.class));
     }
 
