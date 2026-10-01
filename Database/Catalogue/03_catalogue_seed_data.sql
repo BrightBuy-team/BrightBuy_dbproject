@@ -55,7 +55,7 @@ ON DUPLICATE KEY UPDATE
 
 
 -- ---------------------------------------------------------
--- Products 1-3 match ../Inventory_Delivery_sample_data.sql.
+-- Products 1-3 match ../Inventory & Delivery/Inventory_Delivery_sample_data.sql.
 -- Products 4-40 are fictional BrightBuy demonstration fixtures.
 -- Keep these IDs stable: variants and category mappings depend on them.
 -- ---------------------------------------------------------

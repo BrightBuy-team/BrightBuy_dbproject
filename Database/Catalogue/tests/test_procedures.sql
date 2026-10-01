@@ -1,6 +1,7 @@
 -- Milestone 3 procedure tests; run after 06 on disposable milestone-2 data.
 -- Calls the real routines and inspects their JSON responses. No Python needed.
 -- Row changes roll back on success or error; helper DDL commits independently.
+-- Requires current inventory's enforced CHECK (stock_quantity >= 0).
 USE brightbuy;
 DROP PROCEDURE IF EXISTS catalogue_procedure_assert;
 DROP PROCEDURE IF EXISTS catalogue_procedure_reject;
@@ -172,9 +173,27 @@ BEGIN
     CALL sp_catalogue_search('iPhone', NULL, NULL, NULL, 0, 'name_asc', 1, 100, result);
     CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 0, 'invalid inventory prices excluded');
     ROLLBACK TO SAVEPOINT initial_state;
-    UPDATE variant SET stock_quantity = -1 WHERE product_id = 1;
+    -- Invalid negatives must be rejected by the current inventory CHECK, not
+    -- inserted by disabling a constraint just to exercise catalogue filtering.
+    BEGIN
+        DECLARE stock_errno INT DEFAULT 0;
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
+                GET DIAGNOSTICS CONDITION 1 stock_errno = MYSQL_ERRNO;
+            UPDATE variant SET stock_quantity = -1 WHERE product_id = 1;
+        END;
+        CALL catalogue_procedure_assert(stock_errno = 3819, 'negative stock rejected by CHECK');
+    END;
+    CALL catalogue_procedure_assert(
+        (SELECT COUNT(*) FROM variant WHERE
+            (variant_id = 1 AND stock_quantity = 50) OR
+            (variant_id = 2 AND stock_quantity = 15) OR
+            (variant_id = 3 AND stock_quantity = 0)) = 3,
+        'rejected stock update leaves all product variants unchanged');
+    -- A CHECK allows NULL; catalogue must still hide unknown inventory.
+    UPDATE variant SET stock_quantity = NULL WHERE product_id = 1;
     CALL sp_catalogue_search('iPhone', NULL, NULL, NULL, 0, 'name_asc', 1, 100, result);
-    CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 0, 'invalid inventory stock excluded');
+    CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 0, 'null inventory stock excluded');
     ROLLBACK TO SAVEPOINT initial_state;
 
     CALL catalogue_procedure_reject('CALL sp_catalogue_search(NULL,NULL,NULL,NULL,0,''name_asc'',0,12,@rejected_result)', '45000', 'zero page');
