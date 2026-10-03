@@ -46,6 +46,16 @@ body { margin: 0; }
 .catalogue-art-spark { position: absolute; right: -5px; top: 0; font-size: 70px; color: #b18e42; }
 .catalogue-breadcrumb { display: flex; gap: 12px; margin: 28px 0; font-size: 12px; color: var(--muted); }
 .catalogue-breadcrumb a { text-decoration: none; }
+/* API text may contain long names or unbroken search terms. Keep it readable
+   without allowing a grid/flex item's minimum width to stretch the page. */
+.catalogue-breadcrumb { flex-wrap: wrap; overflow-wrap: anywhere; }
+.catalogue-breadcrumb > span { min-width: 0; }
+.catalogue-layout > *, .catalogue-detail-layout > *, .catalogue-results-header > div { min-width: 0; }
+.catalogue-results-header > div { overflow-wrap: anywhere; }
+.catalogue-sidebar nav button { min-width: 0; overflow-wrap: anywhere; }
+.catalogue-sidebar nav button span { flex-shrink: 0; }
+.catalogue-product-price, .catalogue-card-caption, .catalogue-detail-categories { overflow-wrap: anywhere; }
+.catalogue-detail-categories li { min-width: 0; max-width: 100%; }
 .catalogue-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 38px; }
 .catalogue-sidebar h2 { font-size: 15px; margin: 8px 0 17px; font-weight: 650; }
 .catalogue-sidebar nav { display: flex; flex-direction: column; gap: 2px; }
@@ -84,7 +94,7 @@ body { margin: 0; }
 .catalogue-product-price { font-size: 16px; font-weight: 700; letter-spacing: -.35px; }
 .catalogue-product-price span { color: #79907c; font-weight: 400; }
 .catalogue-card-caption { font-size: 10px; color: var(--muted); margin-top: 7px !important; }
-.catalogue-pagination { display: flex; justify-content: space-between; align-items: center; gap: 15px; border-top: 1px solid var(--line); margin-top: 30px; padding-top: 22px; font-size: 12px; }
+.catalogue-pagination { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 15px; border-top: 1px solid var(--line); margin-top: 30px; padding-top: 22px; font-size: 12px; }
 .catalogue-pagination button { font-size: 12px; }
 .catalogue-empty, .catalogue-notice { border: 1px solid var(--line); background: white; padding: 35px; border-radius: 8px; }
 .catalogue-empty { text-align: center; padding: 70px 24px; }

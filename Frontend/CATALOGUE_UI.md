@@ -174,3 +174,19 @@ screen. The team's actual MySQL 8 deployment still requires integration testing.
   and filter forms together, so stale drafts cannot survive an explicit reset.
 - No database, backend, shared entry or teammate files changed. Live integration,
   cart/account contracts, the low-stock threshold and real contact details remain pending.
+
+## Long-content responsive milestone verification
+
+- Long unbroken category/search text previously stretched the 360px browse page
+  to 1,637px. Catalogue grid/flex children can now shrink, text wraps, and pagination
+  can wrap onto another line. No content is hidden to suppress page overflow.
+- With temporary mock data, browse and detail pages fit 360, 390, 768 and 1280px
+  viewports. Checked heading, result-summary, price and detail-category text for
+  clipping as well as overall page width. This is not live database validation.
+- Repeat with an 88-character unbroken category name, a 224-character product
+  name, a 255-character search term, a long unbroken description, and a price
+  range of USD 99,999,998.99–99,999,999.99. Check category buttons, breadcrumbs,
+  result headings, cards and detail links at each width. Use disposable fixtures,
+  not edits to shared seed data. Confirm keyboard focus remains visible.
+- 161 frontend tests, lint and both builds passed. Only catalogue CSS and this
+  guide changed; cart/account integration is still pending.
