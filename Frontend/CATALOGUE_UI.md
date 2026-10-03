@@ -13,6 +13,22 @@ unchanged. If needed, set `VITE_CATALOGUE_API_URL` to the full catalogue API
 base URL before starting Vite; its default is `http://localhost:8080/api/catalogue`.
 Keep credentials out of frontend environment variables.
 
+## Home / catalogue landing (UI-1)
+
+The default catalogue route shows the hero, a top-level category list and a
+featured-products section, followed by the full browse catalogue. Featured means
+**up to six newest in-stock products**, selected with the existing search API
+(`sort=newest`, `inStockOnly=true`, `page=1`, `pageSize=6`); this is not a
+popularity ranking or a manually curated database flag. One additional read is
+made only while Home is mounted. Category data reuses the existing request.
+
+Category links open unfiltered category page 1. Featured cards link to product
+details with the default browse return context. Search, category/price/stock
+filters, non-default sorting/pagination, details and invalid links hide the
+Home-only sections. Resetting to default browse restores them. Each section has
+independent loading, retry and empty states; a failed featured request does not
+hide normal browse results. The shared `/` starter remains untouched.
+
 ## Product details
 
 Product-name links open details using `?productId=1` alongside the browse query
@@ -73,5 +89,16 @@ screen. The team's actual MySQL 8 deployment still requires integration testing.
 - Browser checks with temporary mock data verified USD price changes between
   variants, zero-stock disabling, Low Stock with an explicit test-only threshold
   of 5, and excessive-quantity feedback. This is not a live backend/MySQL test.
-- Still pending: working cart handoff, agreed low-stock threshold, featured Home
-  content, shared navigation/account/cart integration and required footer details.
+- Still pending after that milestone: working cart handoff, agreed low-stock
+  threshold, shared navigation/account/cart integration and required footer details.
+
+## Home milestone verification
+
+- 144 frontend tests passed; lint and both builds passed.
+- Mock-data browser checks verified top-level category navigation, featured card
+  detail links and return navigation. Home-only content hides on category/detail
+  routes and returns on Home.
+- At the SRS minimum 360px viewport, category cards and featured content fit
+  without horizontal page overflow. Browser checks used temporary fixtures,
+  not the blocked shared backend or MySQL.
+- No backend, database, shared app entry or teammate files changed.
