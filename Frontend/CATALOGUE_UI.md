@@ -29,6 +29,26 @@ Home-only sections. Resetting to default browse restores them. Each section has
 independent loading, retry and empty states; a failed featured request does not
 hide normal browse results. The shared `/` starter remains untouched.
 
+## Persistent navigation and footer
+
+Top-level category links and All products remain available on browse, detail
+and invalid-link pages. Links start a fresh browse at page 1; the exact selected
+root category is marked as current. Navigation reuses the category request and
+provides loading/retry states without hiding All products.
+
+The footer explains the SRS Texas delivery restriction, planned Store Pickup,
+destination/stock-dependent estimates, and planned Cash on Delivery/Card Payment
+methods in USD. It explicitly states that this catalogue cannot accept orders
+or payments yet. No delivery fees or fixed delivery dates are invented.
+
+The default contact is `support@brightbuy.example`, labelled as a non-working
+demo address with no mail link. Once the team owns a real mailbox, set the public
+`VITE_BRIGHTBUY_CONTACT_EMAIL` before starting/building Vite. Valid plain email
+addresses become mail links; invalid or blank configuration shows contact details
+pending. Addresses ending in `.example` remain labelled demo addresses.
+This configuration does not create a mailbox. Account links, cart count and
+working cart handoff still require the owners' integration contracts.
+
 ## Product details
 
 Product-name links open details using `?productId=1` alongside the browse query
@@ -101,4 +121,14 @@ screen. The team's actual MySQL 8 deployment still requires integration testing.
 - At the SRS minimum 360px viewport, category cards and featured content fit
   without horizontal page overflow. Browser checks used temporary fixtures,
   not the blocked shared backend or MySQL.
+- No backend, database, shared app entry or teammate files changed.
+
+## Navigation/footer milestone verification
+
+- 154 frontend tests passed; lint and both builds passed.
+- A mock-data browser check verified category switching and the demo contact
+  notice. At 360px, the footer stacks into one column with no horizontal overflow.
+- Checks used temporary fixtures, not a live backend/MySQL connection.
+- Still pending: a real team contact mailbox, shared account/cart navigation,
+  working cart handoff and the agreed low-stock threshold.
 - No backend, database, shared app entry or teammate files changed.

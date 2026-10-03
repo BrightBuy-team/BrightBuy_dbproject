@@ -95,9 +95,19 @@ body { margin: 0; }
 .catalogue-field-error { color: #a33020; font-size: 12px; padding-bottom: 12px; }
 .catalogue-search-error { max-width: 1344px; padding: 0 24px 16px; margin: auto !important; }
 .catalogue-skeleton { height: 315px; border-radius: 9px; background: linear-gradient(#ecf0e8 58%, #f3f5ee 58%); }
-.catalogue-footer { max-width: 1344px; margin: auto; border-top: 1px solid var(--line); padding: 25px 0; display: flex; align-items: center; gap: 20px; color: var(--muted); font-size: 11px; }
-.catalogue-footer strong { color: var(--green); font-size: 18px; letter-spacing: -.5px; }
-.catalogue-footer span:last-child { margin-left: auto; }
+.catalogue-category-navigation { max-width: 1440px; margin: 0 auto 24px; padding: 0 48px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; }
+.catalogue-category-navigation a { padding: 8px 14px; border: 1px solid var(--line); border-radius: 6px; text-decoration: none; overflow-wrap: anywhere; max-width: 100%; }
+.catalogue-category-navigation a:hover, .catalogue-category-navigation a[aria-current="page"] { background: #e7eee4; border-color: #95ad9e; }
+.catalogue-category-navigation a[aria-current="page"] { font-weight: 700; }
+.catalogue-navigation-error { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; color: #a33020; }
+.catalogue-footer { max-width: 1344px; margin: auto; border-top: 1px solid var(--line); padding: 30px 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 30px; color: var(--muted); font-size: 13px; }
+.catalogue-footer section { min-width: 0; overflow-wrap: anywhere; }
+.catalogue-footer .catalogue-footer-brand { color: var(--green); font-size: 22px; font-weight: 750; letter-spacing: -.5px; margin-bottom: 12px; }
+.catalogue-footer h2 { color: var(--ink); font-size: 15px; margin-bottom: 12px; }
+.catalogue-footer p + p { margin-top: 10px; }
+.catalogue-footer a { text-underline-offset: 4px; }
+.catalogue-footer-pending { font-size: 12px; }
+@media (max-width: 700px) { .catalogue-category-navigation { padding: 0 20px; } .catalogue-footer { grid-template-columns: 1fr; gap: 24px; } }
 .catalogue-visually-hidden, .catalogue-skip:not(:focus) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .catalogue-skip:focus { display: block; padding: 12px; background: white; }
 .catalogue-card h3 a { text-decoration: none; }

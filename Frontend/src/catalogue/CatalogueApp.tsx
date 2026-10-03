@@ -11,6 +11,8 @@ import { PackageIcon } from './ProductImage'
 import ProductCard from './ProductCard'
 import HomeHighlights from './HomeHighlights'
 import { isCatalogueHome } from './home'
+import CategoryNavigation from './CategoryNavigation'
+import CatalogueFooter from './CatalogueFooter'
 
 function ErrorNotice({ message, retry }: { message: string; retry: () => void }) {
   return <div className="catalogue-notice" role="alert"><h3>Something needs attention</h3><p>{message}</p><button onClick={retry}>Try again</button></div>
@@ -126,6 +128,8 @@ export default function CatalogueApp() {
       </form>
       <span className="catalogue-header-note">The everyday collection</span>
     </header>
+    <CategoryNavigation categories={categories.data} loading={categories.loading} error={categories.error}
+      retry={categories.retry} currentCategoryId={!productId && !linkError ? query.categoryId : undefined} />
     {searchError && <p className="catalogue-field-error catalogue-search-error" id="search-error" role="alert">{searchError}</p>}
     <main id="catalogue-content">
       {home && <section className="catalogue-hero" aria-labelledby="catalogue-heading">
@@ -144,6 +148,6 @@ export default function CatalogueApp() {
         <Results query={query} title={title} home={home} />
       </div>}
     </main>
-    <footer className="catalogue-footer"><strong>BrightBuy</strong><span>Discover your everyday.</span><span>Catalogue & Search</span></footer>
+    <CatalogueFooter />
   </div>
 }
