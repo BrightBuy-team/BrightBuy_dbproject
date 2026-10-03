@@ -1,6 +1,6 @@
 # Catalogue backend — milestone 4
 
-The module uses the team's existing Spring Boot 4.1.1 project and Java 21
+The module uses the team's existing Spring Boot 4.1.1 project and Java 25
 source target. No dependency or teammate source file changes are required.
 It calls the three stored procedures from the catalogue SQL milestone through
 JDBC CallableStatement, with bound parameters and a five-second query timeout.
@@ -142,7 +142,7 @@ The tests are read-only against the database but require the documented sample
 counts and values. They do not create users, execute SQL seed files or start
 MySQL automatically. Never point fixture-dependent tests at the shared database.
 
-Validated on 2026-09-19 with Java 26.0.2 (compiling for Java 21) and an isolated
+Validated on 2026-09-19 with Java 26.0.2 (compiling for Java 25) and an isolated
 MySQL 9.7.1 instance using `lower_case_table_names=1`. The configured full
 `verify` run passed all **67 tests**, including four live HTTP-to-MySQL tests,
 and packaged the application successfully. Database tests used a dedicated
