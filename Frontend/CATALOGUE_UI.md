@@ -84,6 +84,20 @@ remain readable. Requests are cancelled when leaving or changing products.
 
 ## Checks (from Frontend)
 
+### Keyboard navigation and page context
+
+After a changed search, filter, sort or page (including browser Back/Forward),
+focus moves to the results heading. Initial load and API completion do not move
+focus. The heading and main content accept programmatic/skip-link focus without
+adding extra stops to the normal Tab order. Existing visible focus outlines remain.
+
+Browse tab titles identify Home or the search/category and page. Result status
+announcements include the count and page, with singular/empty wording. Invalid
+search and price fields expose `aria-invalid` alongside their existing error text.
+Product-detail titles retain their existing behaviour.
+
+### Automated checks
+
 ```sh
 node --test tests/catalogue*.test.mjs
 npm run lint
@@ -122,6 +136,16 @@ screen. The team's actual MySQL 8 deployment still requires integration testing.
   without horizontal page overflow. Browser checks used temporary fixtures,
   not the blocked shared backend or MySQL.
 - No backend, database, shared app entry or teammate files changed.
+
+## Keyboard-navigation milestone verification
+
+- 159 frontend tests passed; lint and both builds passed.
+- Mock-data browser checks verified search submission, Next, Back, corrected
+  price filters and skip-link focus. Invalid price ranges expose `aria-invalid`.
+  A completed API response left the user's current focus unchanged.
+- These checks do not replace live backend/MySQL testing or a full screen-reader
+  audit. Cart/account integration and the agreed low-stock threshold remain pending.
+- Only catalogue frontend code, tests and this guide changed.
 
 ## Navigation/footer milestone verification
 

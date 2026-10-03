@@ -4,7 +4,8 @@ import { decodeCategories, decodeProducts } from './api'
 import type { Category } from './api'
 import { defaultSearch, parseSearch, searchParams, sorts } from './search'
 import type { Search } from './search'
-import { navigate, useCatalogue, useSearchLocation } from './useCatalogue'
+import { navigate, useBrowseNavigation, useCatalogue, useSearchLocation } from './useCatalogue'
+import { resultSummary } from './browsePresentation'
 import { catalogueHref, parseCatalogueRoute } from './routes'
 import ProductDetailPage from './ProductDetailPage'
 import { PackageIcon } from './ProductImage'
@@ -51,8 +52,8 @@ function Filters({ query, categories }: { query: Search; categories: Category[] 
     <form onSubmit={apply} className="catalogue-price-form">
       <h2>Price & availability</h2>
       <div className="catalogue-price-fields">
-        <label>Minimum<input name="minPrice" inputMode="decimal" placeholder="0.00" defaultValue={query.minPrice} aria-describedby={error ? 'filter-error' : undefined} /></label>
-        <label>Maximum<input name="maxPrice" inputMode="decimal" placeholder="Any" defaultValue={query.maxPrice} aria-describedby={error ? 'filter-error' : undefined} /></label>
+        <label>Minimum<input name="minPrice" inputMode="decimal" placeholder="0.00" defaultValue={query.minPrice} aria-invalid={!!error} aria-describedby={error ? 'filter-error' : undefined} /></label>
+        <label>Maximum<input name="maxPrice" inputMode="decimal" placeholder="Any" defaultValue={query.maxPrice} aria-invalid={!!error} aria-describedby={error ? 'filter-error' : undefined} /></label>
       </div>
       <label className="catalogue-checkbox"><input name="inStockOnly" type="checkbox" defaultChecked={query.inStockOnly} />In stock only</label>
       {error && <p className="catalogue-field-error" id="filter-error" role="alert">{error}</p>}
@@ -64,12 +65,13 @@ function Filters({ query, categories }: { query: Search; categories: Category[] 
 }
 
 function Results({ query, title, home }: { query: Search; title: string; home: boolean }) {
+  useBrowseNavigation(query, title, home)
   const { data, error, loading, retry } = useCatalogue(`/products?${searchParams(query)}`, decodeProducts)
   const Heading = home ? 'h2' : 'h1'
   return <section className="catalogue-results" aria-labelledby="results-heading" aria-busy={loading}>
     <div className="catalogue-results-header">
-      <div><p className="catalogue-section-label">THE CATALOGUE</p><Heading id="results-heading">{title}</Heading>
-        <p className="catalogue-result-count" role="status">{loading ? 'Finding your products…' : data ? `${data.total_products} products${query.keyword ? ` matching “${query.keyword}”` : ''}` : 'Products unavailable'}</p>
+      <div><p className="catalogue-section-label">THE CATALOGUE</p><Heading id="results-heading" tabIndex={-1}>{title}</Heading>
+        <p className="catalogue-result-count" role="status" aria-atomic="true">{loading ? 'Finding your products…' : data ? resultSummary(data.total_products, data.page, data.total_pages, query.keyword) : 'Products unavailable'}</p>
       </div>
       <label className="catalogue-sort">Sort by<select value={query.sort} onChange={event => navigate({ ...query, sort: event.target.value as Search['sort'], page: 1 })}>
         {Object.entries(sorts).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
@@ -123,7 +125,7 @@ export default function CatalogueApp() {
       <a className="catalogue-brand" href={window.location.pathname} aria-label="BrightBuy home"><span className="catalogue-brand-mark">b.</span>BrightBuy<span className="catalogue-brand-dot">●</span></a>
       <form className="catalogue-search" role="search" onSubmit={search} key={location}>
         <label className="catalogue-visually-hidden" htmlFor="catalogue-keyword">Search products</label>
-        <input id="catalogue-keyword" name="keyword" type="search" defaultValue={query.keyword} placeholder="Search products, brands, or SKUs" aria-describedby={searchError ? 'search-error' : undefined} />
+        <input id="catalogue-keyword" name="keyword" type="search" defaultValue={query.keyword} placeholder="Search products, brands, or SKUs" aria-invalid={!!searchError} aria-describedby={searchError ? 'search-error' : undefined} />
         <button type="submit">Search <span aria-hidden="true">↗</span></button>
       </form>
       <span className="catalogue-header-note">The everyday collection</span>
@@ -131,7 +133,7 @@ export default function CatalogueApp() {
     <CategoryNavigation categories={categories.data} loading={categories.loading} error={categories.error}
       retry={categories.retry} currentCategoryId={!productId && !linkError ? query.categoryId : undefined} />
     {searchError && <p className="catalogue-field-error catalogue-search-error" id="search-error" role="alert">{searchError}</p>}
-    <main id="catalogue-content">
+    <main id="catalogue-content" tabIndex={-1}>
       {home && <section className="catalogue-hero" aria-labelledby="catalogue-heading">
         <div><p className="catalogue-section-label">WELCOME TO BRIGHTBUY</p><h1 id="catalogue-heading">Good finds.<br /><em>Everyday possibilities.</em></h1><p>Explore the collection. Find the details that make it yours.</p><a href="#results-heading">Explore products <span aria-hidden="true">↘</span></a></div>
         <div className="catalogue-hero-art" aria-hidden="true"><div className="catalogue-art-orbit" /><div className="catalogue-art-box"><PackageIcon /></div><span className="catalogue-art-caption">YOUR NEXT FIND</span><span className="catalogue-art-spark">✳</span></div>
