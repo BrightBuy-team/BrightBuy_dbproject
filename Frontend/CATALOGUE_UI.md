@@ -96,6 +96,13 @@ announcements include the count and page, with singular/empty wording. Invalid
 search and price fields expose `aria-invalid` alongside their existing error text.
 Product-detail titles retain their existing behaviour.
 
+Both **Reset all filters** and the empty-results **Clear search & filters**
+discard unsubmitted search/price/stock drafts and validation errors, even if the
+URL already contains the default filters. They return keyboard focus to results.
+Search errors belong to the current route and do not persist after category,
+sort, page or browser-history navigation. Applied query values are restored from
+the URL; the existing validation limits remain unchanged.
+
 ### Automated checks
 
 ```sh
@@ -156,3 +163,14 @@ screen. The team's actual MySQL 8 deployment still requires integration testing.
 - Still pending: a real team contact mailbox, shared account/cart navigation,
   working cart handoff and the agreed low-stock threshold.
 - No backend, database, shared app entry or teammate files changed.
+
+## Form-recovery milestone verification
+
+- 161 frontend tests passed; lint and both builds passed.
+- Browser checks with temporary mock data verified simultaneous search/price
+  errors followed by same-URL reset, stock checkbox reset, the empty-results reset,
+  search-error cleanup on category navigation, and applied price restoration on Back.
+- The header now owns its search error state. Route/reset keys recreate the header
+  and filter forms together, so stale drafts cannot survive an explicit reset.
+- No database, backend, shared entry or teammate files changed. Live integration,
+  cart/account contracts, the low-stock threshold and real contact details remain pending.

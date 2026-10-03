@@ -4,6 +4,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
 import { contactEmail } from '../src/catalogue/contact.ts'
+import { defaultSearch } from '../src/catalogue/search.ts'
 
 test('contact configuration accepts plain email addresses only', () => {
   assert.equal(contactEmail(' help@example.com '), 'help@example.com')
@@ -18,6 +19,7 @@ const vite = await createServer({ server: { middlewareMode: true, hmr: false, ws
 after(() => vite.close())
 const { default: CategoryNavigation } = await vite.ssrLoadModule('/src/catalogue/CategoryNavigation.tsx')
 const { default: CatalogueFooter } = await vite.ssrLoadModule('/src/catalogue/CatalogueFooter.tsx')
+const { default: CatalogueHeader } = await vite.ssrLoadModule('/src/catalogue/CatalogueHeader.tsx')
 const categories = [
   { category_id: 1, parent_category_id: null, name: 'Electronics' },
   { category_id: 4, parent_category_id: 1, name: 'Phones' },
@@ -27,6 +29,25 @@ const navigation = props => renderToStaticMarkup(createElement(CategoryNavigatio
   categories, loading: false, retry() {}, ...props,
 }))
 const footer = email => renderToStaticMarkup(createElement(CatalogueFooter, { email }))
+
+test('header restores the applied keyword with accessible search controls', () => {
+  const html = renderToStaticMarkup(createElement(CatalogueHeader, {
+    query: { ...defaultSearch, keyword: 'phone' }, homeHref: '/catalogue.html',
+  }))
+  assert.match(html, /href="\/catalogue.html"/)
+  assert.match(html, /role="search"/)
+  assert.match(html, /for="catalogue-keyword"/)
+  assert.match(html, /value="phone"/)
+  assert.match(html, /aria-invalid="false"/)
+  assert.doesNotMatch(html, /role="alert"/)
+})
+test('a fresh header escapes keyword text and starts without a stale error', () => {
+  const html = renderToStaticMarkup(createElement(CatalogueHeader, {
+    query: { ...defaultSearch, keyword: '<script>"&' }, homeHref: '/catalogue.html',
+  }))
+  assert.match(html, /value="&lt;script&gt;&quot;&amp;"/)
+  assert.doesNotMatch(html, /<script>|aria-describedby="search-error"/)
+})
 
 test('persistent navigation shows roots and clean category links', () => {
   const html = navigation({ currentCategoryId: '1' })
