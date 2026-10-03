@@ -2,9 +2,10 @@ import { useEffect } from 'react'
 import type { ProductDetail } from './api'
 import ProductImage from './ProductImage'
 import { catalogueHref } from './routes'
-import { defaultSearch, formatPrice } from './search'
+import { defaultSearch } from './search'
 import type { Search } from './search'
 import { useProductDetail } from './useCatalogue'
+import VariantSelection from './VariantSelection'
 
 export default function ProductDetailPage({ productId, query }: { productId: number; query: Search }) {
   const { data, error, status, loading, retry } = useProductDetail(productId)
@@ -26,10 +27,6 @@ type DetailViewProps = {
 
 export function ProductDetailView({ query, data, error, status, loading, retry }: DetailViewProps) {
   const backHref = catalogueHref(query)
-  const prices = data?.variants.map(variant => variant.price) ?? []
-  const minPrice = prices.length ? Math.min(...prices) : 0
-  const maxPrice = prices.length ? Math.max(...prices) : 0
-  const inStock = data?.variants.some(variant => variant.stock_quantity > 0)
 
   return <section className="catalogue-detail" aria-label="Product details" aria-busy={loading}>
     <a className="catalogue-back" href={backHref}>← Back to results</a>
@@ -46,9 +43,7 @@ export function ProductDetailView({ query, data, error, status, loading, retry }
         <p className="catalogue-section-label">PRODUCT DETAILS</p>
         <h1>{data.name}</h1>
         <p className="catalogue-sku">SKU: {data.sku}</p>
-        <p className={`catalogue-detail-stock ${inStock ? '' : 'unavailable'}`}>{inStock ? 'In stock' : 'Currently out of stock'}</p>
-        <p className="catalogue-detail-price">{formatPrice(minPrice)}{minPrice !== maxPrice && ` – ${formatPrice(maxPrice)}`}</p>
-        <p className="catalogue-fine-print">Price range across all {data.variants.length} {data.variants.length === 1 ? 'variant' : 'variants'}. Prices are in catalogue units; currency is not yet specified.</p>
+        <VariantSelection key={data.product_id} variants={data.variants} />
         <h2>About this product</h2>
         <p className="catalogue-description">{data.description?.trim() ? data.description : 'No description is available for this product yet.'}</p>
         {data.categories.length > 0 && <>

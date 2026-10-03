@@ -100,6 +100,12 @@ body { margin: 0; }
 .catalogue-detail-content h2 { font-size: 17px; margin: 28px 0 12px; }
 .catalogue-detail-stock { display: inline-block; background: #e7eee4; color: #235739; border-radius: 4px; padding: 5px 10px; margin: 22px 0 12px !important; font-size: 12px; }
 .catalogue-detail-stock.unavailable { color: #895231; background: #f4ebe2; }
+.catalogue-detail-stock.low { color: #714b09; background: #fff1cd; }
+.catalogue-variant-selection { margin-top: 24px; display: grid; gap: 12px; min-width: 0; }
+.catalogue-variant-selection label { font-size: 13px; font-weight: 650; }
+.catalogue-variant-selection select, .catalogue-variant-selection input { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: white; }
+.catalogue-variant-selection input { max-width: 140px; }
+.catalogue-default-variant { overflow-wrap: anywhere; font-size: 13px; }
 .catalogue-detail-price { font-size: 27px; font-weight: 650; overflow-wrap: anywhere; }
 .catalogue-detail-content .catalogue-fine-print { margin-top: 8px !important; }
 .catalogue-description { white-space: pre-line; overflow-wrap: anywhere; color: #52675b; line-height: 1.8; }

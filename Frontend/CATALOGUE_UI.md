@@ -20,11 +20,26 @@ parameters. Direct links, refresh, browser history and opening in a new tab
 work with normal links. Back to results preserves search, filters, sorting and
 page. Category links from details start a fresh browse of that category.
 
-The page shows name, SKU, description, image/fallback, categories, the price
-range across **all** variants, and whether any variant is in stock. Prices on
-a filtered browse card may cover fewer variants than the detail range.
-No currency is assumed. Variant selection and cart actions are not implemented
-in this milestone.
+The page shows name, SKU, description, image/fallback and categories. A variant
+selector displays the available colour/memory combinations, including zero-stock
+choices. Selecting an option immediately changes its USD price, stock status and
+available quantity without a reload, and resets quantity to 1. A single default
+variant is selected automatically without showing a selector. Browse cards retain
+their matching-variant price ranges; all prices show USD with two decimal places
+as required by SRS AS-12.
+
+Quantity must be a positive whole number no greater than the selected stock;
+invalid input displays an inline error. Quantity is disabled for zero stock.
+The Add to Cart button remains disabled **for all variants** with an explicit
+integration-pending message: there is no cart implementation/contract yet. No
+local/session cart, backend mutation or stock reservation is performed. UI-3's
+working Add to Cart requirement remains unfinished pending checkout integration.
+
+Low-stock threshold is SRS TBD-5. Set `VITE_CATALOGUE_LOW_STOCK_THRESHOLD` to
+the agreed positive integer before starting/building Vite. A positive stock value
+at or below that threshold displays Low Stock; zero displays Out of Stock.
+Unset/invalid values use only In Stock/Out of Stock without guessing a threshold.
+This is public display configuration, not a security or checkout stock check.
 
 Loading is announced; invalid IDs are rejected before a detail request.
 Missing/inactive products show an unavailable state with a return link.
@@ -51,3 +66,12 @@ Manual checks: open a product from filtered results, return and check the
 filters/page, refresh a detail link, browse a category from details, check
 an inactive/missing ID, retry after a connection failure, and check a narrow
 screen. The team's actual MySQL 8 deployment still requires integration testing.
+
+## Variant-selection milestone verification
+
+- 134 frontend tests passed; lint and both builds passed.
+- Browser checks with temporary mock data verified USD price changes between
+  variants, zero-stock disabling, Low Stock with an explicit test-only threshold
+  of 5, and excessive-quantity feedback. This is not a live backend/MySQL test.
+- Still pending: working cart handoff, agreed low-stock threshold, featured Home
+  content, shared navigation/account/cart integration and required footer details.

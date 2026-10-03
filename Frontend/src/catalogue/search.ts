@@ -73,6 +73,6 @@ export function searchParams(query: Search): URLSearchParams {
 export const defaultSearch = parseSearch(new URLSearchParams())
 
 export function formatPrice(price: number): string {
-  // The database has no currency field. Do not invent a currency symbol.
-  return new Intl.NumberFormat('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
+  // SRS AS-12: Phase 1 prices are USD, including browse cards and details.
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', currencyDisplay: 'code', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
 }
