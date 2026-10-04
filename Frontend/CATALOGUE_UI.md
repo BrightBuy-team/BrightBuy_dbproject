@@ -266,5 +266,28 @@ do not introduce a second local cart or catalogue stock-decrement logic.
    system with the team. Verify order/stock results and failed-checkout behaviour
    with the owners, and record actual results in the work log.
 
-These integration checks remain pending. The 161 frontend tests and mock-browser
-checks validate catalogue behaviour, not the combined website or live checkout.
+The catalogue-only parts of steps 2–3 have now been verified against real MySQL
+8.0.46; the full-team setup and steps 4–5 remain pending. Checkout code now includes
+`POST /api/checkout` and `CartItemDto(variantId, quantity)`, but that endpoint
+performs checkout: it is not an add/read-cart interface and must not be called
+by the catalogue's Add to Cart button.
+
+## Live catalogue verification — 2026-10-04
+
+- 161 frontend tests, lint and both builds passed.
+- The real frontend → catalogue API → MySQL 8.0.46 flow was checked using a fresh
+  disposable catalogue-only database: 39 visible products, six featured products,
+  page 2 of 4, combined keyword/category/price/stock filters and price sorting.
+- The combined Nova Phone filter returned one matching variant at USD 449.00.
+  Detail variant selection changed the price from USD 399.00 to USD 449.00;
+  quantity 25 correctly failed against stock 24, and Back to results preserved filters.
+- Empty search, inactive product 40, and zero-stock product 38 displayed the
+  expected states. Zero-stock quantity input stayed disabled. The detail page
+  fit at 360px without horizontal overflow. Add to Cart remains explicitly disabled.
+- Backend verification passed all 77 tests (including six live database tests)
+  with no skips; the SQL regression passed 126 assertions. See
+  [the backend record](../Backend/CATALOGUE_API.md#live-catalogue-verification--2026-10-04)
+  for environment and reproduction prerequisites.
+- Still pending: real cart/account handoff, the Low Stock threshold, real contact
+  mailbox, deployment configuration, representative performance testing and full
+  purchase-flow verification with the owners. No cart/order/payment was created.

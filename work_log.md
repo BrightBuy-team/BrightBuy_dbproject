@@ -37,15 +37,16 @@ Updated: 2026-10-04. Status reflects this local checkout, not unmerged teammate 
 - Added persistent category navigation and delivery/payment information. Contact is explicitly a non-working demo address.
 - Added loading, retry, empty-result and unavailable-product states; safe API response handling; keyboard focus and result announcements.
 - Fixed form-reset/stale-error behaviour and long-content layouts, checked at 360, 390, 768 and 1280px.
-- Latest frontend milestone verification: 161 tests, lint and both builds passed. Browser checks used mock data, not the full live team system.
+- Latest verification: 161 frontend tests, lint and both builds passed; live browser checks used the real catalogue API and isolated MySQL 8.0.46, not mock responses.
+- Passed all 77 backend tests with no skips, including six real HTTP/MySQL tests, and 126 catalogue SQL assertions. Added checks for restricted database UPDATE permission and live HTTP CORS/write denial.
 
 ### Remaining
 
 - Agree on the cart contract with Adeesha, then wire Add to Cart and cart-count updates. The button is currently disabled; nothing is saved or reserved.
 - Agree on account/cart routes and authentication integration with their owners; connect the shared website navigation.
 - Obtain the agreed Low Stock threshold and a real contact mailbox before final deployment.
-- Coordinate the reporting build repairs below with Senadheera, then run live frontend/API checks on the team's MySQL 8 setup and full checkout/stock integration checks.
-- Record final end-to-end results. Earlier isolated database/backend checks do not establish that the latest combined application works.
+- Coordinate the reporting build repairs below with Senadheera and confirm the team's deployment MySQL version, database permissions and allowed frontend origins.
+- Complete full-team cart/auth/checkout/stock verification and representative performance testing. The successful catalogue-only live checks do not establish that the combined purchase flow works.
 
 ### Integration Notes
 
@@ -53,6 +54,8 @@ Updated: 2026-10-04. Status reflects this local checkout, not unmerged teammate 
 - The current root `/` entry mounts the catalogue; `/catalogue.html` also remains available. This is not yet a fully integrated multi-module website.
 - Catalogue reads stock; inventory and checkout own stock updates.
 - Owner questions, acceptance checks and the next implementation order are in [the catalogue handoff checklist](Frontend/CATALOGUE_UI.md#integration-handoff-checklist).
+- Checkout now has `POST /api/checkout` with variant/quantity items; this is not an Add to Cart interface. Do not create orders when a user adds an item to a cart.
+- The fresh `brightbuy-catalogue-final8` verification container was stopped and retained, with existing containers untouched. Test credentials were not committed. Details: [live verification record](Backend/CATALOGUE_API.md#live-catalogue-verification--2026-10-04).
 
 ### Shared backend build repairs — 2026-10-04
 
