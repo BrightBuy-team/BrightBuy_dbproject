@@ -12,14 +12,14 @@ public class SalesSummaryJob {
 
     private final JdbcTemplate jdbcTemplate;
 
-    public SalesSummaryJob(JdbcTemplate jdbcTemp) {
-        this.jdbcTemp = jdbcTemp;
+    public SalesSummaryJob(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
     @Scheduled(cron = "0 5 0 * * *")
     public void updateYesterdaySummary() {
-        log.info("Running sp_update_sales_summary...");
+        log.info("Running sp_populate_sales_summary for the previous 7 days...");
         jdbcTemplate.update("CALL sp_populate_sales_summary(?)", 7);
-        log.info("sp_update_sales_summary completed.");
+        log.info("sp_populate_sales_summary completed.");
     }
 }

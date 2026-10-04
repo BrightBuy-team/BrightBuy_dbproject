@@ -243,12 +243,14 @@ do not introduce a second local cart or catalogue stock-decrement logic.
 
 ### Live verification gate and implementation order
 
-1. Have the relevant owners repair the shared backend build. Current source
-   blockers include duplicate `com.brightbuy.backend.BackendApplication` classes,
-   the missing scheduling import in the root class, reporting's
-   `SalesSummary.java`/`SalesSummaryJob` naming and field mismatch, and the missing
-   `ReportService` referenced by `ReportController`. These files were not changed
-   for catalogue handoff. This list is source inspection, not a fresh build result.
+1. Shared compilation blockers were repaired on 2026-10-04 with permission to
+   edit the overlapping reporting files: one root application entry remains,
+   scheduling has its import, `SalesSummaryJob.java` has the matching filename
+   and constructor assignment, and the missing `ReportService` delegates all five
+   existing report calls. Confirm these changes with the reporting owner before
+   merging overlapping work. Full Maven verification/package passed using a
+   temporary in-memory H2 database: 71 tests passed, 4 live-MySQL tests skipped.
+   This does not validate report SQL, database row mapping or live checkout.
 2. Prepare a separate disposable MySQL 8 instance using the documented owner
    prerequisites and [catalogue setup order](../Database/Catalogue/README.md).
    Never point fixture-dependent tests at the shared database. Use the
