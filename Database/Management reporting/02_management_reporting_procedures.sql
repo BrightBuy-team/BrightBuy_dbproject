@@ -37,9 +37,9 @@ Begin
 	FROM(
 		SELECT 
 			QUARTER(o.order_date) AS quarter_num,
-			COUNT(DISTINCT 0.order_id) AS order_count
+			COUNT(DISTINCT o.order_id) AS order_count
 		FROM orders AS o
-		WHERE YEAR(o.order_date) = p_year AND o.order_state NOT IN ('Cancelled')
+		WHERE YEAR(o.order_date) = p_year AND o.order_status NOT IN ('Cancelled')
 		GROUP BY QUARTER(o.order_date)
 	) AS oc
 	JOIN(
@@ -142,11 +142,11 @@ BEGIN
 	LEFT JOIN (
 		SELECT
 			customer_id,
-			SUM(total_amount) AS lifetime_spend,
-		FROM order
+			SUM(total_amount) AS lifetime_spend,\
+		FROM orders
 		GROUP BY customer_id
 	) AS os 
-	ON ps.customer_id = cu.customer_id
+	ON ps.customer_id = os.customer_id
 	LEFT JOIN (
 		SELECT
 			o.customer_id,
