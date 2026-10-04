@@ -8,8 +8,9 @@ npm run dev -- --port 5173 --strictPort
 ```
 
 Open `http://localhost:5173/catalogue.html` through the development server,
-not by opening the HTML file with a `file://` URL. The shared `/` starter is
-unchanged. If needed, set `VITE_CATALOGUE_API_URL` to the full catalogue API
+not by opening the HTML file with a `file://` URL. The current root `/` entry
+also mounts `CatalogueApp`; the unused `App.tsx` starter is not the active entry.
+If needed, set `VITE_CATALOGUE_API_URL` to the full catalogue API
 base URL before starting Vite; its default is `http://localhost:8080/api/catalogue`.
 Keep credentials out of frontend environment variables.
 
@@ -27,7 +28,7 @@ details with the default browse return context. Search, category/price/stock
 filters, non-default sorting/pagination, details and invalid links hide the
 Home-only sections. Resetting to default browse restores them. Each section has
 independent loading, retry and empty states; a failed featured request does not
-hide normal browse results. The shared `/` starter remains untouched.
+hide normal browse results. Other modules still need an agreed shared navigation.
 
 ## Persistent navigation and footer
 
@@ -115,7 +116,7 @@ npx vite build --config vite.catalogue.config.ts
 Use a Node release supporting native TypeScript stripping (validated with
 Node 26). The rendering tests use the existing Vite/React dependencies, without
 opening a browser or connecting to the backend. API tests mock HTTP responses.
-The default build retains the shared starter; the separate catalogue build
+The default build uses the current root catalogue entry; the separate catalogue build
 outputs to `dist/catalogue`. Run the shared build before the catalogue build,
 because the shared build clears `dist`.
 
@@ -190,3 +191,78 @@ screen. The team's actual MySQL 8 deployment still requires integration testing.
   not edits to shared seed data. Confirm keyboard focus remains visible.
 - 161 frontend tests, lint and both builds passed. Only catalogue CSS and this
   guide changed; cart/account integration is still pending.
+
+## Integration handoff checklist
+
+Checked against the local source tree on 2026-10-04. No cart/auth application
+interface is present here yet; this does not describe unmerged teammate work.
+The items below are questions and acceptance criteria, not invented endpoints
+or an agreed API contract. No messages have been sent to teammates.
+
+### Needed from Adeesha — cart and checkout
+
+- [ ] Provide the cart UI route and the add/read-cart interface: HTTP method/path
+  or frontend function, exact field names, response shape, and an example.
+- [ ] Confirm whether adding a selected variant uses its existing `variant_id`
+  and a quantity increment or an absolute total. Catalogue already has the
+  selected variant ID and a validated positive whole-number quantity.
+- [ ] Confirm guest-cart/session behaviour, persistence across refresh, login
+  merging, and any cookies/CSRF requirements with the authentication owner.
+- [ ] Define cart badge meaning (total units or distinct lines), success feedback,
+  and how unavailable stock, invalid variants, timeouts and repeated submissions
+  are reported. Agree on error codes before implementing frontend handling.
+- [ ] Confirm that the server validates current price/stock and owns stock writes.
+  Displayed prices/stock are snapshots, not trusted checkout inputs or reservations.
+
+Once agreed, catalogue work is to connect the selected variant/quantity, show
+pending/success/failure feedback, prevent duplicate in-flight submissions, and
+refresh the cart count. Keep Add to Cart disabled until the real handoff works;
+do not introduce a second local cart or catalogue stock-decrement logic.
+
+### Needed from Atapattu — account and security
+
+- [ ] Supply login/register/account routes and the session-status interface.
+- [ ] Agree with checkout on guest-cart ownership, login transitions and CSRF.
+- [ ] Integrate the existing catalogue security chain (order 10) and authenticated
+  fallback. Public catalogue reads must remain public; unrelated routes must
+  remain protected. Catalogue GET requests currently omit credentials, and its
+  CORS allowlist does not permit credentialed requests. Do not reuse that policy
+  as the cart authentication policy without an explicit design.
+
+### Needed from Nirmal and the team
+
+- [ ] Agree on the positive integer Low Stock threshold (SRS TBD-5); configure
+  `VITE_CATALOGUE_LOW_STOCK_THRESHOLD`. Until then only In Stock/Out of Stock
+  are shown. This display setting is not stock validation.
+- [ ] Confirm stock ownership and warehouse assumptions with inventory/checkout
+  before the combined test. Catalogue must remain read-only.
+- [ ] Provide an owned contact mailbox for `VITE_BRIGHTBUY_CONTACT_EMAIL`.
+  `support@brightbuy.example` is a labelled demo address, not a working service.
+- [ ] Agree on shared account/cart navigation. Both `/` and `/catalogue.html`
+  currently open catalogue; no additional routes are being fabricated here.
+
+### Live verification gate and implementation order
+
+1. Have the relevant owners repair the shared backend build. Current source
+   blockers include duplicate `com.brightbuy.backend.BackendApplication` classes,
+   the missing scheduling import in the root class, reporting's
+   `SalesSummary.java`/`SalesSummaryJob` naming and field mismatch, and the missing
+   `ReportService` referenced by `ReportController`. These files were not changed
+   for catalogue handoff. This list is source inspection, not a fresh build result.
+2. Prepare a separate disposable MySQL 8 instance using the documented owner
+   prerequisites and [catalogue setup order](../Database/Catalogue/README.md).
+   Never point fixture-dependent tests at the shared database. Use the
+   [backend instructions](../Backend/CATALOGUE_API.md#tests) to enable real DB
+   tests; keep credentials outside Git and record the exact MySQL version.
+3. Verify real categories, search, combined filters, pagination, product detail,
+   variant price/stock, empty results and error recovery in the browser.
+4. After the owners supply the contracts above, implement cart/account handoff
+   in one reviewable milestone. Test guest and signed-in behaviour, repeated adds,
+   stock changed since page load, failed requests and refresh persistence with
+   the cart owner. Do not claim purchase completion from an Add to Cart response.
+5. Run browse → detail → variant/quantity → cart → checkout on that disposable
+   system with the team. Verify order/stock results and failed-checkout behaviour
+   with the owners, and record actual results in the work log.
+
+These integration checks remain pending. The 161 frontend tests and mock-browser
+checks validate catalogue behaviour, not the combined website or live checkout.

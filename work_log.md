@@ -25,21 +25,31 @@
 
 ## Catalogue & Search — Kavindu Mihisara
 
+Updated: 2026-10-04. Status reflects this local checkout, not unmerged teammate branches.
+
 ### Completed
+
 - Created catalogue tables, indexes, constraints, and variant integration.
 - Added sample data covering 40 products, 10 categories, and 48 variants.
 - Implemented SQL procedures and backend APIs for product search, filtering, sorting, pagination, categories, and product details.
-- Built the catalogue Home/Browse UI with loading, error, empty-result, and stock states.
-- Added frontend product-detail API types, response validation, and error handling.
-- Latest frontend checks: all 100 tests, lint, and both builds passed.
+- Built Home with top-level categories and up to six newest in-stock featured products, plus catalogue browsing/search/filtering/sorting/pagination.
+- Built Product Detail with variant selection, immediate USD price/stock updates, quantity validation, image fallback, and browse-return links.
+- Added persistent category navigation and delivery/payment information. Contact is explicitly a non-working demo address.
+- Added loading, retry, empty-result and unavailable-product states; safe API response handling; keyboard focus and result announcements.
+- Fixed form-reset/stale-error behaviour and long-content layouts, checked at 360, 390, 768 and 1280px.
+- Latest frontend milestone verification: 161 tests, lint and both builds passed. Browser checks used mock data, not the full live team system.
 
 ### Remaining
-- Product Detail page and variant-selection UI.
-- Cart handoff coordination with the checkout owner.
-- Integration into shared frontend navigation.
-- Final end-to-end testing and verification on the team’s MySQL 8 setup.
+
+- Agree on the cart contract with Adeesha, then wire Add to Cart and cart-count updates. The button is currently disabled; nothing is saved or reserved.
+- Agree on account/cart routes and authentication integration with their owners; connect the shared website navigation.
+- Obtain the agreed Low Stock threshold and a real contact mailbox before final deployment.
+- Resolve shared backend build blockers with the relevant owners, then run live frontend/API checks on the team's MySQL 8 setup and full checkout/stock integration checks.
+- Record final end-to-end results. Earlier isolated database/backend checks do not establish that the latest combined application works.
 
 ### Integration Notes
+
 - Backend routes: `/api/catalogue/products`, `/api/catalogue/products/{id}`, `/api/catalogue/categories`.
-- Frontend currently uses the separate `/catalogue.html` entry.
+- The current root `/` entry mounts the catalogue; `/catalogue.html` also remains available. This is not yet a fully integrated multi-module website.
 - Catalogue reads stock; inventory and checkout own stock updates.
+- Owner questions, acceptance checks and the next implementation order are in [the catalogue handoff checklist](Frontend/CATALOGUE_UI.md#integration-handoff-checklist).
