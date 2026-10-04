@@ -1,9 +1,10 @@
 DELIMITER //
+DROP PROCEDURE IF EXISTS ProcessCheckout//
 
 CREATE PROCEDURE ProcessCheckout(
     IN p_customer_id INT,
     IN p_cart_json JSON,
-    OUT p_status VARCHAR(50)
+    OUT p_status VARCHAR(255)
 )
 BEGIN
     -- Declare Variables 
@@ -17,11 +18,15 @@ BEGIN
     DECLARE v_invalid_quantities INT DEFAULT 0;
     DECLARE v_valid_db_variants INT DEFAULT 0;
 
+    DECLARE v_error_msg TEXT;
+
     -- Declare an exit handler for SQL errors to guarantee atomicity
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN   
+        -- Capture the exact MySQL error message
+        GET DIAGNOSTICS CONDITION 1 v_error_msg = MESSAGE_TEXT;
         ROLLBACK;
-        SET p_status = 'SQL_ERROR';
+        SET p_status = CONCAT('SQL_ERROR: ', v_error_msg);
     END;
 
     -- Check 1: Reject empty carts immediately
@@ -35,8 +40,8 @@ BEGIN
         SELECT 
             COUNT(*), 
             COUNT(DISTINCT variant_id),
-            SUM(CASE WHEN quantity IS NULL OR quantity <= 0 THEN 1 ELSE 0 END)
-        INTO 
+            COUNT(CASE WHEN quantity IS NULL OR quantity <= 0 THEN 1 END)
+        INTO
             v_cart_count, v_distinct_variants, v_invalid_quantities
         FROM JSON_TABLE(
             p_cart_json, 
@@ -54,9 +59,9 @@ BEGIN
             SET p_status = 'DUPLICATE_VARIANTS_IN_CART';
             ROLLBACK;
         ELSE
-            -- Apply row-level locks on the requested variants
+            -- Apply row-level locks safely by redirecting output to a dummy variable
             -- This prevents other users from buying these items until transaction is complete
-            SELECT variant_id
+            SELECT COUNT(variant_id) INTO @dummy_lock
             FROM variant
             WHERE variant_id IN (
                 SELECT variant_id 
