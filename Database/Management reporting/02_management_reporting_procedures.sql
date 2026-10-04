@@ -2,7 +2,7 @@ DELIMITER //
 
 -- inserting values to sales_summary table
 
-CREATE PROCEDURE sp_populate_sales_summary()
+CREATE PROCEDURE sp_populate_sales_summary(IN p_days_back INT)
 BEGIN
     INSERT INTO sales_summary(variant_id, summary_date, units_sold, total_revenue, order_count)
     SELECT
@@ -13,14 +13,15 @@ BEGIN
         COUNT(DISTINCT o.order_id)
     FROM order_item oi
     JOIN orders o ON o.order_id = oi.order_id
-    WHERE DATE(o.order_date) = CURDATE() - INTERVAL 1 DAY
+    WHERE DATE(o.order_date) >= CURDATE() - INTERVAL p_days_back DAY
+      AND DATE(o.order_date) < CURDATE()
       AND o.order_status NOT IN ('Cancelled')
     GROUP BY oi.variant_id, DATE(o.order_date)
     ON DUPLICATE KEY UPDATE
         units_sold = VALUES(units_sold),
         total_revenue = VALUES(total_revenue),
         order_count = VALUES(order_count);
-END //
+END//
 
 -- Quarterly sales report
 
@@ -30,13 +31,27 @@ Begin
 	VALUES(p_employee_id, 'quarterly_sales_report');
 
 	SELECT 
-	    QUARTER(ss.summary_date) AS quarter,
-		SUM(ss.order_count) AS order_count,
-		SUM(ss.total_revenue) AS total_revenue
-	FROM sales_summary AS ss
-	WHERE YEAR(ss.summary_date) = p_year
-	GROUP BY QUARTER(ss.summary_date)
-	ORDER BY quarter;
+		oc.quarter_num AS quater,
+		oc.order_count,
+		rv.total_revenue
+	FROM(
+		SELECT 
+			QUARTER(o.order_date) AS quarter_num,
+			COUNT(DISTINCT o.order_id) AS order_count
+		FROM orders AS o
+		WHERE YEAR(o.order_date) = p_year AND o.order_status NOT IN ('Cancelled')
+		GROUP BY QUARTER(o.order_date)
+	) AS oc
+	JOIN(
+		SELECT 
+			QUARTER(ss.summary_date) AS quarter_num,
+			SUM(ss.total_revenue) AS total_revenue
+		FROM sales_summary AS ss
+		WHERE YEAR(ss.summary_date) = p_year
+		GROUP BY QUARTER(ss.summary_date)
+	) AS rv
+	ON oc.quarter_num = rv.quarter_num
+	ORDER BY oc.quarter_num;
 END//
 
 -- Top selling products report
@@ -121,13 +136,27 @@ BEGIN
 		cu.customer_id,
 		cu.first_name,
 		cu.last_name,
-		SUM(o.total_amount) AS lifetime_spend,
-		GROUP_CONCAT(DISTINCT p.payment_status) AS payment_status
+		os.lifetime_spend,
+		ps.payment_statuses
 	FROM customer cu
-	JOIN orders o ON o.customer_id = cu.customer_id
-	LEFT JOIN payment p ON p.order_id = o.order_id
-	GROUP BY cu.customer_id, cu.first_name, cu.last_name
-	ORDER BY lifetime_spend DESC;
+	LEFT JOIN (
+		SELECT
+			customer_id,
+			SUM(total_amount) AS lifetime_spend,\
+		FROM orders
+		GROUP BY customer_id
+	) AS os 
+	ON ps.customer_id = os.customer_id
+	LEFT JOIN (
+		SELECT
+			o.customer_id,
+			GROUP_CONCAT(DISTINCT p.payment_status) AS payment_statuses
+		FROM orders o
+		LEFT JOIN payment p ON p.order_id = o.order_id
+		GROUP BY o.customer_id
+	) AS ps
+	ON ps.customer_id = cu.customer_id
+	ORDER BY os.lifetime_spend DESC;
 END//
 
 DELIMITER ;
