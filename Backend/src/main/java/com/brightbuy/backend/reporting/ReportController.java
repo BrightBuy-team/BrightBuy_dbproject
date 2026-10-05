@@ -7,9 +7,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/reports")
 public class ReportController {
-    private final ReportService rService;
+    private final ReportRepository rService;
 
-    public ReportController(ReportService rService) {
+    public ReportController(ReportRepository rService) {
         this.rService = rService;
     }
 
