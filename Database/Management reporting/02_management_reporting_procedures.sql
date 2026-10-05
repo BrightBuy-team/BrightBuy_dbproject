@@ -4,6 +4,24 @@ DELIMITER //
 
 CREATE PROCEDURE sp_populate_sales_summary(IN p_days_back INT)
 BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    IF p_days_back IS NULL OR p_days_back < 1 THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'p_days_back must be a positive number';
+    END IF;
+
+    START TRANSACTION;
+
+    -- Rebuild the window so cancellations and edits cannot leave stale totals.
+    DELETE FROM sales_summary
+    WHERE summary_date >= CURDATE() - INTERVAL p_days_back DAY
+      AND summary_date < CURDATE();
+
     INSERT INTO sales_summary(variant_id, summary_date, units_sold, total_revenue, order_count)
     SELECT
         oi.variant_id,
@@ -13,14 +31,16 @@ BEGIN
         COUNT(DISTINCT o.order_id)
     FROM order_item oi
     JOIN orders o ON o.order_id = oi.order_id
-    WHERE DATE(o.order_date) >= CURDATE() - INTERVAL p_days_back DAY
-      AND DATE(o.order_date) < CURDATE()
+    WHERE o.order_date >= CURDATE() - INTERVAL p_days_back DAY
+      AND o.order_date < CURDATE()
       AND o.order_status NOT IN ('Cancelled')
     GROUP BY oi.variant_id, DATE(o.order_date)
     ON DUPLICATE KEY UPDATE
         units_sold = VALUES(units_sold),
         total_revenue = VALUES(total_revenue),
         order_count = VALUES(order_count);
+
+    COMMIT;
 END//
 
 -- Quarterly sales report
@@ -136,7 +156,7 @@ BEGIN
 		cu.customer_id,
 		cu.first_name,
 		cu.last_name,
-		os.lifetime_spend,
+		COALESCE(os.lifetime_spend, 0) AS lifetime_spend,
 		ps.payment_statuses
 	FROM customer cu
 	LEFT JOIN (
