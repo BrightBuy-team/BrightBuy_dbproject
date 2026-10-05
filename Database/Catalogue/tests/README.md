@@ -5,23 +5,26 @@ fixtures: forty products, ten categories, forty-eight variants and eighty mappin
 or application backend is required. Do not change the team's shared database.
 
 Before preparing a fresh instance, read the [fresh-install blockers](../README.md#fresh-install-blockers-to-resolve-with-the-owners).
-The inventory files are now under `Database/Inventory & Delivery/`, and the
-shared seed also inserts deliveries that need checkout tables and orders
-101–104. The tests do not supply those dependencies. Do not continue after a
-failed setup script or treat the historical MySQL 9.7.1 results as a successful
-run of the current combined installer.
+Inventory files now live under `Database/Inventory/`. For the current merged
+schema, start with [the inventory bridge guide](INVENTORY_BRIDGE.md): it has
+the current catalogue-only commands and a **126-assertion MySQL 8.0.46 pass**
+record (19 bridge, 32 foundation, 67 procedure and 8 seed-safety assertions).
+It deliberately excludes auth/checkout/delivery and inventory triggers.
+Do not continue after a failed setup script or treat a catalogue-only pass as
+a successful run of the whole-project installer.
 
 Checkout's corrected schema is now `Database/Checkout/01_checkout_schema.sql`.
-The customer schema and required order fixtures are still missing from this
-checkout; `03_checkout_seed_data.sql` does not supply a compatible combined
-dataset. Follow the parent README's prerequisite stop before step 6.
-The unmerged inventory update has different fixtures, foreign-key behavior,
-stock constraints and triggers: see the
-[pending inventory integration checklist](../README.md#pending-inventory-branch-integration)
-before applying it. The existing test results do not validate that branch.
+The customer schema is still missing and inventory/checkout both define
+delivery; `03_checkout_seed_data.sql` does not supply a compatible combined
+dataset. See the [merged inventory checklist](../README.md#merged-inventory-integration).
+Inventory's live sample seed now inserts only cities and warehouses; its
+variant/delivery INSERTs are commented out. Orders 101–104 are a legacy seed
+requirement, not a prerequisite for the current inventory sample seed.
 
-For a catalogue-only environment without those checkout dependencies, see
-[isolated MySQL 8 Docker validation](MYSQL8_DOCKER.md). On 2026-09-26, both
+The older instructions and counts below, including references to the removed
+`Inventory & Delivery` directory, describe historical/legacy setups. Use the
+bridge guide above for a fresh current-schema run. The historical
+[isolated MySQL 8 Docker validation](MYSQL8_DOCKER.md) records that on 2026-09-26 both
 suites passed on MySQL **8.0.46** (97 assertions), including after installer
 reruns. The record explains the deliberately limited shared-seed subset and
 why this does not verify the full-project installer or case-sensitive setup.

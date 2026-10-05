@@ -24,17 +24,21 @@ test('loading state is announced and marks the detail region busy', () => {
   assert.match(html, /role="status">Loading product details/)
   assert.doesNotMatch(html, /Try again/)
 })
-test('loaded detail shows product, SKU, description, categories and full variant price range', () => {
+test('loaded detail shows product details and the selected variant price', () => {
   const html = render({ data })
-  for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', '100.00', '150.00', 'In stock', 'Image coming soon']) assert.ok(html.includes(text), text)
+  for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', 'USD', '100.00', 'In Stock', 'Image coming soon']) assert.ok(html.includes(text), text)
   assert.match(html, /categoryId=4/)
-  assert.doesNotMatch(html, /Add to cart|<select|<button/)
+  assert.match(html, /<select id="catalogue-variant"/)
+  assert.match(html, /Cart integration is not available yet/)
+  assert.doesNotMatch(html, /150.00|currency is not yet specified/)
 })
 test('single-price and fully out-of-stock products remain readable', () => {
   const html = render({ data: { ...data, variants: [{ variant_id: 1, price: 0, stock_quantity: 0 }] } })
-  assert.match(html, /Currently out of stock/)
+  assert.match(html, /Out of Stock/)
   assert.match(html, /0.00/)
   assert.doesNotMatch(html, /Product unavailable| – /)
+  assert.doesNotMatch(html, /<select/)
+  assert.match(html, /Default variant/)
 })
 test('missing description and empty categories have useful fallbacks', () => {
   const html = render({ data: { ...data, description: ' ', categories: [] } })

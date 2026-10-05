@@ -132,8 +132,8 @@ BEGIN
     CALL catalogue_test_assert(
         (SELECT COUNT(*) FROM information_schema.referential_constraints
          WHERE constraint_schema = DATABASE() AND table_name = 'variant'
-           AND constraint_name = 'fk_variant_product'
-           AND update_rule = 'CASCADE' AND delete_rule = 'RESTRICT') = 1,
+           AND referenced_table_name = 'product'
+           AND update_rule = 'CASCADE' AND delete_rule IN ('RESTRICT', 'NO ACTION')) = 1,
         'foreign-key update/delete actions');
 
     CALL catalogue_test_assert(

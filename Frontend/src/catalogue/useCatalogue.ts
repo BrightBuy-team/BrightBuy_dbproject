@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { CatalogueHttpError, requestCatalogue, requestProductDetail } from './api'
 import type { Search } from './search'
 import { searchParams } from './search'
+import { browseTitle } from './browsePresentation'
 
 const apiBase = import.meta.env.VITE_CATALOGUE_API_URL || 'http://localhost:8080/api/catalogue'
 
@@ -41,6 +42,23 @@ function subscribe(callback: () => void) {
 export function useSearchLocation() {
   return useSyncExternalStore(subscribe, () => window.location.search, () => '')
 }
+
+export function useBrowseNavigation(query: Search, title: string, home: boolean) {
+  const queryKey = searchParams(query).toString()
+  const previousQuery = useRef(queryKey)
+  const pageTitle = browseTitle(query, title, home)
+  useEffect(() => {
+    document.title = pageTitle
+    return () => { document.title = 'BrightBuy · Catalogue' }
+  }, [pageTitle])
+  useEffect(() => {
+    // Move focus only after a browse change, never on initial load or API completion.
+    // This also covers Back/Forward without stealing focus when category names arrive.
+    if (previousQuery.current !== queryKey) document.getElementById('results-heading')?.focus()
+    previousQuery.current = queryKey
+  }, [queryKey])
+}
+
 export function navigate(query: Search) {
   window.history.pushState(null, '', `${window.location.pathname}?${searchParams(query)}`)
   window.dispatchEvent(new PopStateEvent('popstate'))
