@@ -1,6 +1,6 @@
 #Stage 1 - Build the Application 
 #pull a base image that contains Java 25 and standard Linux
-FROM eclipse-termurin:25-jdk AS builder
+FROM eclipse-temurin:25-jdk AS builder
 
 #create a directory inside rge dcontainer called /app and move in to it
 WORKDIR /app
@@ -29,7 +29,7 @@ RUN ./mvnw clean package -DskipTests
 
 # Start a fresh, new stage using a smaller image (JRE instead of JDK)
 # because only need to RUN  the code now , compile it 
-FROM eclipse-termurin:25-jre
+FROM eclipse-temurin:25-jre
 
 #Move into the /app directory in this new stage 
 WORKDIR /app
