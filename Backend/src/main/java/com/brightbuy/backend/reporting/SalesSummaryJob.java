@@ -13,7 +13,7 @@ public class SalesSummaryJob {
     private final JdbcTemplate jdbcTemplate;
 
     public SalesSummaryJob(JdbcTemplate jdbcTemp) {
-        this.jdbcTemp = jdbcTemp;
+        this.jdbcTemplate = jdbcTemp;
     }
 
     @Scheduled(cron = "0 5 0 * * *")
