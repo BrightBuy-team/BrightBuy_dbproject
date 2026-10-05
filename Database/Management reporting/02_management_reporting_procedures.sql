@@ -31,9 +31,9 @@ Begin
 	VALUES(p_employee_id, 'quarterly_sales_report');
 
 	SELECT 
-		oc.quarter_num AS quater,
+		oc.quarter_num AS quarter,
 		oc.order_count,
-		rv.total_revenue
+		COALESCE(rv.total_revenue, 0) AS total_revenue
 	FROM(
 		SELECT 
 			QUARTER(o.order_date) AS quarter_num,
@@ -42,7 +42,7 @@ Begin
 		WHERE YEAR(o.order_date) = p_year AND o.order_status NOT IN ('Cancelled')
 		GROUP BY QUARTER(o.order_date)
 	) AS oc
-	JOIN(
+	LEFT JOIN(
 		SELECT 
 			QUARTER(ss.summary_date) AS quarter_num,
 			SUM(ss.total_revenue) AS total_revenue
@@ -142,11 +142,11 @@ BEGIN
 	LEFT JOIN (
 		SELECT
 			customer_id,
-			SUM(total_amount) AS lifetime_spend,\
+			SUM(total_amount) AS lifetime_spend
 		FROM orders
 		GROUP BY customer_id
 	) AS os 
-	ON ps.customer_id = os.customer_id
+	ON os.customer_id = cu.customer_id
 	LEFT JOIN (
 		SELECT
 			o.customer_id,
@@ -156,7 +156,7 @@ BEGIN
 		GROUP BY o.customer_id
 	) AS ps
 	ON ps.customer_id = cu.customer_id
-	ORDER BY os.lifetime_spend DESC;
+	ORDER BY os.lifetime_spend DESC, cu.customer_id;
 END//
 
 DELIMITER ;

@@ -5,6 +5,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.SQLException;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,13 +16,14 @@ import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Opt-in end-to-end tests; requires the isolated milestone-3 SQL fixtures. */
+/** Opt-in HTTP/MySQL tests; requires isolated catalogue fixtures and a read-only account. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("catalogue")
 @EnabledIfEnvironmentVariable(named = "BRIGHTBUY_RUN_DB_TESTS", matches = "true")
 class CatalogueMySqlTests {
     @LocalServerPort int port;
     @Autowired JsonMapper mapper;
+    @Autowired DataSource dataSource;
     private final HttpClient client = HttpClient.newHttpClient();
 
     private HttpResponse<String> get(String path) throws Exception {
@@ -66,5 +69,35 @@ class CatalogueMySqlTests {
         assertThat(get("/api/catalogue/products?pageSize=101").statusCode()).isEqualTo(400);
         assertThat(get("/api/catalogue/products?minPrice=1.001").statusCode()).isEqualTo(400);
         assertThat(ok("/api/catalogue/products?keyword=zzzzzznoresult").get("items").isEmpty()).isTrue();
+    }
+
+    @Test
+    void applicationAccountCannotUpdateCatalogueRows() throws Exception {
+        try (var connection = dataSource.getConnection(); var statement = connection.createStatement()) {
+            // Even with an accidentally privileged account this cannot change a row.
+            assertThatThrownBy(() -> statement.executeUpdate(
+                    "UPDATE product SET name = name WHERE 1 = 0"))
+                    .isInstanceOfSatisfying(SQLException.class,
+                            exception -> assertThat(exception.getErrorCode()).isEqualTo(1142));
+        }
+    }
+
+    @Test
+    void realHttpServerAllowsFrontendReadsButRejectsCatalogueWrites() throws Exception {
+        var preflight = client.send(HttpRequest.newBuilder(
+                URI.create("http://127.0.0.1:" + port + "/api/catalogue/products"))
+                .header("Origin", "http://localhost:5173")
+                .header("Access-Control-Request-Method", "GET")
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody()).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(preflight.statusCode()).isEqualTo(200);
+        assertThat(preflight.headers().firstValue("Access-Control-Allow-Origin"))
+                .contains("http://localhost:5173");
+        var write = client.send(HttpRequest.newBuilder(
+                URI.create("http://127.0.0.1:" + port + "/api/catalogue/products"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString("{}")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(write.statusCode()).isEqualTo(403);
     }
 }

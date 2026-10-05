@@ -279,7 +279,14 @@ their visibility checks and sorting, and adds four runnable procedure examples.
 - [x] Pre-integration rejection and recovery tests (14 assertions on separate MySQL 8.0.46 instance)
 - [ ] Fresh full-project installation after resolving shared seed dependencies
 - [ ] Verification on the team's exact MySQL version
-- [ ] Backend/frontend integration verification
+- [x] Catalogue frontend → HTTP API → MySQL 8.0.46 verification (2026-10-04)
+- [ ] Full-team cart/auth/checkout integration verification
+
+The current catalogue-only live run passed 126 SQL assertions and all 77 backend
+tests with no skips, followed by browser checks against the real API. See
+[the live verification record](../../Backend/CATALOGUE_API.md#live-catalogue-verification--2026-10-04)
+for environment, permissions and scope. This does not clear the full-project or
+team deployment-version items above.
 
 ## Database validation
 
