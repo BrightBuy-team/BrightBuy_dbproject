@@ -7,7 +7,7 @@ WORKDIR /app
 
 #copy the Maven wrapper files from laptop into the container 
 #this allows the container to download Maven automatically
-COPY .mvnl/ .mvn/
+COPY .mvn/ .mvn/
 COPY mvnw pom.xml ./
 
 #Give the Maven wrapper script permission to execute 
@@ -15,7 +15,7 @@ RUN chmod +x mvnw
 
 #DOwnload the project dependence. Do this before the copying the source code
 #so Docker can cache the downoad interner files to make future builds faster 
-RUN ./mvnw dependecy:go-offline
+RUN ./mvnw dependency:go-offline
 
 #copy the actual source code into the container 
 COPY src ./src
