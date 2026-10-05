@@ -2,7 +2,11 @@ package com.brightbuy.backend.auth;
 
 import java.sql.CallableStatement;
 import java.sql.Types;
+import org.springframework.jdbc.core.CallableStatementCallback;
+import org.springframework.jdbc.core.CallableStatementCreator;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.PreparedStatementSetter;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -15,7 +19,7 @@ public class AuthRepository {
 
     public Integer registerCustomer(String firstName, String lastName, String email, String passwordHash,
             String phone, String addressLine, Integer cityId) {
-        return jdbcTemplate.execute(connection -> {
+        CallableStatementCreator statementCreator = connection -> {
             CallableStatement statement = connection.prepareCall("{call sp_register_customer(?,?,?,?,?,?,?,?)}");
             statement.setString(1, firstName);
             statement.setString(2, lastName);
@@ -30,23 +34,30 @@ public class AuthRepository {
             }
             statement.registerOutParameter(8, Types.INTEGER);
             return statement;
-        }, statement -> {
+        };
+        CallableStatementCallback<Integer> callback = statement -> {
             statement.execute();
             int customerId = statement.getInt(8);
             return statement.wasNull() ? null : customerId;
-        });
+        };
+        return jdbcTemplate.execute(statementCreator, callback);
     }
 
     public LoginAccount findCustomerForLogin(String email) {
-        return jdbcTemplate.query("CALL sp_get_customer_login(?)", statement -> statement.setString(1, email), result ->
-                result.next() ? new LoginAccount(result.getInt("customer_id"), result.getString("password_hash"), null)
-                        : null);
+        PreparedStatementSetter parameters = statement -> statement.setString(1, email);
+        ResultSetExtractor<LoginAccount> extractor = result -> result.next()
+                ? new LoginAccount(result.getInt("customer_id"), result.getString("password_hash"), null)
+                : null;
+        return jdbcTemplate.query("CALL sp_get_customer_login(?)", parameters, extractor);
     }
 
     public LoginAccount findEmployeeForLogin(String email) {
-        return jdbcTemplate.query("CALL sp_get_employee_login(?)", statement -> statement.setString(1, email), result ->
-                result.next() ? new LoginAccount(result.getInt("employee_id"), result.getString("password_hash"),
-                        result.getString("role")) : null);
+        PreparedStatementSetter parameters = statement -> statement.setString(1, email);
+        ResultSetExtractor<LoginAccount> extractor = result -> result.next()
+                ? new LoginAccount(result.getInt("employee_id"), result.getString("password_hash"),
+                        result.getString("role"))
+                : null;
+        return jdbcTemplate.query("CALL sp_get_employee_login(?)", parameters, extractor);
     }
 
     public int recentFailures(String email) {
