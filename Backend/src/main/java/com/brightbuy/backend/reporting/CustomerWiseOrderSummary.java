@@ -6,6 +6,6 @@ public record CustomerWiseOrderSummary(
     int customerId,
     String firstName,
     String lastName,
-    BigDecimal lifeTimeSpent,
-    String paymentStatus
+    BigDecimal lifetimeSpend,
+    String paymentStatuses
 ) {}

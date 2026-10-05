@@ -1,4 +1,4 @@
-# BrightBuy Management Reporing Database Module
+# BrightBuy Management Reporting Database Module
 
 ## Owner
 
@@ -10,7 +10,7 @@ Implements the database layer for BrightBuy's 5 mandatory management reports,
  - Quarterly sales report
  - Top selling products report
  - Category-wise total number of orders
- - Delivery time estimatess for upcoming orders
+ - Delivery time estimates for upcoming orders
  - Customer-wise order summary with payment status
 
 ## Tables Owned
@@ -34,11 +34,9 @@ Implements the database layer for BrightBuy's 5 mandatory management reports,
 
 ## Refresh schedule
 
- - sp_refresh_sales_summary is not called automatically yet. Options:
-    - A MySQL EVENT scheduled to run daily (requires SET GLOBAL event_scheduler = ON; on the server)
-    - A manual/cron-triggered call from the application or an ops script.
-
- - Status: not yet decided/implemented. Until then, sales_summary must be refreshed manually for testing.
+ - The Spring backend calls `sp_populate_sales_summary(7)` daily at 00:05 using `SalesSummaryJob`.
+ - The procedure refreshes the previous seven days, excluding the current date, and upserts by variant and date.
+ - The database must be available and the application database user must be allowed to execute the procedure.
 
 ## Assumptions
  - sales_summary.order_count counts distinct orders per variant/day, not order lines.

@@ -1,4 +1,14 @@
 -- BrightBuy | User & Auth | 02 Procedures and functions
+USE brightbuy;
+
+DROP PROCEDURE IF EXISTS sp_register_customer;
+DROP PROCEDURE IF EXISTS sp_create_employee;
+DROP PROCEDURE IF EXISTS sp_get_customer_login;
+DROP PROCEDURE IF EXISTS sp_get_employee_login;
+DROP PROCEDURE IF EXISTS sp_log_login;
+DROP FUNCTION IF EXISTS fn_recent_failures;
+DROP FUNCTION IF EXISTS fn_employee_has_role;
+
 DELIMITER //
 
 -- Register a customer (app passes bcrypt hash)

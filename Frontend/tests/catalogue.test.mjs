@@ -38,8 +38,9 @@ for (const input of [
 test('valid integer and decimal boundaries are accepted', () => {
   assert.equal(parse('page=1000000&pageSize=100&categoryId=2147483647&minPrice=0&maxPrice=99999999.99').page, 1000000)
 })
-test('prices use two decimals without an invented currency', () => {
-  assert.equal(formatPrice(1234.5), '1,234.50')
+test('prices use the SRS USD currency with two decimals', () => {
+  assert.equal(formatPrice(1234.5), 'USD\u00a01,234.50')
+  assert.equal(formatPrice(0), 'USD\u00a00.00')
 })
 test('decodes product pages and empty results', () => {
   assert.deepEqual(decodeProducts(page), page)

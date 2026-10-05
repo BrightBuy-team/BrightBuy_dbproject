@@ -1,6 +1,7 @@
 -- Additional catalogue demonstration variants, MySQL 8.0.19+.
 -- Run AFTER inventory DDL/sample data and 05_variant_integration.sql.
--- Original variants 1-5 are untouched. This module reserves IDs 1004-1040
+-- Restore missing legacy fixtures 1-5 and warehouse 3; existing rows are
+-- identity-checked, never overwritten. This module reserves IDs 1004-1040
 -- plus 1104, 1114, 1119, 1125, 1131 and 1136 for development fixtures.
 -- Prices are illustrative values, not real market prices.
 -- Reruns preserve existing price/stock; mismatched identity raises an error.
@@ -23,9 +24,27 @@ BEGIN
     CREATE TEMPORARY TABLE catalogue_variant_fixtures LIKE variant;
     START TRANSACTION;
 
+    IF EXISTS (
+        SELECT 1 FROM warehouse WHERE warehouse_id = 3
+          AND (NOT (name <=> 'Westside Distribution')
+               OR NOT (location <=> '7700 Logistics Dr, Austin, TX'))
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Catalogue warehouse 3 collision: existing identity differs from fixture';
+    END IF;
+
+    INSERT INTO warehouse (warehouse_id, name, location)
+    SELECT 3, 'Westside Distribution', '7700 Logistics Dr, Austin, TX'
+    WHERE NOT EXISTS (SELECT 1 FROM warehouse WHERE warehouse_id = 3);
+
     INSERT INTO catalogue_variant_fixtures
         (variant_id, product_id, warehouse_id, variant_name, colour, memory_size, price, stock_quantity)
     VALUES
+        (1, 1, 1, 'iPhone 15 Pro - Black 256GB', 'Titanium Black', '256GB', 1099.00, 50),
+        (2, 1, 2, 'iPhone 15 Pro - Blue 256GB', 'Titanium Blue', '256GB', 1099.00, 15),
+        (3, 1, 1, 'iPhone 15 Pro - Black 512GB', 'Titanium Black', '512GB', 1299.00, 0),
+        (4, 2, 3, 'Galaxy S24 Ultra - Gray 512GB', 'Titanium Gray', '512GB', 1299.99, 30),
+        (5, 3, 1, 'Sony WH-1000XM5 - Silver', 'Silver', 'N/A', 348.00, 120),
         (1004, 4, 1, 'BrightBuy Nova Phone - Black', 'Black', '128GB', 399, 15),
         (1005, 5, 2, 'BrightBuy Lite Phone - Blue', 'Blue', '64GB', 149, 18),
         (1006, 6, 3, 'BrightBuy Max Phone - Silver', 'Silver', '256GB', 599, 21),

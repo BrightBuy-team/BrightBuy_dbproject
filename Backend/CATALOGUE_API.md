@@ -1,6 +1,6 @@
 # Catalogue backend — milestone 4
 
-The module uses the team's existing Spring Boot 4.1.1 project and Java 21
+The module uses the team's existing Spring Boot 4.1.1 project and Java 25
 source target. No dependency or teammate source file changes are required.
 It calls the three stored procedures from the catalogue SQL milestone through
 JDBC CallableStatement, with bound parameters and a five-second query timeout.
@@ -119,13 +119,14 @@ Fast unit and HTTP-layer tests without MySQL (from `Backend`):
 ./mvnw '-Dtest=Catalogue*Tests' test
 ```
 
-Four real-database tests are deliberately skipped unless explicitly enabled.
+Six real-database tests are deliberately skipped unless explicitly enabled.
 The mock-maker test resource uses subclass mocks so final-class instrumentation
 is not needed for the catalogue test doubles. Spring's test infrastructure may
 still emit a Mockito agent warning on newer JDKs.
 
 To run the **entire** backend suite, prepare an isolated MySQL instance with
-the milestone-3 schema/procedures and unmodified sample data. Set the same
+the current [catalogue bridge fixtures](../Database/Catalogue/tests/INVENTORY_BRIDGE.md)
+and procedures, with unmodified sample counts/values. Set the same
 connection variables to that instance, then run:
 
 ```sh
@@ -135,6 +136,10 @@ BRIGHTBUY_RUN_DB_TESTS=true ./mvnw -Dspring.profiles.active=catalogue verify
 The opt-in tests start an HTTP server on a random port and use the real JDBC
 driver and procedures. They verify search totals, detail/category responses,
 combined variant filters, pagination, inactive/missing products and HTTP errors.
+They also check live CORS/write denial and confirm that the application account
+cannot UPDATE catalogue rows. Do not run them as root: use SELECT plus EXECUTE
+on the three catalogue procedures only. The permission probe uses `WHERE 1 = 0`,
+so even a wrongly privileged account cannot change a row; that account fails the test.
 The rest of the suite covers validation boundaries, error mapping, parameter
 binding, resource cleanup, CORS, and protection of other modules' routes.
 
@@ -142,9 +147,47 @@ The tests are read-only against the database but require the documented sample
 counts and values. They do not create users, execute SQL seed files or start
 MySQL automatically. Never point fixture-dependent tests at the shared database.
 
-Validated on 2026-09-19 with Java 26.0.2 (compiling for Java 21) and an isolated
+Validated on 2026-09-19 with Java 26.0.2 (compiling for Java 25) and an isolated
 MySQL 9.7.1 instance using `lower_case_table_names=1`. The configured full
 `verify` run passed all **67 tests**, including four live HTTP-to-MySQL tests,
 and packaged the application successfully. Database tests used a dedicated
 account with SELECT and execution permission on only the three catalogue
-procedures. Execution on the team's actual MySQL 8 version remains to be verified.
+procedures. This is a historical run; see the current MySQL 8 verification below.
+
+## Live catalogue verification — 2026-10-04
+
+Source baseline: `e081d71`, plus the two new catalogue integration tests in this
+milestone. Full Maven `verify` passed **77 tests, zero failures/errors/skips** and
+packaged the application using MySQL Community Server **8.0.46**, Linux ARM64,
+`lower_case_table_names=0`, foreign-key checks enabled and strict SQL mode.
+Java was 26.0.2, compiling for the project's configured Java 25 target.
+
+The fresh container `brightbuy-catalogue-final8` used the pinned image
+`mysql@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b`.
+It was limited to 1 GiB/two CPUs, with MySQL X disabled and only
+`127.0.0.1:13308` published. Random test credentials were not saved in Git.
+The `catalogue_final` account had SELECT on `brightbuy.*` and EXECUTE on only
+the three catalogue procedures; no schema or row-write grants.
+
+Setup followed the current bridge harness: catalogue 00–03, the unchanged
+city/warehouse/variant prefix of inventory DDL, inventory seed, then the real
+integration/seed helpers and tests. **126 SQL assertions passed** (19 bridge,
+32 foundation, 67 procedures, 8 seed safety). This is deliberately catalogue-only:
+it does not install auth/orders/delivery/reporting tables or stock-write triggers.
+
+The frontend was run with `VITE_CATALOGUE_API_URL=http://127.0.0.1:8088/api/catalogue`
+on `127.0.0.1:5173`, with the real API on `127.0.0.1:8088`. Browser checks confirmed
+counts, featured products, pagination, combined filters, detail/variant prices,
+quantity feedback, preserved return filters, empty searches, inactive products,
+out-of-stock disabling and a 360px detail layout. No mock responses were used.
+
+The application/frontend processes and test container were stopped afterward;
+the container data was retained. Existing containers/databases were not changed.
+For another run use a fresh disposable setup and your own restricted credentials,
+then the environment-variable/test commands above. Do not reuse these test
+settings as production configuration.
+
+Still pending: the team's confirmed deployment version/origins/account settings,
+auth/cart integration, full-team checkout/stock verification and representative
+performance testing. Successful catalogue tests do not establish report SQL,
+checkout, delivery or authentication correctness.
