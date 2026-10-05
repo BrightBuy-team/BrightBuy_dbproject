@@ -1,43 +1,72 @@
 -- BrightBuy | User & Auth | 04 Tests
--- Run after 01, 02 and 03. Lines marked "MUST FAIL" should return an error.
+-- Run after the schema, routines, seed data, and Inventory city fixtures.
+USE brightbuy;
 
--- 1. Register a new customer (expect a new id)
-CALL sp_register_customer('Test','User','test.user@example.com','$2b$10$hash','555-0300','1 Main St',1,@cid);
+SET @auth_test_email = CONCAT('auth-test-', REPLACE(UUID(), '-', ''), '@example.com');
+SET @auth_test_employee_email = CONCAT('auth-employee-', REPLACE(UUID(), '-', ''), '@example.com');
+
+-- 1. Registration and duplicate-email rejection.
+CALL sp_register_customer('Test', 'User', @auth_test_email, '$2b$10$test-hash', '555-0300', '1 Main St', 1, @cid);
 SELECT @cid AS new_customer_id;
 
--- 2. Duplicate email (MUST FAIL: Email already registered)
-CALL sp_register_customer('Test','Again','test.user@example.com','$2b$10$hash','555-0301','2 Main St',1,@cid);
+DROP PROCEDURE IF EXISTS sp_test_expected_auth_errors;
+DELIMITER //
+CREATE PROCEDURE sp_test_expected_auth_errors()
+BEGIN
+	DECLARE v_failed BOOLEAN DEFAULT FALSE;
 
--- 3. Invalid email format (MUST FAIL: CHECK constraint)
-CALL sp_register_customer('Bad','Email','not-an-email','$2b$10$hash','555','x',1,@cid);
+	BEGIN
+		DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET v_failed = TRUE;
+		CALL sp_register_customer('Test', 'Again', @auth_test_email, '$2b$10$test-hash', '555-0301', '2 Main St', 1, @cid);
+	END;
+	SELECT IF(v_failed, 'PASS', 'FAIL') AS duplicate_email_rejected;
 
--- 4. Invalid city (MUST FAIL: foreign key)
-CALL sp_register_customer('Bad','City','badcity@example.com','$2b$10$hash','555','x',999,@cid);
+	SET v_failed = FALSE;
+	BEGIN
+		DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET v_failed = TRUE;
+		CALL sp_register_customer('Bad', 'Email', 'not-an-email', '$2b$10$test-hash', '555', 'x', 1, @cid);
+	END;
+	SELECT IF(v_failed, 'PASS', 'FAIL') AS invalid_email_rejected;
 
--- 5. Invalid employee role (MUST FAIL: CHECK constraint)
-CALL sp_create_employee('Bad','Role','badrole@brightbuy.com','$2b$10$hash','555','Cashier',@eid);
+	SET v_failed = FALSE;
+	BEGIN
+		DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET v_failed = TRUE;
+		CALL sp_register_customer('Bad', 'City', 'badcity@example.com', '$2b$10$test-hash', '555', 'x', 999, @cid);
+	END;
+	SELECT IF(v_failed, 'PASS', 'FAIL') AS invalid_city_rejected;
 
--- 6. Valid employee
-CALL sp_create_employee('New','Staff','newstaff@brightbuy.com','$2b$10$hash','555','WarehouseStaff',@eid);
+	SET v_failed = FALSE;
+	BEGIN
+		DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET v_failed = TRUE;
+		CALL sp_create_employee('Bad', 'Role', 'badrole@brightbuy.com', '$2b$10$test-hash', '555', 'Cashier', @eid);
+	END;
+	SELECT IF(v_failed, 'PASS', 'FAIL') AS invalid_employee_role_rejected;
+END //
+DELIMITER ;
+
+CALL sp_test_expected_auth_errors();
+DROP PROCEDURE sp_test_expected_auth_errors;
+
+-- 2. Valid employee registration.
+CALL sp_create_employee('New', 'Staff', @auth_test_employee_email, '$2b$10$test-hash', '555', 'WarehouseStaff', @eid);
 SELECT @eid AS new_employee_id;
 
--- 7. Login lookups
-CALL sp_get_customer_login('abrahaml@example.com');   -- returns id + hash
-CALL sp_get_customer_login('nobody@example.com');     -- returns empty set
-CALL sp_get_employee_login('manager@brightbuy.com');  -- returns id + hash + role
+-- 3. Login lookups.
+CALL sp_get_customer_login('abrahaml@example.com');
+CALL sp_get_customer_login('nobody@example.com');
+CALL sp_get_employee_login('manager@brightbuy.com');
 
--- 8. Rate limiting: log 5 failures then count
-CALL sp_log_login('abrahaml@example.com','customer',FALSE);
-CALL sp_log_login('abrahaml@example.com','customer',FALSE);
-CALL sp_log_login('abrahaml@example.com','customer',FALSE);
-CALL sp_log_login('abrahaml@example.com','customer',FALSE);
-CALL sp_log_login('abrahaml@example.com','customer',FALSE);
-SELECT fn_recent_failures('abrahaml@example.com') AS failures;   -- expect 5
+-- 4. Rate limiting: five failures in the current 15-minute window.
+CALL sp_log_login(@auth_test_email, 'customer', FALSE);
+CALL sp_log_login(@auth_test_email, 'customer', FALSE);
+CALL sp_log_login(@auth_test_email, 'customer', FALSE);
+CALL sp_log_login(@auth_test_email, 'customer', FALSE);
+CALL sp_log_login(@auth_test_email, 'customer', FALSE);
+SELECT fn_recent_failures(@auth_test_email) AS failures;
 
--- 9. Role helper
-SELECT fn_employee_has_role(3,'Management') AS is_manager;       -- expect 1 (seed id 3)
-SELECT fn_employee_has_role(2,'Management') AS is_manager;       -- expect 0
+-- 5. Role checks use the seeded account emails, not assumed auto-increment IDs.
+SELECT fn_employee_has_role((SELECT employee_id FROM employee WHERE email = 'manager@brightbuy.com'), 'Management') AS is_manager;
+SELECT fn_employee_has_role((SELECT employee_id FROM employee WHERE email = 'warehouse@brightbuy.com'), 'Management') AS is_not_manager;
 
--- 10. Referential protection: customer with orders cannot be deleted
--- (after running a checkout for customer 1)
--- DELETE FROM customer WHERE customer_id = 1;                   -- MUST FAIL (ON DELETE RESTRICT chain)
+-- Referential protection can be checked after checkout creates an order:
+-- DELETE FROM customer WHERE email = 'abrahaml@example.com';
