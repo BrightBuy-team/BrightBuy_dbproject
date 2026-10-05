@@ -18,7 +18,7 @@ public class SalesSummaryJob {
 
     @Scheduled(cron = "0 5 0 * * *")
     public void updateYesterdaySummary() {
-        log.info("Running sp_populate_sales_summary for the previous 7 days...");
+        log.info("Refreshing sales summary for the previous 7 days...");
         jdbcTemplate.update("CALL sp_populate_sales_summary(?)", 7);
         log.info("sp_populate_sales_summary completed.");
     }

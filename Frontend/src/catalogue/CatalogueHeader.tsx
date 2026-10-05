@@ -22,6 +22,7 @@ export default function CatalogueHeader({ query, homeHref }: { query: Search; ho
         <input id="catalogue-keyword" name="keyword" type="search" defaultValue={query.keyword} placeholder="Search products, brands, or SKUs" aria-invalid={!!error} aria-describedby={error ? 'search-error' : undefined} />
         <button type="submit">Search <span aria-hidden="true">↗</span></button>
       </form>
+      <a className="catalogue-management-link" href="/management-reports">Management reports</a>
       <span className="catalogue-header-note">The everyday collection</span>
     </header>
     {error && <p className="catalogue-field-error catalogue-search-error" id="search-error" role="alert">{error}</p>}

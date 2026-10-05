@@ -15,6 +15,7 @@ import { isCatalogueHome } from './home'
 import CategoryNavigation from './CategoryNavigation'
 import CatalogueFooter from './CatalogueFooter'
 import CatalogueHeader from './CatalogueHeader'
+import ManagementReports from './ManagementReports'
 
 function ErrorNotice({ message, retry }: { message: string; retry: () => void }) {
   return <div className="catalogue-notice" role="alert"><h3>Something needs attention</h3><p>{message}</p><button onClick={retry}>Try again</button></div>
@@ -95,7 +96,7 @@ function Results({ query, title, home, reset }: { query: Search; title: string; 
   </section>
 }
 
-export default function CatalogueApp() {
+function CatalogueStorefront() {
   const location = useSearchLocation()
   const categories = useCatalogue('/categories', decodeCategories)
   let query = defaultSearch
@@ -146,4 +147,10 @@ export default function CatalogueApp() {
     </main>
     <CatalogueFooter />
   </div>
+}
+
+export default function CatalogueApp() {
+  return window.location.pathname === '/management-reports'
+    ? <ManagementReports />
+    : <CatalogueStorefront />
 }

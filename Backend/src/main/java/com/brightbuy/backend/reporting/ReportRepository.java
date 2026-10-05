@@ -1,6 +1,6 @@
 package com.brightbuy.backend.reporting;
 
-import org.springframework.jdbc.core.BeanPropertyRowMapper;
+import org.springframework.jdbc.core.DataClassRowMapper;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.SimpleJdbcCall;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -22,23 +22,23 @@ public class ReportRepository {
     public ReportRepository(JdbcTemplate jdbcTemplate) {
         this.quarterlySalesCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_quarterly_sales_report")
                                                                   .returningResultSet(RESULT_SET,
-                                                                                       BeanPropertyRowMapper.newInstance(QuarterlySales.class));
+                                                                                       DataClassRowMapper.newInstance(QuarterlySales.class));
 
         this.topSellingProductsCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_top_selling_products")
                                                                       .returningResultSet(RESULT_SET,
-                                                                                           BeanPropertyRowMapper.newInstance(TopSellingProduct.class));
+                                                                      DataClassRowMapper.newInstance(TopSellingProduct.class));
 
         this.categoryOrderCountsCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_category_order_counts")
                                                                        .returningResultSet(RESULT_SET,
-                                                                                            BeanPropertyRowMapper.newInstance(CategoryOrderCount.class));
+                                                                       DataClassRowMapper.newInstance(CategoryOrderCount.class));
 
         this.deliveryEstimatesCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_upcoming_delivery_estimates")
                                                                      .returningResultSet(RESULT_SET,
-                                                                                          BeanPropertyRowMapper.newInstance(DeliveryTimeEstimate.class));
+                                                                     DataClassRowMapper.newInstance(DeliveryTimeEstimate.class));
 
         this.customerOrderSummaryCall = new SimpleJdbcCall(jdbcTemplate).withProcedureName("get_customer_order_summary")
                                                                         .returningResultSet(RESULT_SET,
-                                                                                             BeanPropertyRowMapper.newInstance(CustomerWiseOrderSummary.class));
+                                                                        DataClassRowMapper.newInstance(CustomerWiseOrderSummary.class));
     }
 
     @SuppressWarnings("unchecked")
