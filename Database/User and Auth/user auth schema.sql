@@ -1,6 +1,7 @@
 -- BrightBuy | User & Auth | 01 Schema
 -- Prerequisite: city table must exist (Inventory/Delivery script).
 -- Run BEFORE Checkout scripts (orders references customer) and Management scripts (report_access_log references employee).
+USE brightbuy;
 
 -- CUSTOMER
 CREATE TABLE customer (
@@ -12,7 +13,7 @@ CREATE TABLE customer (
     phone         VARCHAR(20),
     address_line  VARCHAR(255),
     city_id       INT,
-    created_at    DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
+    created_at    DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
     CONSTRAINT uq_customer_email UNIQUE (email),
     CONSTRAINT chk_customer_email CHECK (email LIKE '%_@_%.__%'),
     CONSTRAINT fk_customer_city FOREIGN KEY (city_id) REFERENCES city(city_id)
@@ -39,7 +40,7 @@ CREATE TABLE login_attempts (
     email        VARCHAR(150) NOT NULL,
     user_type    VARCHAR(10)  NOT NULL,
     was_success  BOOLEAN NOT NULL,
-    attempted_at DATETIME NOT NULL DEFAULT UTC_TIMESTAMP(),
+    attempted_at DATETIME NOT NULL DEFAULT (UTC_TIMESTAMP()),
     CONSTRAINT chk_attempt_type CHECK (user_type IN ('customer','employee'))
 ) ENGINE=InnoDB;
 

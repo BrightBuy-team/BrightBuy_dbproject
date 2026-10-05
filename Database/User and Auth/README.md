@@ -1,6 +1,6 @@
 # User & Auth Module (Database Part)
 
-This file explains my part of the BrightBuy project in simple English.
+This file describes the BrightBuy User and Auth database module.
 
 ---
 
@@ -26,10 +26,16 @@ My database part does these jobs:
 
 | File | What it does |
 |------|--------------|
-| `01_user_auth_schema.sql` | Creates the tables, constraints and indexes |
-| `02_user_auth_procedures.sql` | Creates the stored procedures and functions |
-| `03_user_auth_seed.sql` | Adds sample customers and employees |
-| `04_user_auth_tests.sql` | Tests that everything works and that rules are enforced |
+| `user auth schema.sql` | Creates the tables, constraints and indexes |
+| `user auth procedures.sql` | Creates the stored procedures and functions |
+| `user auth seed.sql` | Adds sample customers and employees |
+| `user auth tests.sql` | Tests that everything works and that rules are enforced |
+
+The scripts target MySQL 8.0.19 or later and select the `brightbuy` database.
+Create that database first, and ensure the Inventory `city` table and its city
+fixtures exist before running the auth schema. The combined Inventory DDL has
+other module dependencies; do not run it as a way to create only `city` unless
+its full dependency order has been resolved.
 
 ---
 
@@ -144,14 +150,16 @@ A small log of every login try.
 
 Run the scripts in this order to avoid foreign key errors:
 
-1. `city` table (from Inventory)
-2. My files `01`, `02`, `03`
-3. Checkout scripts
-4. Inventory scripts
-5. Management report scripts
-6. My `04_user_auth_tests.sql` last
+1. `Database/Catalogue/00_create_database.sql` (creates and selects `brightbuy`)
+2. Ensure the Inventory `city` table and city fixtures are installed.
+3. Run `user auth schema.sql`, `user auth procedures.sql`, then `user auth seed.sql`.
+4. Run Checkout and Management scripts after their referenced auth tables exist.
+5. Run `user auth tests.sql` after the seed fixtures exist.
 
-**Why?** `orders` needs `customer` to exist, and `report_access_log` needs `employee` to exist.
+**Why?** The auth schema references `city`; Checkout references `customer`, and
+Management reporting references `employee`. The complete project still needs
+an agreed split setup order for Inventory, Checkout and Delivery because their
+combined DDL has cross-module dependencies.
 
 ---
 
