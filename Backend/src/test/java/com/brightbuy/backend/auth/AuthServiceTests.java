@@ -84,4 +84,52 @@ class AuthServiceTests {
         assertThat(customerId).isEqualTo(42);
         verify(repository).registerCustomer("Alex", "Smith", "alex@example.com", "bcrypt-hash", null, null, 2);
     }
+
+        @Test
+        void registrationAllowsOmittingOptionalCity() {
+                when(passwordEncoder.encode("long-password")).thenReturn("bcrypt-hash");
+                when(repository.registerCustomer("Alex", "Smith", "alex@example.com", "bcrypt-hash", null, null, null))
+                                .thenReturn(43);
+
+                Integer customerId = service.registerCustomer(new AuthService.RegisterCustomerRequest("Alex", "Smith",
+                                "alex@example.com", "long-password", null, null, null));
+
+                assertThat(customerId).isEqualTo(43);
+                verify(repository).registerCustomer("Alex", "Smith", "alex@example.com", "bcrypt-hash", null, null, null);
+        }
+
+    @Test
+    void adminProvisioningNormalizesEmailAndStoresOnlyEncodedPassword() {
+        when(passwordEncoder.encode("long-password")).thenReturn("bcrypt-hash");
+        when(repository.createEmployee("Alex", "Smith", "alex@example.com", "bcrypt-hash", "555-0100",
+                EmployeeRole.WAREHOUSE_STAFF)).thenReturn(17);
+
+        Integer employeeId = service.createEmployee(new AuthService.CreateEmployeeRequest(" Alex ", " Smith ",
+                "Alex@Example.com", "long-password", "555-0100", EmployeeRole.WAREHOUSE_STAFF));
+
+        assertThat(employeeId).isEqualTo(17);
+        verify(repository).createEmployee("Alex", "Smith", "alex@example.com", "bcrypt-hash", "555-0100",
+                EmployeeRole.WAREHOUSE_STAFF);
+    }
+
+    @Test
+    void duplicateEmployeeEmailReturnsConflict() {
+        when(passwordEncoder.encode("long-password")).thenReturn("bcrypt-hash");
+        when(repository.createEmployee(anyString(), anyString(), anyString(), anyString(), any(), any()))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("Email already registered"));
+
+        assertThatThrownBy(() -> service.createEmployee(new AuthService.CreateEmployeeRequest("Alex", "Smith",
+                "alex@example.com", "long-password", null, EmployeeRole.ADMIN)))
+                .isInstanceOfSatisfying(AuthException.class, exception -> {
+                    assertThat(exception.status()).isEqualTo(HttpStatus.CONFLICT);
+                    assertThat(exception.code()).isEqualTo("EMAIL_ALREADY_REGISTERED");
+                });
+    }
+
+    @Test
+    void employeeRoleCheckUsesDatabaseResult() {
+        when(repository.employeeHasRole(7, EmployeeRole.MANAGEMENT)).thenReturn(true);
+
+        assertThat(service.employeeHasRole(7, EmployeeRole.MANAGEMENT)).isTrue();
+    }
 }

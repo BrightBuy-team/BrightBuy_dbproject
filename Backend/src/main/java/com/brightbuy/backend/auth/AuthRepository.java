@@ -43,6 +43,27 @@ public class AuthRepository {
         return jdbcTemplate.execute(statementCreator, callback);
     }
 
+    public Integer createEmployee(String firstName, String lastName, String email, String passwordHash,
+            String contactNo, EmployeeRole role) {
+        CallableStatementCreator statementCreator = connection -> {
+            CallableStatement statement = connection.prepareCall("{call sp_create_employee(?,?,?,?,?,?,?)}");
+            statement.setString(1, firstName);
+            statement.setString(2, lastName);
+            statement.setString(3, email);
+            statement.setString(4, passwordHash);
+            statement.setString(5, contactNo);
+            statement.setString(6, role.databaseValue());
+            statement.registerOutParameter(7, Types.INTEGER);
+            return statement;
+        };
+        CallableStatementCallback<Integer> callback = statement -> {
+            statement.execute();
+            int employeeId = statement.getInt(7);
+            return statement.wasNull() ? null : employeeId;
+        };
+        return jdbcTemplate.execute(statementCreator, callback);
+    }
+
     public LoginAccount findCustomerForLogin(String email) {
         PreparedStatementSetter parameters = statement -> statement.setString(1, email);
         ResultSetExtractor<LoginAccount> extractor = result -> result.next()
@@ -67,6 +88,12 @@ public class AuthRepository {
 
     public void logLogin(String email, AccountType accountType, boolean success) {
         jdbcTemplate.update("CALL sp_log_login(?,?,?)", email, accountType.name().toLowerCase(), success);
+    }
+
+    public boolean employeeHasRole(Integer employeeId, EmployeeRole role) {
+        Boolean hasRole = jdbcTemplate.queryForObject("SELECT fn_employee_has_role(?,?)", Boolean.class,
+                employeeId, role.databaseValue());
+        return Boolean.TRUE.equals(hasRole);
     }
 
     public record LoginAccount(Integer id, String passwordHash, String role) {
