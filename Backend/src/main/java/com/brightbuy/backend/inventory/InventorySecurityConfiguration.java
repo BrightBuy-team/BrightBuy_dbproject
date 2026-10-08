@@ -1,4 +1,4 @@
-package com.brightbuy.backend.checkout;
+package com.brightbuy.backend.inventory;
 
 import java.util.Arrays;
 import java.util.List;
@@ -16,30 +16,29 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 @Configuration(proxyBeanMethods = false)
-public class CheckoutSecurityConfiguration {
+public class InventorySecurityConfiguration {
 
     @Bean
-    @Order(9)
-    SecurityFilterChain checkoutSecurity(HttpSecurity http,
+    @Order(10)
+    SecurityFilterChain inventorySecurity(HttpSecurity http,
             @Value("${catalogue.cors.allowed-origins:http://localhost:5173,http://127.0.0.1:5173}") String origins) throws Exception {
         CorsConfiguration cors = new CorsConfiguration();
         cors.setAllowedOrigins(Arrays.stream(origins.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList());
-        cors.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        cors.setAllowedMethods(List.of("GET", "POST", "PUT", "OPTIONS"));
         cors.setAllowedHeaders(List.of("Accept", "Content-Type", "X-XSRF-TOKEN"));
         cors.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/checkout/**", cors);
-        source.registerCorsConfiguration("/api/orders/**", cors);
+        source.registerCorsConfiguration("/api/inventory/**", cors);
 
-        return http.securityMatcher("/api/checkout/**", "/api/orders/**")
+        return http.securityMatcher("/api/inventory/**")
                 .cors(config -> config.configurationSource(source))
                 .csrf(config -> config.disable())
                 .sessionManagement(config -> config.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .exceptionHandling(config -> config.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/api/checkout/**", "/api/orders/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/checkout").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/orders").authenticated()
+                        .requestMatchers(HttpMethod.OPTIONS, "/api/inventory/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/inventory/**").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/inventory/variants/*/stock").hasAnyRole("WAREHOUSESTAFF", "ADMIN")
                         .anyRequest().denyAll())
                 .build();
     }

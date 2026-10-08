@@ -13,16 +13,23 @@ export default function CheckoutView({ onBack, onComplete }: { onBack: () => voi
   const [paymentMethod, setPaymentMethod] = useState('card');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [cityType, setCityType] = useState('main');
 
   useEffect(() => {
     const controller = new AbortController();
+    const localEmail = localStorage.getItem('currentUserEmail');
+    const localRole = localStorage.getItem('role');
+
     requestSession(
       authApiBase(import.meta.env.VITE_CATALOGUE_API_URL || 'http://localhost:8080/api/catalogue', import.meta.env.VITE_AUTH_API_URL),
       controller.signal
     ).then(u => {
-      setUser(u);
+      // Use backend user if available, otherwise fallback to local mock user
+      setUser(u || (localEmail ? { id: 1, email: localEmail, accountType: 'CUSTOMER', role: localRole || 'user' } : null));
       setLoadingSession(false);
     }).catch(() => {
+      // On failure, rely on local mock user
+      setUser(localEmail ? { id: 1, email: localEmail, accountType: 'CUSTOMER', role: localRole || 'user' } : null);
       setLoadingSession(false);
     });
     return () => controller.abort();
@@ -66,9 +73,11 @@ export default function CheckoutView({ onBack, onComplete }: { onBack: () => voi
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
-          customerId: user.id,
-          cartItems: items
+          cartItems: items,
+          deliveryMode: deliveryMode,
+          paymentMethod: paymentMethod
         })
       });
 
@@ -86,7 +95,6 @@ export default function CheckoutView({ onBack, onComplete }: { onBack: () => voi
     }
   };
 
-  const [cityType, setCityType] = useState('main');
   const hasOutOfStockItems = cart.some(item => item.stockQuantity === 0);
   const baseDays = cityType === 'main' ? 5 : 7;
   const estDeliveryDays = deliveryMode === 'delivery' ? baseDays + (hasOutOfStockItems ? 3 : 0) : 0;

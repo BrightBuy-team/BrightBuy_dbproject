@@ -54,7 +54,7 @@ export default function VariantSelection({ variants, productId, productName, low
           variantId: selected.variant_id,
           productName,
           variantLabel: variantLabel(selected),
-          price: selected.price,
+          price: selected.price.toString(),
           quantity: parseInt(quantity, 10),
           stockQuantity: selected.stock_quantity
         })

@@ -10,6 +10,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.brightbuy.backend.checkout.dto.CheckoutRequestDto;
 import com.brightbuy.backend.checkout.repository.CheckoutRepository;
 
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.brightbuy.backend.auth.AuthenticatedUser;
+import org.springframework.web.server.ResponseStatusException;
+
 @RestController
 //HTTP request mapping for the checkout process
 @RequestMapping("/api/checkout")//Endpoint for the checkout process
@@ -22,11 +26,15 @@ public class CheckoutController {
     }
     //HTTP POST endpoint to process the checkout request
     @PostMapping
-    public ResponseEntity<String> processCheckout(@RequestBody CheckoutRequestDto request) {
-        // Call the repository method to process the checkout
+    public ResponseEntity<String> processCheckout(@AuthenticationPrincipal AuthenticatedUser user, @RequestBody CheckoutRequestDto request) {
+        if (user == null || user.id() == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
+        }
         String dbStatus = checkoutRepository.callProcessCheckout(
-                request.customerId(), 
-                request.cartItems()
+                user.id(), 
+                request.cartItems(),
+                request.deliveryMode(),
+                request.paymentMethod()
         );
 
         return switch (dbStatus) {

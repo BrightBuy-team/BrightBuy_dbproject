@@ -35,19 +35,21 @@ public class AuthSecurityConfiguration {
         cors.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/api/auth/**", cors);
+        source.registerCorsConfiguration("/api/addresses/**", cors);
 
-        return http.securityMatcher("/api/auth/**")
+        return http.securityMatcher("/api/auth/**", "/api/addresses/**")
                 .cors(config -> config.configurationSource(source))
                 .csrf(config -> config.csrfTokenRepository(csrfTokenRepository))
                 .securityContext(config -> config.securityContextRepository(securityContextRepository))
                 .sessionManagement(config -> config.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .exceptionHandling(config -> config.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.OPTIONS, "/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/api/auth/**", "/api/addresses/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/employees").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/auth/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/auth/me", "/api/addresses/me").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/addresses/me").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/auth/logout").authenticated()
                         .anyRequest().denyAll())
                 .build();

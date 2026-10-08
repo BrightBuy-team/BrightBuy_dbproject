@@ -14,6 +14,16 @@ jobs:
     # This tells GitHub to provision a fresh, temporary Ubuntu Linux server for us
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: brightbuy
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=3
+
     # These are the sequential steps the server will execute
     steps:
     # Step 1: Clone (checkout) your repository's code onto the Ubuntu server
@@ -31,6 +41,10 @@ jobs:
     # Step 3: Navigate into the Backend folder, give the Maven wrapper execute permissions, and run the tests
     - name: Run Maven Tests
       working-directory: ./Backend
+      env:
+        BRIGHTBUY_DB_URL: jdbc:mysql://127.0.0.1:3306/brightbuy?useSSL=false
+        BRIGHTBUY_DB_USERNAME: root
+        BRIGHTBUY_DB_PASSWORD: root
       run: |
         chmod +x mvnw
         ./mvnw clean test

@@ -24,7 +24,7 @@ public class CheckoutRepository {
         this.objectMapper = objectMapper;
     }
 
-    public String callProcessCheckout(Integer customerId, List<CartItemDto> cartItems) {
+    public String callProcessCheckout(Integer customerId, List<CartItemDto> cartItems, String deliveryMode, String paymentMethod) {
 
         try {
             //convert list of Java cartItems to strign, to send to sql procedure
@@ -37,7 +37,9 @@ public class CheckoutRepository {
             // Bind the IN parameters
             SqlParameterSource in = new MapSqlParameterSource()
                     .addValue("p_customer_id", customerId)
-                    .addValue("p_cart_json", cartItemsJson);
+                    .addValue("p_cart_json", cartItemsJson)
+                    .addValue("p_delivery_mode", deliveryMode)
+                    .addValue("p_payment_method", paymentMethod);
 
             // Execute the procedure and capture the OUT parameter
             Map<String, Object> out = jdbcCall.execute(in);

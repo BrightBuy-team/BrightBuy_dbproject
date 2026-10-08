@@ -1,5 +1,3 @@
-import type { ProductVariant } from './api'
-
 export type CartItem = {
   productId: number;
   variantId: number;
