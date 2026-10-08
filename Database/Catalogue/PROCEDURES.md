@@ -97,6 +97,47 @@ The shared view excludes null/negative prices and null/negative stock. Product
 detail is unavailable if the product is missing, inactive or has no valid
 variant. Zero stock alone does not make a valid product unavailable.
 
+## Maintenance procedures
+
+Installed by `08_catalogue_maintenance_procedures.sql` for warehouse staff
+(BR-14). All use `SQL SECURITY INVOKER`. Text inputs are trimmed; a blank
+optional value is stored as NULL. Update procedures replace every editable
+field, so send the current value for anything that should not change.
+
+| Procedure | Parameters | Effect |
+|---|---|---|
+| `sp_catalogue_create_category` | name, description, parent_category_id, OUT category_id | Adds a root (NULL parent) or child category. |
+| `sp_catalogue_update_category` | category_id, name, description, parent_category_id, is_active | Replaces the category's fields. |
+| `sp_catalogue_create_product` | sku, name, description, image_url, category_id, OUT product_id | Adds a product and its first category together. |
+| `sp_catalogue_update_product` | product_id, sku, name, description, image_url | Replaces the product's fields. |
+| `sp_catalogue_set_product_active` | product_id, is_active | Retires (0) or restores (1) a product. |
+| `sp_catalogue_assign_category` | product_id, category_id | Adds an assignment; repeating it changes nothing. |
+| `sp_catalogue_unassign_category` | product_id, category_id | Removes an assignment, unless it is the last one. |
+
+Rules: category name 1–100 characters and unique; description up to 500;
+SKU 1–50 letters, digits, dots, hyphens or underscores and unique; product name
+1–150 characters; image URL up to 500. The category triggers still enforce the
+two-level hierarchy. A new product has no variant, so the storefront hides it
+until inventory adds one.
+
+`sp_catalogue_create_product` and `sp_catalogue_unassign_category` start and
+commit their own transaction and roll back on any error. Do not call them
+inside an open transaction: `START TRANSACTION` would commit the caller's
+pending work. The other five are single statements and neither start nor
+commit a transaction.
+
+```sql
+CALL sp_catalogue_create_category('Drones', 'Camera drones', 1, @category_id);
+CALL sp_catalogue_create_product('BB-DRONE-MINI', 'BrightBuy Mini Drone',
+     'Foldable camera drone', NULL, @category_id, @product_id);
+CALL sp_catalogue_assign_category(@product_id, 1);
+CALL sp_catalogue_set_product_active(@product_id, 0);
+```
+
+Errors: `45000` invalid input or broken rule (third hierarchy level, removing
+the last category), `45004` product/category/assignment not found, `23000`
+duplicate SKU or category name.
+
 ## Error handling
 
 - SQLSTATE `45000`: invalid parameters (map to HTTP 400 in the future API).

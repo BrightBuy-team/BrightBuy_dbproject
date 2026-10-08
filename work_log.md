@@ -27,6 +27,25 @@
 
 Updated: 2026-10-08. Status reflects this local checkout, not unmerged teammate branches.
 
+### Catalogue database completion — 2026-10-08
+
+- Added seven maintenance procedures for warehouse staff (SRS 2.2.4, BR-14) in
+  `Database/Catalogue/08_catalogue_maintenance_procedures.sql`: create/update
+  category, create/update product, retire/restore product, assign/unassign
+  category. Products are never deleted; a product keeps at least one category.
+- Added `09_catalogue_roles.sql` with least-privilege reader and maintainer
+  roles (SEC-7). It creates no accounts and stores no passwords.
+- Added `10_catalogue_explain.sql` with recorded results (CON-6) and
+  `DATA_DICTIONARY.md` for the three catalogue tables (DB-4), including the
+  documented `ON DELETE RESTRICT` deviation from SRS 2.5.2.
+- Verified on an isolated MySQL 9.7.1 instance only: 41 new maintenance
+  assertions passed, both role types were checked with real restricted
+  accounts, and the existing procedure and foundation suites still passed.
+  Not yet rerun on MySQL 8.0.
+- Not done: backend endpoints and a staff screen for these procedures, and
+  audit-log rows for staff actions (SEC-11). Both need the inventory and auth
+  owners. No teammate file was edited.
+
 ### Catalogue-only handoff — 2026-10-08
 
 - Removed the temporary direct Buy Now request with hardcoded Azure URL/customer
