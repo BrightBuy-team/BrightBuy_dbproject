@@ -14,3 +14,6 @@ Frontend/dist/
 .env.local
 *.env
 Backend/src/main/resources/application-local.properties
+Docs/Group 14 SRS document.pdf
+Backend/src/main/resources/application-catalogue.properties
+

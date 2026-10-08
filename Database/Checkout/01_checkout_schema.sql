@@ -5,6 +5,8 @@ CREATE TABLE orders (
     order_date DATETIME,
     order_status VARCHAR(50),
     total_amount DECIMAL(10,2),
+    delivery_mode VARCHAR(50),
+    payment_method VARCHAR(50),
     FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
 );
 
