@@ -5,19 +5,43 @@ export default function LoginPage({ onLogin }: { onLogin: (role: string) => void
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
       setError('Please enter both email and password.');
       return;
     }
     
-    // Simple mock authentication
-    if (email === 'admin@brightbuy.com' && password === 'admin123') {
-      onLogin('admin');
-    } else if (email && password) {
+    // Get existing users
+    const usersStr = localStorage.getItem('mockUsers');
+    const users = usersStr ? JSON.parse(usersStr) : [];
+
+    if (isRegistering) {
+      // Check if user already exists
+      if (email === 'admin@brightbuy.com' || users.find((u: any) => u.email === email)) {
+        setError('An account with this email already exists.');
+        return;
+      }
+      // Create new user
+      users.push({ email, password });
+      localStorage.setItem('mockUsers', JSON.stringify(users));
+      // Auto-login after registration
       onLogin('user');
+    } else {
+      // Handle Login
+      if (email === 'admin@brightbuy.com' && password === 'admin123') {
+        onLogin('admin');
+        return;
+      } 
+      
+      const user = users.find((u: any) => u.email === email && u.password === password);
+      if (user) {
+        onLogin('user');
+      } else {
+        setError('Invalid email or password.');
+      }
     }
   };
 
@@ -39,18 +63,20 @@ export default function LoginPage({ onLogin }: { onLogin: (role: string) => void
       
       <div className="login-right">
         <div className="login-form-container">
-          <h2 className="login-title">Sign In to Your Account</h2>
-          <p className="login-subtitle">Enter your email and password to continue</p>
+          <h2 className="login-title">{isRegistering ? 'Create an Account' : 'Sign In to Your Account'}</h2>
+          <p className="login-subtitle">
+            {isRegistering ? 'Enter your details to create a new account' : 'Enter your email and password to continue'}
+          </p>
           
           {error && <div className="login-error">{error}</div>}
           
-          <form className="login-form" onSubmit={handleLogin}>
+          <form className="login-form" onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">Email Address</label>
               <input 
                 id="email" 
                 type="email" 
-                placeholder="admin@brightbuy.com" 
+                placeholder="you@example.com" 
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -67,12 +93,38 @@ export default function LoginPage({ onLogin }: { onLogin: (role: string) => void
               />
             </div>
             
-            <button type="submit" className="login-submit-btn">Login</button>
+            <button type="submit" className="login-submit-btn">
+              {isRegistering ? 'Create Account' : 'Login'}
+            </button>
           </form>
+          
+          <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
+            {isRegistering ? (
+              <p style={{ color: '#64748b' }}>
+                Already have an account?{' '}
+                <button 
+                  onClick={() => { setIsRegistering(false); setError(''); }}
+                  style={{ background: 'none', border: 'none', color: '#0f172a', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}
+                >
+                  Sign In
+                </button>
+              </p>
+            ) : (
+              <p style={{ color: '#64748b' }}>
+                Don't have an account?{' '}
+                <button 
+                  onClick={() => { setIsRegistering(true); setError(''); }}
+                  style={{ background: 'none', border: 'none', color: '#0f172a', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}
+                >
+                  Create one
+                </button>
+              </p>
+            )}
+          </div>
           
           <div className="login-demo-hint">
             <p><strong>Admin Access:</strong> admin@brightbuy.com / admin123</p>
-            <p><strong>User Access:</strong> Any other email / password</p>
+            <p><strong>User Access:</strong> Create a new account to test</p>
           </div>
         </div>
       </div>
