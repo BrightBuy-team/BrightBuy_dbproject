@@ -16,7 +16,7 @@ export function useProductDetail(productId: number) {
   return useRequest(`product:${productId}`, load)
 }
 
-function useRequest<T>(path: string, load: (signal: AbortSignal) => Promise<T>) {
+export function useRequest<T>(path: string, load: (signal: AbortSignal) => Promise<T>) {
   const [attempt, setAttempt] = useState(0)
   const key = `${path}:${attempt}`
   const [result, setResult] = useState<{ key: string; data?: T; error?: string; status?: number }>()

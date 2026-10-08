@@ -1,5 +1,40 @@
 # Catalogue frontend
 
+## Current catalogue handoff — 2026-10-08
+
+- Removed the temporary Buy Now POST, hardcoded Azure checkout URL and customer
+  ID 1 from the catalogue variant component. Add to Cart is explicitly disabled
+  until the real cart contract and authenticated checkout are agreed. No order,
+  reservation or stock change can be initiated by this component.
+- Fixed the conditional-hook lint errors by removing the temporary checkout state.
+- Added read-only account status using `GET /api/auth/me`, with cookies included.
+  A 401 means signed out; other failures show an independent retry state and do
+  not block browsing. Responses are validated and raw server errors are hidden.
+  Refresh account status after signing in/out elsewhere. This is not login/logout
+  implementation, an authorization check, or permission to purchase.
+- Auth defaults to the sibling `/api/auth` address of `VITE_CATALOGUE_API_URL`.
+  Set optional `VITE_AUTH_API_URL` for an agreed separate auth deployment. Both
+  addresses must be absolute HTTP(S) API bases; do not put credentials in them.
+  Account routes remain pending rather than linking to nonexistent pages.
+- For local catalogue/account preview, start Vite with:
+
+  ```sh
+  VITE_CATALOGUE_API_URL=http://localhost:8080/api/catalogue \
+  VITE_AUTH_API_URL=http://localhost:8080/api/auth \
+  npm run dev -- --port 5173 --strictPort
+  ```
+
+  This overrides the existing local `.env` without editing it. It does not start
+  MySQL or Spring Boot. Other owners' pages/configuration are unchanged.
+- Verification: 167 frontend tests, catalogue-scoped lint and the default build
+  passed. Browser checks used fictional local responses, not Azure: signed-in
+  display, unavailable-account state, quantity error and disabled cart control.
+  These are not live authentication/session or full purchase-flow tests.
+- Remaining: account-page routes, actual cart contract, authenticated/CSRF-protected
+  mutations, low-stock threshold, owned contact mailbox, and combined performance
+  and end-to-end verification. Shared inventory/delivery lint failures remain
+  outside this catalogue change.
+
 Start the backend using [its catalogue profile instructions](../Backend/CATALOGUE_API.md),
 then run from `Frontend`:
 

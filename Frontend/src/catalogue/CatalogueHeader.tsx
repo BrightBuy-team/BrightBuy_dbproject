@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { Search } from './search'
 import { navigate } from './useCatalogue'
+import AccountStatus from './AccountStatus'
 
 // The parent keys this component by route/reset so draft errors cannot leak
 // into a different browse or detail page.
@@ -25,6 +26,7 @@ export default function CatalogueHeader({ query, homeHref }: { query: Search; ho
       <a className="catalogue-management-link" href="/management-reports">Management reports</a>
       <span className="catalogue-header-note">The everyday collection</span>
     </header>
+    <AccountStatus />
     {error && <p className="catalogue-field-error catalogue-search-error" id="search-error" role="alert">{error}</p>}
   </>
 }

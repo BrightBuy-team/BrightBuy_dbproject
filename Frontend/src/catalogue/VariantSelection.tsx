@@ -16,50 +16,12 @@ export default function VariantSelection({ variants, lowStockThreshold = configu
   const error = quantityError(quantity, selected.stock_quantity)
   const label = stockLabel(selected.stock_quantity, lowStockThreshold)
 
-  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [checkoutMessage, setCheckoutMessage] = useState('');
-
-  async function handleCheckout() {
-    setCheckoutStatus('loading');
-    setCheckoutMessage('');
-    try {
-      const response = await fetch('https://brightbuy-2026-gecbh9e5e4c0f8ar.eastasia-01.azurewebsites.net/api/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          customerId: 1, // Using a hardcoded test customer ID
-          cartItems: [
-            {
-              variantId: selected.variant_id,
-              quantity: Number(quantity)
-            }
-          ]
-        })
-      });
-
-      const message = await response.text();
-      if (response.ok) {
-        setCheckoutStatus('success');
-        setCheckoutMessage(message);
-      } else {
-        setCheckoutStatus('error');
-        setCheckoutMessage(message);
-      }
-    } catch (err) {
-      setCheckoutStatus('error');
-      setCheckoutMessage('Failed to connect to the server.');
-    }
-  }
-
   return <div className="catalogue-variant-selection">
     {variants.length > 1 ? <>
       <label htmlFor="catalogue-variant">Choose a variant</label>
       <select id="catalogue-variant" value={selected.variant_id} onChange={event => {
         setSelectedId(Number(event.target.value))
         setQuantity('1')
-        setCheckoutStatus('idle')
       }}>
         {variants.map(variant => <option key={variant.variant_id} value={variant.variant_id}>
           {variantLabel(variant)} — {stockLabel(variant.stock_quantity, lowStockThreshold)}
@@ -78,20 +40,10 @@ export default function VariantSelection({ variants, lowStockThreshold = configu
       aria-describedby={error ? 'catalogue-quantity-error' : undefined}
       onChange={event => {
         setQuantity(event.target.value)
-        setCheckoutStatus('idle')
       }} />
     {error && <p id="catalogue-quantity-error" className="catalogue-field-error" role="alert">{error}</p>}
     
-    <button 
-      type="button" 
-      className="catalogue-primary" 
-      disabled={selected.stock_quantity === 0 || !!error || checkoutStatus === 'loading'} 
-      onClick={handleCheckout}
-    >
-      {checkoutStatus === 'loading' ? 'Processing...' : 'Buy Now'}
-    </button>
-    
-    {checkoutStatus === 'success' && <p className="catalogue-fine-print" style={{color: 'green', fontWeight: 'bold', marginTop: '10px'}}>✅ {checkoutMessage}</p>}
-    {checkoutStatus === 'error' && <p className="catalogue-field-error" role="alert" style={{marginTop: '10px'}}>❌ {checkoutMessage}</p>}
+    <button type="button" className="catalogue-primary" disabled aria-describedby="catalogue-cart-pending">Add to Cart</button>
+    <p id="catalogue-cart-pending" className="catalogue-fine-print">Cart integration is not available yet. No items are saved or reserved.</p>
   </div>
 }

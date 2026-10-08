@@ -25,7 +25,22 @@
 
 ## Catalogue & Search — Kavindu Mihisara
 
-Updated: 2026-10-04. Status reflects this local checkout, not unmerged teammate branches.
+Updated: 2026-10-08. Status reflects this local checkout, not unmerged teammate branches.
+
+### Catalogue-only handoff — 2026-10-08
+
+- Removed the temporary direct Buy Now request with hardcoded Azure URL/customer
+  ID 1; restored disabled Add to Cart until the actual cart/auth contract is ready.
+  Variant/quantity selection remains available; no purchases or stock writes occur.
+- Fixed catalogue hooks/lint issues and added read-only account status against
+  `/api/auth/me`, with cookie-enabled requests, response validation, signed-out
+  handling, cancellation/timeout and retry. Auth base follows the configured
+  catalogue deployment or optional `VITE_AUTH_API_URL`; no credentials are stored.
+- Added six regression tests: total 167 passing. Catalogue lint and frontend
+  build passed. Local browser verification used fictional fixtures, not Azure.
+- Backend/database and teammates' inventory, delivery and reporting components
+  were not edited. Login/account routes, cart, CSRF-protected checkout, team
+  configuration choices and full-system verification remain shared work.
 
 ### Completed
 
@@ -37,7 +52,7 @@ Updated: 2026-10-04. Status reflects this local checkout, not unmerged teammate 
 - Added persistent category navigation and delivery/payment information. Contact is explicitly a non-working demo address.
 - Added loading, retry, empty-result and unavailable-product states; safe API response handling; keyboard focus and result announcements.
 - Fixed form-reset/stale-error behaviour and long-content layouts, checked at 360, 390, 768 and 1280px.
-- Latest verification: 161 frontend tests, lint and both builds passed; live browser checks used the real catalogue API and isolated MySQL 8.0.46, not mock responses.
+- Previous live verification (2026-10-04): 161 frontend tests, lint and both builds passed; browser checks used the real catalogue API and isolated MySQL 8.0.46, not mock responses. This is historical evidence, not a full-team verification of the current checkout.
 - Passed all 77 backend tests with no skips, including six real HTTP/MySQL tests, and 126 catalogue SQL assertions. Added checks for restricted database UPDATE permission and live HTTP CORS/write denial.
 
 ### Remaining
