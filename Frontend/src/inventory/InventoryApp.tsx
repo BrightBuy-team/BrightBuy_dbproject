@@ -13,6 +13,7 @@ export default function InventoryApp() {
   const [variants, setVariants] = useState<Variant[]>([]);
   const [lowStockVariants, setLowStockVariants] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin] = useState(localStorage.getItem('role') === 'admin');
 
   // Function to fetch all data from our Java Backend
   const fetchData = async () => {
@@ -67,6 +68,16 @@ export default function InventoryApp() {
       console.error("Error updating stock:", error);
     }
   };
+
+  if (!isAdmin) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'sans-serif', backgroundColor: '#f8fafc', textAlign: 'center', padding: '2rem' }}>
+        <h1 style={{ color: '#ef4444', fontSize: '3rem', marginBottom: '1rem' }}>Access Denied</h1>
+        <p style={{ fontSize: '1.2rem', color: '#64748b', marginBottom: '2rem' }}>You do not have permission to view the warehouse inventory. Admin access is required.</p>
+        <a href="/" style={{ padding: '1rem 2rem', backgroundColor: '#0f172a', color: 'white', textDecoration: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Return to Home</a>
+      </div>
+    );
+  }
 
   if (loading) {
     return <div className="loading">Connecting to Backend...</div>;
