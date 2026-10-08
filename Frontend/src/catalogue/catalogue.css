@@ -20,6 +20,11 @@ body { margin: 0; }
 .catalogue-search button { border: 0; background: #eaf0e7; padding: 8px 17px; white-space: nowrap; }
 .catalogue-search button span { padding-left: 12px; }
 .catalogue-header-note { font-size: 12px; color: var(--muted); margin-left: auto; }
+.catalogue-account { max-width: 1440px; margin: 0 auto; padding: 0 20px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
+.catalogue-account p { margin: 0; overflow-wrap: anywhere; min-width: 0; }
+.catalogue-account small { color: var(--muted); }
+.catalogue-account button { font: inherit; padding: 6px 10px; border: 1px solid currentColor; border-radius: 6px; background: transparent; cursor: pointer; }
+.catalogue-account button:disabled { cursor: default; opacity: .6; }
 .catalogue-app main { max-width: 1440px; padding: 0 48px 64px; margin: auto; }
 .catalogue-hero { background: #e9eee3; min-height: 290px; border-radius: 12px; display: flex; justify-content: space-between; overflow: hidden; padding: 40px 50px; position: relative; }
 .catalogue-section-label { font-size: 10px; font-weight: 750; letter-spacing: 1.8px; color: #566d57; }

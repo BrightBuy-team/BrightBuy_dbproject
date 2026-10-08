@@ -59,3 +59,9 @@ test('empty variants cannot expose purchase controls', () => {
   assert.match(html, /No variants are available/)
   assert.doesNotMatch(html, /<select|<input|<button/)
 })
+test('in-stock variants cannot accidentally place an order before cart integration', () => {
+  const html = render({})
+  assert.match(html, /<button[^>]*disabled=""[^>]*>Add to Cart/)
+  assert.match(html, /aria-describedby="catalogue-cart-pending"/)
+  assert.doesNotMatch(html, /Buy Now|Processing|Checkout completed/)
+})

@@ -25,7 +25,41 @@
 
 ## Catalogue & Search — Kavindu Mihisara
 
-Updated: 2026-10-04. Status reflects this local checkout, not unmerged teammate branches.
+Updated: 2026-10-08. Status reflects this local checkout, not unmerged teammate branches.
+
+### Catalogue database completion — 2026-10-08
+
+- Added seven maintenance procedures for warehouse staff (SRS 2.2.4, BR-14) in
+  `Database/Catalogue/08_catalogue_maintenance_procedures.sql`: create/update
+  category, create/update product, retire/restore product, assign/unassign
+  category. Products are never deleted; a product keeps at least one category.
+- Added `09_catalogue_roles.sql` with least-privilege reader and maintainer
+  roles (SEC-7). It creates no accounts and stores no passwords.
+- Added `10_catalogue_explain.sql` with recorded results (CON-6) and
+  `DATA_DICTIONARY.md` for the three catalogue tables (DB-4), including the
+  documented `ON DELETE RESTRICT` deviation from SRS 2.5.2.
+- Verified on an isolated MySQL 9.7.1 instance only: 41 new maintenance
+  assertions passed, both role types were checked with real restricted
+  accounts, and the existing procedure and foundation suites still passed.
+  Not yet rerun on MySQL 8.0.
+- Not done: backend endpoints and a staff screen for these procedures, and
+  audit-log rows for staff actions (SEC-11). Both need the inventory and auth
+  owners. No teammate file was edited.
+
+### Catalogue-only handoff — 2026-10-08
+
+- Removed the temporary direct Buy Now request with hardcoded Azure URL/customer
+  ID 1; restored disabled Add to Cart until the actual cart/auth contract is ready.
+  Variant/quantity selection remains available; no purchases or stock writes occur.
+- Fixed catalogue hooks/lint issues and added read-only account status against
+  `/api/auth/me`, with cookie-enabled requests, response validation, signed-out
+  handling, cancellation/timeout and retry. Auth base follows the configured
+  catalogue deployment or optional `VITE_AUTH_API_URL`; no credentials are stored.
+- Added six regression tests: total 167 passing. Catalogue lint and frontend
+  build passed. Local browser verification used fictional fixtures, not Azure.
+- Backend/database and teammates' inventory, delivery and reporting components
+  were not edited. Login/account routes, cart, CSRF-protected checkout, team
+  configuration choices and full-system verification remain shared work.
 
 ### Completed
 
@@ -37,7 +71,7 @@ Updated: 2026-10-04. Status reflects this local checkout, not unmerged teammate 
 - Added persistent category navigation and delivery/payment information. Contact is explicitly a non-working demo address.
 - Added loading, retry, empty-result and unavailable-product states; safe API response handling; keyboard focus and result announcements.
 - Fixed form-reset/stale-error behaviour and long-content layouts, checked at 360, 390, 768 and 1280px.
-- Latest verification: 161 frontend tests, lint and both builds passed; live browser checks used the real catalogue API and isolated MySQL 8.0.46, not mock responses.
+- Previous live verification (2026-10-04): 161 frontend tests, lint and both builds passed; browser checks used the real catalogue API and isolated MySQL 8.0.46, not mock responses. This is historical evidence, not a full-team verification of the current checkout.
 - Passed all 77 backend tests with no skips, including six real HTTP/MySQL tests, and 126 catalogue SQL assertions. Added checks for restricted database UPDATE permission and live HTTP CORS/write denial.
 
 ### Remaining
