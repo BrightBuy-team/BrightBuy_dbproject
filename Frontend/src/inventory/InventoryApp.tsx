@@ -74,7 +74,8 @@ export default function InventoryApp() {
 
   return (
     <div className="dashboard-container">
-      <header className="dashboard-header">
+      <header className="dashboard-header" style={{ position: 'relative' }}>
+        <a href="/" style={{ position: 'absolute', left: '2rem', top: '50%', transform: 'translateY(-50%)', textDecoration: 'none', color: '#115e59', fontWeight: 'bold', fontSize: '1.2rem' }}>← Back to Home</a>
         <h1>BrightBuy <span>Warehouse</span></h1>
         <p>Inventory Management System</p>
       </header>
