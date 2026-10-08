@@ -16,6 +16,8 @@ import CategoryNavigation from './CategoryNavigation'
 import CatalogueFooter from './CatalogueFooter'
 import CatalogueHeader from './CatalogueHeader'
 import ManagementReports from './ManagementReports'
+import CartView from './CartView'
+import CheckoutView from './CheckoutView'
 
 function ErrorNotice({ message, retry }: { message: string; retry: () => void }) {
   return <div className="catalogue-notice" role="alert"><h3>Something needs attention</h3><p>{message}</p><button onClick={retry}>Try again</button></div>
@@ -102,11 +104,18 @@ function CatalogueStorefront() {
   let query = defaultSearch
   let linkError: string
   let productId: number | null = null
+  let viewParam = null
   try {
     const route = parseCatalogueRoute(location)
     query = route.query
     productId = route.productId
     linkError = route.error
+    
+    // Add logic for viewParam
+    const urlParams = new URLSearchParams(location);
+    if (urlParams.get('view')) {
+      viewParam = urlParams.get('view');
+    }
   }
   catch (error) { linkError = (error as Error).message }
   const [resetVersion, setResetVersion] = useState(0)
@@ -129,21 +138,38 @@ function CatalogueStorefront() {
     <CategoryNavigation categories={categories.data} loading={categories.loading} error={categories.error}
       retry={categories.retry} currentCategoryId={!productId && !linkError ? query.categoryId : undefined} />
     <main id="catalogue-content" tabIndex={-1}>
-      {home && <section className="catalogue-hero" aria-labelledby="catalogue-heading">
-        <div><p className="catalogue-section-label">WELCOME TO BRIGHTBUY</p><h1 id="catalogue-heading">Good finds.<br /><em>Everyday possibilities.</em></h1><p>Explore the collection. Find the details that make it yours.</p><a href="#results-heading">Explore products <span aria-hidden="true">↘</span></a></div>
-        <div className="catalogue-hero-art" aria-hidden="true"><div className="catalogue-art-orbit" /><div className="catalogue-art-box"><PackageIcon /></div><span className="catalogue-art-caption">YOUR NEXT FIND</span><span className="catalogue-art-spark">✳</span></div>
-      </section>}
-      {home && <HomeHighlights categories={categories} />}
-      <div className="catalogue-breadcrumb"><a href={window.location.pathname}>Home</a><span aria-hidden="true">/</span><span>{productId ? 'Product details' : title}</span></div>
-      {linkError ? <div className="catalogue-detail-state" role="alert"><h1>Invalid catalogue link</h1><p>{linkError}</p><a href={catalogueHref(query)}>Back to results</a></div>
-        : productId ? <ProductDetailPage key={productId} productId={productId} query={query} /> : <div className="catalogue-layout">
-        <div>
-          {categories.loading && <p role="status">Loading categories…</p>}
-          {categories.error && <ErrorNotice message={categories.error} retry={categories.retry} />}
-          <Filters key={formKey} query={query} categories={categories.data ?? []} reset={resetFilters} />
-        </div>
-        <Results query={query} title={title} home={home} reset={resetFilters} />
-      </div>}
+      {viewParam === 'cart' ? (
+        <CartView 
+          onCheckout={() => window.location.href = '?view=checkout'} 
+          onContinueShopping={() => window.location.href = catalogueHref(query)} 
+        />
+      ) : viewParam === 'checkout' ? (
+        <CheckoutView 
+          onBack={() => window.location.href = '?view=cart'} 
+          onComplete={() => {
+            alert('Order placed successfully!');
+            window.location.href = catalogueHref(query);
+          }} 
+        />
+      ) : (
+        <>
+          {home && <section className="catalogue-hero" aria-labelledby="catalogue-heading">
+            <div><p className="catalogue-section-label">WELCOME TO BRIGHTBUY</p><h1 id="catalogue-heading">Good finds.<br /><em>Everyday possibilities.</em></h1><p>Explore the collection. Find the details that make it yours.</p><a href="#results-heading">Explore products <span aria-hidden="true">↘</span></a></div>
+            <div className="catalogue-hero-art" aria-hidden="true"><div className="catalogue-art-orbit" /><div className="catalogue-art-box"><PackageIcon /></div><span className="catalogue-art-caption">YOUR NEXT FIND</span><span className="catalogue-art-spark">✳</span></div>
+          </section>}
+          {home && <HomeHighlights categories={categories} />}
+          <div className="catalogue-breadcrumb"><a href={window.location.pathname}>Home</a><span aria-hidden="true">/</span><span>{productId ? 'Product details' : title}</span></div>
+          {linkError ? <div className="catalogue-detail-state" role="alert"><h1>Invalid catalogue link</h1><p>{linkError}</p><a href={catalogueHref(query)}>Back to results</a></div>
+            : productId ? <ProductDetailPage key={productId} productId={productId} query={query} /> : <div className="catalogue-layout">
+            <div>
+              {categories.loading && <p role="status">Loading categories…</p>}
+              {categories.error && <ErrorNotice message={categories.error} retry={categories.retry} />}
+              <Filters key={formKey} query={query} categories={categories.data ?? []} reset={resetFilters} />
+            </div>
+            <Results query={query} title={title} home={home} reset={resetFilters} />
+          </div>}
+        </>
+      )}
     </main>
     <CatalogueFooter />
   </div>
