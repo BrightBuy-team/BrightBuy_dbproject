@@ -11,7 +11,7 @@ export default function AccountStatus() {
   return <section className="catalogue-account" aria-label="Account status" aria-busy={loading}>
     <p role="status">{loading ? 'Checking account…' : error ? 'Account status unavailable.'
       : data ? `Signed in as ${data.email}` : 'Not signed in.'}</p>
-    <small>Account pages and cart integration pending.</small>
+    <small>Account pages pending.</small>
     <button type="button" onClick={retry} disabled={loading}>
       {error ? 'Retry account status' : 'Refresh account status'}
     </button>

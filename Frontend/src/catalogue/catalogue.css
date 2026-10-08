@@ -20,6 +20,7 @@ body { margin: 0; }
 .catalogue-search button { border: 0; background: #eaf0e7; padding: 8px 17px; white-space: nowrap; }
 .catalogue-search button span { padding-left: 12px; }
 .catalogue-header-note { font-size: 12px; color: var(--muted); margin-left: auto; }
+.catalogue-cart { font-size: 13px; font-weight: 600; color: var(--green) !important; white-space: nowrap; text-underline-offset: 4px; }
 .catalogue-account { max-width: 1440px; margin: 0 auto; padding: 0 20px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 13px; }
 .catalogue-account p { margin: 0; overflow-wrap: anywhere; min-width: 0; }
 .catalogue-account small { color: var(--muted); }
@@ -138,6 +139,8 @@ body { margin: 0; }
 .catalogue-detail-stock { display: inline-block; background: #e7eee4; color: #235739; border-radius: 4px; padding: 5px 10px; margin: 22px 0 12px !important; font-size: 12px; }
 .catalogue-detail-stock.unavailable { color: #895231; background: #f4ebe2; }
 .catalogue-detail-stock.low { color: #714b09; background: #fff1cd; }
+.catalogue-cart-result { min-height: 20px; margin: 12px 0 0 !important; font-size: 13px; color: #235739; overflow-wrap: anywhere; }
+.catalogue-cart-result.failed { color: #a33020; }
 .catalogue-variant-selection { margin-top: 24px; display: grid; gap: 12px; min-width: 0; }
 .catalogue-variant-selection label { font-size: 13px; font-weight: 650; }
 .catalogue-variant-selection select, .catalogue-variant-selection input { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: white; }

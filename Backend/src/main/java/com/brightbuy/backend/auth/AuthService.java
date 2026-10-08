@@ -36,6 +36,30 @@ public class AuthService {
         }
     }
 
+    public Integer createEmployee(CreateEmployeeRequest request) {
+        try {
+            return repository.createEmployee(request.firstName().trim(), request.lastName().trim(),
+                    normalizeEmail(request.email()), passwordEncoder.encode(request.password()), request.contactNo(),
+                    request.role());
+        } catch (DataAccessException exception) {
+            if (hasMessage(exception, "email already registered")) {
+                throw new AuthException(HttpStatus.CONFLICT, "EMAIL_ALREADY_REGISTERED",
+                        "An account with this email already exists.");
+            }
+            throw new AuthException(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_UNAVAILABLE",
+                    "Employee provisioning is temporarily unavailable.");
+        }
+    }
+
+    public boolean employeeHasRole(Integer employeeId, EmployeeRole role) {
+        try {
+            return repository.employeeHasRole(employeeId, role);
+        } catch (DataAccessException exception) {
+            throw new AuthException(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_UNAVAILABLE",
+                    "Employee permissions are temporarily unavailable.");
+        }
+    }
+
     public AuthenticatedUser login(LoginRequest request) {
         String email = normalizeEmail(request.email());
         try {
@@ -92,6 +116,10 @@ public class AuthService {
     public record RegisterCustomerRequest(String firstName, String lastName, String email, String password,
             String phone, String addressLine, Integer cityId) {
     }
+
+    public record CreateEmployeeRequest(String firstName, String lastName, String email, String password,
+            String contactNo, EmployeeRole role) {
+        }
 
     public record LoginRequest(String email, String password, AccountType accountType) {
     }

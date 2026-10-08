@@ -43,7 +43,7 @@ export function ProductDetailView({ query, data, error, status, loading, retry }
         <p className="catalogue-section-label">PRODUCT DETAILS</p>
         <h1>{data.name}</h1>
         <p className="catalogue-sku">SKU: {data.sku}</p>
-        <VariantSelection key={data.product_id} variants={data.variants} />
+        <VariantSelection key={data.product_id} productId={data.product_id} productName={data.name} variants={data.variants} />
         <h2>About this product</h2>
         <p className="catalogue-description">{data.description?.trim() ? data.description : 'No description is available for this product yet.'}</p>
         {data.categories.length > 0 && <>

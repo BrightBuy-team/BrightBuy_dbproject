@@ -19,13 +19,14 @@ are configured with `catalogue.cors.allowed-origins`.
 | Method and path | Access | Request or response |
 |---|---|---|
 | `GET /api/auth/csrf` | Public | Returns `{ "token": "..." }` and sets the CSRF cookie. |
-| `POST /api/auth/register` | Public + CSRF | Customer fields: `firstName`, `lastName`, `email`, `password`, `cityId`; `phone` and `addressLine` are optional. |
+| `POST /api/auth/register` | Public + CSRF | Customer fields: `firstName`, `lastName`, `email`, `password`; `cityId`, `phone`, and `addressLine` are optional. |
 | `POST /api/auth/login` | Public + CSRF | `email`, `password`, and `accountType` (`CUSTOMER` or `EMPLOYEE`). |
+| `POST /api/auth/employees` | Admin + CSRF | Creates an employee with `firstName`, `lastName`, `email`, `password`, optional `contactNo`, and `role` (`WAREHOUSE_STAFF`, `MANAGEMENT`, or `ADMIN`). |
 | `GET /api/auth/me` | Authenticated | Returns the current user's `id`, `email`, `accountType`, and `role`. |
 | `POST /api/auth/logout` | Authenticated + CSRF | Invalidates the session and CSRF cookie. |
 
 Login failures return a generic message for both unknown emails and incorrect
 passwords. The fifth recent failure activates the SQL-backed 15-minute rate
-limit. Customer registration stores a BCrypt hash; employee accounts are
-provisioned through the database/admin workflow, not public registration. The
-placeholder hashes in the SQL demo seed intentionally cannot be used to sign in.
+limit. Customer registration and admin-only employee provisioning store BCrypt
+hashes and call their corresponding database procedures. The placeholder hashes
+in the SQL demo seed intentionally cannot be used to sign in.
