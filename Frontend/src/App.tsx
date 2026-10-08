@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 
-function App() {
+export function Home() {
   const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
@@ -96,4 +96,33 @@ function App() {
   )
 }
 
-export default App
+import LoginPage from './LoginPage';
+
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('role'));
+
+  const handleLogin = (role: string) => {
+    localStorage.setItem('role', role);
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('role');
+    setIsLoggedIn(false);
+  };
+
+  if (!isLoggedIn) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
+  return (
+    <>
+      <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000 }}>
+        <button onClick={handleLogout} style={{ padding: '0.5rem 1rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+          Logout
+        </button>
+      </div>
+      <Home />
+    </>
+  );
+}
