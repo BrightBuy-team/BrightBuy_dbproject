@@ -29,7 +29,8 @@ test('loaded detail shows product details and the selected variant price', () =>
   for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', 'USD', '100.00', 'In Stock', 'Image coming soon']) assert.ok(html.includes(text), text)
   assert.match(html, /categoryId=4/)
   assert.match(html, /<select id="catalogue-variant"/)
-  assert.match(html, /Cart integration is not available yet/)
+  assert.match(html, /<button[^>]*>Add to Cart/)
+  assert.match(html, /Your cart is kept for this browser session/)
   assert.doesNotMatch(html, /150.00|currency is not yet specified/)
 })
 test('single-price and fully out-of-stock products remain readable', () => {

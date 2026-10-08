@@ -1,5 +1,75 @@
 # Catalogue frontend
 
+## Session cart — 2026-10-08
+
+Add to Cart now works on the product page and the header shows the cart count.
+The cart page and checkout screens are still to come from the checkout owner.
+
+**Contract for the cart and checkout pages** (`src/catalogue/cart.ts`):
+
+- Stored in `sessionStorage` under the key `brightbuy.cart.v1` (SRS AS-11:
+  guest cart held in the browser session, not in the database).
+- Value: a JSON array of lines
+  `{ variantId, quantity, productId, productName, variantLabel, unitPrice }`.
+  One line per variant; adding the same variant again increases its quantity.
+- `variantId` and `quantity` match the backend `CartItemDto`.
+  `checkoutItems(readCart())` returns exactly the `cartItems` array that
+  `POST /api/checkout` expects.
+- `productName`, `variantLabel` and `unitPrice` are display snapshots taken
+  when the item was added. Never use them for totals that matter: checkout
+  reads price and stock from the database.
+- Helpers: `readCart`, `addToCart`, `clearCart` (call it after a successful
+  checkout), `cartUnitCount`, `checkoutItems`, `subscribeCart`, and the React
+  hook `useCart` in `useCatalogue.ts`.
+- Unreadable or unexpected stored data is treated as an empty cart.
+
+Behaviour: the button is disabled for out-of-stock variants and invalid
+quantities. Adding more than the stock shown, counting what is already in the
+cart, is refused with a message. Nothing is reserved (AS-10) and no request is
+sent to the backend. The header shows `Cart (n)` as text; set `VITE_CART_URL`
+to a path or http(s) address to turn it into a link once the cart page exists.
+
+Checked on 2026-10-08: 179 frontend tests, catalogue lint, typecheck and build
+passed. In a browser against a local backend and an isolated MySQL 9.7.1
+database: added 3 units, a further 11 was refused against 13 in stock, the
+count survived a page load, an out-of-stock variant stayed disabled, and the
+page had no horizontal overflow at 360px.
+
+## Current catalogue handoff — 2026-10-08
+
+- Removed the temporary Buy Now POST, hardcoded Azure checkout URL and customer
+  ID 1 from the catalogue variant component. Add to Cart is explicitly disabled
+  until the real cart contract and authenticated checkout are agreed. No order,
+  reservation or stock change can be initiated by this component.
+- Fixed the conditional-hook lint errors by removing the temporary checkout state.
+- Added read-only account status using `GET /api/auth/me`, with cookies included.
+  A 401 means signed out; other failures show an independent retry state and do
+  not block browsing. Responses are validated and raw server errors are hidden.
+  Refresh account status after signing in/out elsewhere. This is not login/logout
+  implementation, an authorization check, or permission to purchase.
+- Auth defaults to the sibling `/api/auth` address of `VITE_CATALOGUE_API_URL`.
+  Set optional `VITE_AUTH_API_URL` for an agreed separate auth deployment. Both
+  addresses must be absolute HTTP(S) API bases; do not put credentials in them.
+  Account routes remain pending rather than linking to nonexistent pages.
+- For local catalogue/account preview, start Vite with:
+
+  ```sh
+  VITE_CATALOGUE_API_URL=http://localhost:8080/api/catalogue \
+  VITE_AUTH_API_URL=http://localhost:8080/api/auth \
+  npm run dev -- --port 5173 --strictPort
+  ```
+
+  This overrides the existing local `.env` without editing it. It does not start
+  MySQL or Spring Boot. Other owners' pages/configuration are unchanged.
+- Verification: 167 frontend tests, catalogue-scoped lint and the default build
+  passed. Browser checks used fictional local responses, not Azure: signed-in
+  display, unavailable-account state, quantity error and disabled cart control.
+  These are not live authentication/session or full purchase-flow tests.
+- Remaining: account-page routes, actual cart contract, authenticated/CSRF-protected
+  mutations, low-stock threshold, owned contact mailbox, and combined performance
+  and end-to-end verification. Shared inventory/delivery lint failures remain
+  outside this catalogue change.
+
 Start the backend using [its catalogue profile instructions](../Backend/CATALOGUE_API.md),
 then run from `Frontend`:
 
@@ -67,10 +137,10 @@ as required by SRS AS-12.
 
 Quantity must be a positive whole number no greater than the selected stock;
 invalid input displays an inline error. Quantity is disabled for zero stock.
-The Add to Cart button remains disabled **for all variants** with an explicit
-integration-pending message: there is no cart implementation/contract yet. No
-local/session cart, backend mutation or stock reservation is performed. UI-3's
-working Add to Cart requirement remains unfinished pending checkout integration.
+Add to Cart saves the selected variant and quantity to the session cart
+described in [Session cart](#session-cart--2026-10-08). It is disabled for
+out-of-stock variants and invalid quantities. No backend mutation or stock
+reservation is performed.
 
 Low-stock threshold is SRS TBD-5. Set `VITE_CATALOGUE_LOW_STOCK_THRESHOLD` to
 the agreed positive integer before starting/building Vite. A positive stock value

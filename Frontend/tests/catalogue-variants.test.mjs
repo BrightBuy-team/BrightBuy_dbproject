@@ -36,7 +36,9 @@ const variants = [
   { variant_id: 1, variant_name: 'Phone', colour: 'Black', memory_size: '128GB', price: 100, stock_quantity: 5 },
   { variant_id: 2, variant_name: 'Phone', colour: 'Blue', memory_size: '256GB', price: 150, stock_quantity: 0 },
 ]
-const render = props => renderToStaticMarkup(createElement(VariantSelection, { variants, ...props }))
+const render = props => renderToStaticMarkup(createElement(VariantSelection, {
+  productId: 3, productName: 'Demo phone', variants, ...props,
+}))
 test('multiple options have labelled selector and live price/stock region', () => {
   const html = render({ lowStockThreshold: 5 })
   assert.match(html, /for="catalogue-variant"/)
@@ -44,7 +46,7 @@ test('multiple options have labelled selector and live price/stock region', () =
   assert.match(html, /Low Stock/)
   assert.match(html, /aria-live="polite"/)
   assert.match(html, /max="5"/)
-  assert.match(html, /No items are saved or reserved/)
+  assert.match(html, /Stock is not reserved until checkout/)
 })
 test('single variant hides selector and disables quantity for zero stock', () => {
   const html = render({ variants: [variants[1]] })
@@ -58,4 +60,12 @@ test('empty variants cannot expose purchase controls', () => {
   const html = render({ variants: [] })
   assert.match(html, /No variants are available/)
   assert.doesNotMatch(html, /<select|<input|<button/)
+})
+test('in-stock variants can be added to the cart but never place an order', () => {
+  const html = render({})
+  assert.match(html, /<button[^>]*>Add to Cart/)
+  assert.doesNotMatch(html, /<button[^>]*disabled=""[^>]*>Add to Cart/)
+  assert.match(html, /aria-describedby="catalogue-cart-note"/)
+  assert.match(html, /class="catalogue-cart-result[^"]*" role="status"><\/p>/)
+  assert.doesNotMatch(html, /Buy Now|Processing|Checkout completed|Cart integration is not available/)
 })

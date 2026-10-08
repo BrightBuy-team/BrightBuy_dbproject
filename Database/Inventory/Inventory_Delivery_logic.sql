@@ -28,15 +28,6 @@ BEGIN
     RETURN DATE_ADD(CURDATE(), INTERVAL v_total_days DAY);
 END //
 
--- Trigger: Atomic inventory decrement on order placement
-CREATE TRIGGER after_order_item_insert
-AFTER INSERT ON order_item
-FOR EACH ROW
-BEGIN
-    UPDATE variant
-    SET stock_quantity = stock_quantity - NEW.quantity
-    WHERE variant_id = NEW.variant_id;
-END //
 
 -- Trigger: Audit variant stock changes (SAF-7) (all changes in varient stock shall be written to this table)
 CREATE TRIGGER after_variant_update

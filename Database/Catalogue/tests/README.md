@@ -105,6 +105,33 @@ Validated on isolated MySQL 9.7.1: **65 procedure assertions + 32 foundation
 assertions passed**. Procedure reinstallation and all eleven query examples
 also passed. The team's exact MySQL 8 version still needs verification.
 
+## Maintenance procedure assertions (milestone 5)
+
+Install `08_catalogue_maintenance_procedures.sql` on the disposable dataset,
+then run:
+
+```sh
+mysql --socket=/path/to/disposable/mysql.sock -u root -p < tests/test_maintenance.sql
+```
+
+The 41 assertions cover creating, updating, reparenting and deactivating
+categories; creating, updating, retiring and restoring products; assigning and
+unassigning categories; and the rejections for blank or over-long names, bad
+SKUs, duplicates, missing rows, a third hierarchy level, self-parenting and
+removing a product's last category. It also checks that a failed product
+creation leaves no partial row and that the storefront still lists the 39
+seeded active products.
+
+Two of the procedures commit their own transaction, so this suite cannot roll
+back. It works only on rows named `TEST-MAINT...`, deletes them on success or
+failure, and finishes by asserting the original row counts. The account
+running it needs DELETE on `product` and `category` for that cleanup, which the
+maintainer role deliberately lacks.
+
+Validated on isolated MySQL 9.7.1 on 2026-10-08: **41 assertions passed**, and
+the procedure and foundation suites still passed afterwards. Not yet run on
+MySQL 8.0.
+
 ## Seed and integration reruns
 
 After a successful fresh setup, execute `03_catalogue_seed_data.sql` twice and
