@@ -78,7 +78,9 @@ export default function DeliveryApp() {
     <div className="delivery-container">
       <div className="glass-panel delivery-card">
 
-        <header className="delivery-header">
+        <header className="delivery-header" style={{ position: 'relative' }}>
+          <a href="/" style={{ position: 'absolute', left: '1rem', top: '1rem', textDecoration: 'none', color: '#2563eb', fontWeight: 'bold' }}>← Back</a>
+
           <div className="icon-wrapper">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="1" y="3" width="15" height="13"></rect>
