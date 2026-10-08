@@ -27,6 +27,23 @@
 
 Updated: 2026-10-08. Status reflects this local checkout, not unmerged teammate branches.
 
+### Install script and session cart — 2026-10-08
+
+- Added `Database/install_all.sh` and `Database/INSTALL.md`: one command that
+  installs all five modules in dependency order on a fresh database. It reads
+  teammates' SQL unchanged and works around the duplicate `delivery` table, the
+  invalid `--Run` comment lines and the conflicting checkout seed.
+- Verified on an isolated MySQL 9.7.1 instance: full install, second run
+  refused, catalogue suites passed, and a test checkout of two units created
+  the order, reduced stock once and wrote one audit row. Not run on MySQL 8.0.
+- Added the session cart (`Frontend/src/catalogue/cart.ts`), enabled Add to
+  Cart and added the header cart count (SRS AS-11, UI-3, UI-1). Contract for
+  the cart and checkout pages is in `Frontend/CATALOGUE_UI.md`.
+- 179 frontend tests, catalogue lint, typecheck and build passed; checked in a
+  browser against a local backend. No teammate file was edited.
+- Still needed from others: cart page and checkout screens (Adeesha), login and
+  registration screens (Atapattu). No order can be placed in the browser yet.
+
 ### Catalogue database completion — 2026-10-08
 
 - Added seven maintenance procedures for warehouse staff (SRS 2.2.4, BR-14) in

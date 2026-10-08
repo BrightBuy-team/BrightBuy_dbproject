@@ -18,7 +18,7 @@ export default function CatalogueFooter({ email = import.meta.env.VITE_BRIGHTBUY
     <section aria-labelledby="footer-payment-heading">
       <h2 id="footer-payment-heading">Payment methods</h2>
       <p>Cash on Delivery and Card Payment are the planned checkout methods. All prices are in USD.</p>
-      <p className="catalogue-footer-pending">Cart and checkout integration is not available yet; this catalogue cannot accept orders or payments.</p>
+      <p className="catalogue-footer-pending">You can add items to your cart, but the cart page and checkout are not available yet; this catalogue cannot accept orders or payments.</p>
     </section>
   </footer>
 }

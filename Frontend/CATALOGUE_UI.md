@@ -1,5 +1,40 @@
 # Catalogue frontend
 
+## Session cart — 2026-10-08
+
+Add to Cart now works on the product page and the header shows the cart count.
+The cart page and checkout screens are still to come from the checkout owner.
+
+**Contract for the cart and checkout pages** (`src/catalogue/cart.ts`):
+
+- Stored in `sessionStorage` under the key `brightbuy.cart.v1` (SRS AS-11:
+  guest cart held in the browser session, not in the database).
+- Value: a JSON array of lines
+  `{ variantId, quantity, productId, productName, variantLabel, unitPrice }`.
+  One line per variant; adding the same variant again increases its quantity.
+- `variantId` and `quantity` match the backend `CartItemDto`.
+  `checkoutItems(readCart())` returns exactly the `cartItems` array that
+  `POST /api/checkout` expects.
+- `productName`, `variantLabel` and `unitPrice` are display snapshots taken
+  when the item was added. Never use them for totals that matter: checkout
+  reads price and stock from the database.
+- Helpers: `readCart`, `addToCart`, `clearCart` (call it after a successful
+  checkout), `cartUnitCount`, `checkoutItems`, `subscribeCart`, and the React
+  hook `useCart` in `useCatalogue.ts`.
+- Unreadable or unexpected stored data is treated as an empty cart.
+
+Behaviour: the button is disabled for out-of-stock variants and invalid
+quantities. Adding more than the stock shown, counting what is already in the
+cart, is refused with a message. Nothing is reserved (AS-10) and no request is
+sent to the backend. The header shows `Cart (n)` as text; set `VITE_CART_URL`
+to a path or http(s) address to turn it into a link once the cart page exists.
+
+Checked on 2026-10-08: 179 frontend tests, catalogue lint, typecheck and build
+passed. In a browser against a local backend and an isolated MySQL 9.7.1
+database: added 3 units, a further 11 was refused against 13 in stock, the
+count survived a page load, an out-of-stock variant stayed disabled, and the
+page had no horizontal overflow at 360px.
+
 ## Current catalogue handoff — 2026-10-08
 
 - Removed the temporary Buy Now POST, hardcoded Azure checkout URL and customer
@@ -102,10 +137,10 @@ as required by SRS AS-12.
 
 Quantity must be a positive whole number no greater than the selected stock;
 invalid input displays an inline error. Quantity is disabled for zero stock.
-The Add to Cart button remains disabled **for all variants** with an explicit
-integration-pending message: there is no cart implementation/contract yet. No
-local/session cart, backend mutation or stock reservation is performed. UI-3's
-working Add to Cart requirement remains unfinished pending checkout integration.
+Add to Cart saves the selected variant and quantity to the session cart
+described in [Session cart](#session-cart--2026-10-08). It is disabled for
+out-of-stock variants and invalid quantities. No backend mutation or stock
+reservation is performed.
 
 Low-stock threshold is SRS TBD-5. Set `VITE_CATALOGUE_LOW_STOCK_THRESHOLD` to
 the agreed positive integer before starting/building Vite. A positive stock value

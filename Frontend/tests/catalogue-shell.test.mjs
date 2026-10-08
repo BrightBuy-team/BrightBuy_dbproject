@@ -41,6 +41,11 @@ test('header restores the applied keyword with accessible search controls', () =
   assert.match(html, /aria-invalid="false"/)
   assert.doesNotMatch(html, /role="alert"/)
 })
+test('header shows an empty cart count as text until a cart page is configured', () => {
+  const html = renderToStaticMarkup(createElement(CatalogueHeader, { query: defaultSearch, homeHref: '/' }))
+  assert.match(html, /<span class="catalogue-cart" role="status" aria-label="Cart, 0 items">Cart <span aria-hidden="true">\(0\)<\/span><\/span>/)
+  assert.doesNotMatch(html, /<a class="catalogue-cart"/)
+})
 test('a fresh header escapes keyword text and starts without a stale error', () => {
   const html = renderToStaticMarkup(createElement(CatalogueHeader, {
     query: { ...defaultSearch, keyword: '<script>"&' }, homeHref: '/catalogue.html',
