@@ -106,16 +106,18 @@ function CatalogueStorefront() {
   let productId: number | null = null
   let viewParam = null
   try {
+    // Extract view param first and remove it from location
+    const urlParams = new URLSearchParams(location);
+    if (urlParams.get('view')) {
+      viewParam = urlParams.get('view');
+      urlParams.delete('view');
+      location = '?' + urlParams.toString();
+    }
+
     const route = parseCatalogueRoute(location)
     query = route.query
     productId = route.productId
     linkError = route.error
-    
-    // Add logic for viewParam
-    const urlParams = new URLSearchParams(location);
-    if (urlParams.get('view')) {
-      viewParam = urlParams.get('view');
-    }
   }
   catch (error) { linkError = (error as Error).message }
   const [resetVersion, setResetVersion] = useState(0)

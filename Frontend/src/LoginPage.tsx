@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import './LoginPage.css';
 
-export default function LoginPage({ onLogin }: { onLogin: (role: string) => void }) {
+export default function LoginPage({ onLogin }: { onLogin: (role: string, email: string) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,17 +28,17 @@ export default function LoginPage({ onLogin }: { onLogin: (role: string) => void
       users.push({ email, password });
       localStorage.setItem('mockUsers', JSON.stringify(users));
       // Auto-login after registration
-      onLogin('user');
+      onLogin('user', email);
     } else {
       // Handle Login
       if (email === 'admin@brightbuy.com' && password === 'admin123') {
-        onLogin('admin');
+        onLogin('admin', email);
         return;
       } 
       
       const user = users.find((u: any) => u.email === email && u.password === password);
       if (user) {
-        onLogin('user');
+        onLogin('user', email);
       } else {
         setError('Invalid email or password.');
       }

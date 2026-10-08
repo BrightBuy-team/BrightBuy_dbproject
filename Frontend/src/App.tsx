@@ -101,13 +101,15 @@ import LoginPage from './LoginPage';
 export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('role'));
 
-  const handleLogin = (role: string) => {
+  const handleLogin = (role: string, email: string) => {
     localStorage.setItem('role', role);
+    localStorage.setItem('currentUserEmail', email);
     setIsLoggedIn(true);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('role');
+    localStorage.removeItem('currentUserEmail');
     setIsLoggedIn(false);
   };
 

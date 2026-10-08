@@ -10,11 +10,14 @@ export type CartItem = {
   stockQuantity: number;
 }
 
-const CART_KEY = 'brightbuy_cart';
+function getCartKey(): string {
+  const email = localStorage.getItem('currentUserEmail');
+  return email ? `brightbuy_cart_${email}` : 'brightbuy_cart_guest';
+}
 
 export function getCart(): CartItem[] {
   try {
-    const data = sessionStorage.getItem(CART_KEY);
+    const data = sessionStorage.getItem(getCartKey());
     if (data) {
       return JSON.parse(data);
     }
@@ -35,7 +38,7 @@ export function addToCart(item: CartItem) {
   } else {
     cart.push(item);
   }
-  sessionStorage.setItem(CART_KEY, JSON.stringify(cart));
+  sessionStorage.setItem(getCartKey(), JSON.stringify(cart));
   window.dispatchEvent(new Event('cart-updated'));
 }
 
@@ -51,7 +54,7 @@ export function updateCartQuantity(variantId: number, quantity: number) {
           cart[existingIndex].quantity = cart[existingIndex].stockQuantity;
       }
     }
-    sessionStorage.setItem(CART_KEY, JSON.stringify(cart));
+    sessionStorage.setItem(getCartKey(), JSON.stringify(cart));
     window.dispatchEvent(new Event('cart-updated'));
   }
 }
@@ -59,12 +62,12 @@ export function updateCartQuantity(variantId: number, quantity: number) {
 export function removeFromCart(variantId: number) {
   let cart = getCart();
   cart = cart.filter(i => i.variantId !== variantId);
-  sessionStorage.setItem(CART_KEY, JSON.stringify(cart));
+  sessionStorage.setItem(getCartKey(), JSON.stringify(cart));
   window.dispatchEvent(new Event('cart-updated'));
 }
 
 export function clearCart() {
-  sessionStorage.removeItem(CART_KEY);
+  sessionStorage.removeItem(getCartKey());
   window.dispatchEvent(new Event('cart-updated'));
 }
 
