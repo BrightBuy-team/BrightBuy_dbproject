@@ -4,6 +4,8 @@ DROP PROCEDURE IF EXISTS ProcessCheckout//
 CREATE PROCEDURE ProcessCheckout(
     IN p_customer_id INT,
     IN p_cart_json JSON,
+    IN p_delivery_mode VARCHAR(50),
+    IN p_payment_method VARCHAR(50),
     OUT p_status VARCHAR(255)
 )
 BEGIN
@@ -75,17 +77,18 @@ BEGIN
             -- This is the place where we lock the database row until we update it. 
             -- Others can't change this until finished via 'COMMIT' or 'ROLLBACK'.
 
-            -- Check 4: Prevent purchasing unknown variants or invalid prices
+            -- Check 4: Prevent purchasing unknown variants or invalid prices or retired products
             SELECT COUNT(*) INTO v_valid_db_variants
             FROM JSON_TABLE(
                 p_cart_json, 
                 '$[*]' COLUMNS(variant_id INT PATH '$.variantId')
             ) AS cart
             JOIN variant v ON cart.variant_id = v.variant_id
-            WHERE v.price > 0;
+            JOIN product p ON v.product_id = p.product_id
+            WHERE v.price > 0 AND p.is_active = TRUE;
 
             IF v_valid_db_variants != v_cart_count THEN
-                SET p_status = 'UNKNOWN_VARIANT_OR_INVALID_PRICE';
+                SET p_status = 'UNKNOWN_VARIANT_OR_INVALID_PRICE_OR_RETIRED';
                 ROLLBACK;
             ELSE
                 -- Validate stock quantities
@@ -119,8 +122,8 @@ BEGIN
                     JOIN variant v ON cart_data.variant_id = v.variant_id;
 
                     -- Insert the main order record 
-                    INSERT INTO orders (customer_id, order_date, order_status, total_amount)
-                    VALUES (p_customer_id, NOW(), 'Pending_Payment', v_total_amount);
+                    INSERT INTO orders (customer_id, order_date, order_status, total_amount, delivery_mode, payment_method)
+                    VALUES (p_customer_id, NOW(), 'Pending_Payment', v_total_amount, p_delivery_mode, p_payment_method);
 
                     -- Capture the auto generated order_id to use for the items 
                     SET v_order_id = LAST_INSERT_ID();
