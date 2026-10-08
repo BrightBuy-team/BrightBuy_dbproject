@@ -58,6 +58,9 @@ first error; do not use `--force` or blindly continue after a failed script.
 9. `06_catalogue_procedures.sql`
 10. `04_catalogue_queries.sql`
 11. `07_catalogue_tests.sql`
+12. `08_catalogue_maintenance_procedures.sql`
+13. `09_catalogue_roles.sql` (as an administrator; creates roles, not accounts)
+14. `10_catalogue_explain.sql` (optional, read-only index evidence)
 
 The procedure installer (`06`) runs before the example calls in `04`, despite
 their numeric filenames. It can be reinstalled without changing catalogue data;
@@ -68,10 +71,10 @@ it replaces one view and three routines. Install while application calls are pau
 - **Inventory owner:** the merged DDL now fixes warehouse casing, generates
   IDs automatically and enforces nonnegative stock. Historical test results
   against the old schema do not establish compatibility with these changes.
-- **Auth owner:** no customer schema is present in this checkout. The corrected
-  checkout schema is now `../Checkout/01_checkout_schema.sql`; the earlier
-  misplaced draft has been removed, and its comma/variant-column problems are
-  fixed. It still cannot be installed without `customer(customer_id)`.
+- **Auth owner:** the customer and employee schema is now in
+  `../User and Auth/user auth schema.sql`. It needs inventory's `city` table
+  first, and `../Checkout/01_checkout_schema.sql` needs `customer(customer_id)`
+  from it. The team has not yet agreed one combined order covering all modules.
 - **Checkout/inventory owners:** both DDL files define delivery and their
   dependencies require a split setup order. Inventory's current variant and
   delivery seed statements are commented out, so orders 101–104 are no longer
@@ -250,6 +253,43 @@ mysql -u root -p brightbuy < tests/test_foundation.sql
 `04_catalogue_queries.sql` retains the seven illustrative SQL queries, improves
 their visibility checks and sorting, and adds four runnable procedure examples.
 
+## Milestone 5 maintenance, roles and evidence
+
+`08_catalogue_maintenance_procedures.sql` installs seven write procedures for
+warehouse staff (SRS 2.2.4, BR-14): create and update a category, create and
+update a product, retire or restore a product, and assign or unassign a
+category. They write only `category`, `product` and `product_category`;
+variants, prices and stock stay with inventory. No routine deletes a product
+(BR-18), and a product's last category cannot be removed (BR-2). Signatures and
+errors are in [PROCEDURES.md](PROCEDURES.md#maintenance-procedures).
+
+`09_catalogue_roles.sql` creates two roles (SEC-7):
+`brightbuy_catalogue_reader` for the storefront API, limited to SELECT on the
+four tables the read procedures use plus EXECUTE on those three procedures, and
+`brightbuy_catalogue_maintainer`, which adds row writes and EXECUTE on the
+seven maintenance procedures. Neither role can delete products or categories,
+change variant stock or price, or read customer, order or payment tables. The
+script creates no accounts and stores no passwords.
+
+`10_catalogue_explain.sql` holds the EXPLAIN statements for the main catalogue
+read paths; recorded output is in [tests/EXPLAIN_RESULTS.md](tests/EXPLAIN_RESULTS.md).
+The column-level reference is [DATA_DICTIONARY.md](DATA_DICTIONARY.md).
+
+To add these to an existing milestone-3 development database:
+
+```sh
+mysql -u root -p brightbuy < 08_catalogue_maintenance_procedures.sql &&
+mysql -u root -p brightbuy < tests/test_maintenance.sql &&
+mysql -u root -p < 09_catalogue_roles.sql
+```
+
+Validated on 2026-10-08 on an isolated MySQL **9.7.1** instance: 41 maintenance
+assertions passed, reinstalling `08` and `09` succeeded, and the existing
+procedure and foundation suites still passed afterwards. Not yet run on
+MySQL 8.0. No backend endpoint or screen calls the maintenance procedures yet,
+and they write no audit-log rows (SEC-11); both need agreement with the
+inventory and auth owners.
+
 ## Business Rules
 
 - SKU is unique at product level.
@@ -277,6 +317,11 @@ their visibility checks and sorting, and adds four runnable procedure examples.
 - [x] Catalogue-only MySQL 8.0.46 Docker validation (97 assertions and reruns)
 - [x] Automated variant-seed preservation, collision and recovery checks (8 assertions)
 - [x] Pre-integration rejection and recovery tests (14 assertions on separate MySQL 8.0.46 instance)
+- [x] Catalogue maintenance procedures for BR-14 (41 assertions, MySQL 9.7.1)
+- [x] Least-privilege reader and maintainer roles (SEC-7), checked with real accounts
+- [x] Index evidence with EXPLAIN (CON-6) and catalogue data dictionary (DB-4)
+- [ ] Maintenance procedures, roles and EXPLAIN rerun on MySQL 8.0
+- [ ] Backend endpoints and staff screen that call the maintenance procedures
 - [ ] Fresh full-project installation after resolving shared seed dependencies
 - [ ] Verification on the team's exact MySQL version
 - [x] Catalogue frontend → HTTP API → MySQL 8.0.46 verification (2026-10-04)
@@ -359,17 +404,19 @@ pinned image, exact scope, connection commands and reproducible setup.
 
 ## Known External Issues
 
-The inventory DDL creates lowercase `warehouse` but references uppercase
-`WAREHOUSE`. On servers with `lower_case_table_names=0`
-(commonly Linux), that script can fail. The test instance used case-insensitive
-table names. Coordinate a casing correction with the inventory owner before
-deploying to a case-sensitive server; do not change server settings on an
-existing database to work around it. No inventory file was edited here.
+Checked against `main` on 2026-10-08. No teammate file was edited here.
+
+- `../Inventory/Inventory_Delivery_DDL.sql` and
+  `../Checkout/01_checkout_schema.sql` both create `delivery`, and each file
+  needs tables from the other, so neither runs unedited on a fresh database.
+- The inventory DDL ends with two `--Run ...` lines. MySQL needs a space after
+  `--` for a comment, so the file's last statement can fail to parse.
+- The earlier `WAREHOUSE` casing problem in the inventory DDL is fixed.
 
 Reporting now has its own procedure installer and README under
 `../Management reporting/`. Follow its owner's dependency instructions; it is
 not part of the catalogue installation. Validate shared column names during
 integration rather than relying on older reporting-query notes.
 
-The reporting access log depends on an `employee` table that has not yet been
-created.
+The reporting access log depends on `employee`, which the auth schema now
+creates; install auth before reporting.

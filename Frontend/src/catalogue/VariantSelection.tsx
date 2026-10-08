@@ -1,56 +1,35 @@
 import { useState } from 'react'
 import type { ProductVariant } from './api'
+import { addToCart, cartUnitCount } from './cart'
 import { formatPrice } from './search'
 import { parseLowStockThreshold, quantityError, stockLabel, variantLabel } from './variants'
 
 const configuredThreshold = parseLowStockThreshold(import.meta.env.VITE_CATALOGUE_LOW_STOCK_THRESHOLD)
 
-export default function VariantSelection({ variants, lowStockThreshold = configuredThreshold }: {
+export default function VariantSelection({ productId, productName, variants, lowStockThreshold = configuredThreshold }: {
+  productId: number
+  productName: string
   variants: ProductVariant[]
   lowStockThreshold?: number
 }) {
   const [selectedId, setSelectedId] = useState(variants[0]?.variant_id)
   const [quantity, setQuantity] = useState('1')
+  const [notice, setNotice] = useState<{ ok: boolean; text: string }>()
   const selected = variants.find(variant => variant.variant_id === selectedId) ?? variants[0]
   if (!selected) return <p role="status">No variants are available.</p>
   const error = quantityError(quantity, selected.stock_quantity)
   const label = stockLabel(selected.stock_quantity, lowStockThreshold)
-
-  const [checkoutStatus, setCheckoutStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
-  const [checkoutMessage, setCheckoutMessage] = useState('');
-
-  async function handleCheckout() {
-    setCheckoutStatus('loading');
-    setCheckoutMessage('');
-    try {
-      const response = await fetch('https://brightbuy-2026-gecbh9e5e4c0f8ar.eastasia-01.azurewebsites.net/api/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          customerId: 1, // Using a hardcoded test customer ID
-          cartItems: [
-            {
-              variantId: selected.variant_id,
-              quantity: Number(quantity)
-            }
-          ]
-        })
-      });
-
-      const message = await response.text();
-      if (response.ok) {
-        setCheckoutStatus('success');
-        setCheckoutMessage(message);
-      } else {
-        setCheckoutStatus('error');
-        setCheckoutMessage(message);
-      }
-    } catch (err) {
-      setCheckoutStatus('error');
-      setCheckoutMessage('Failed to connect to the server.');
-    }
+  // Saves to this browser session only. Stock and price are checked again at checkout.
+  function add() {
+    if (error) return
+    const added = Number(quantity)
+    const result = addToCart({
+      variantId: selected.variant_id, quantity: added, productId, productName,
+      variantLabel: variantLabel(selected), unitPrice: selected.price,
+    }, selected.stock_quantity)
+    if (!result.ok) { setNotice({ ok: false, text: result.message }); return }
+    const units = cartUnitCount(result.lines)
+    setNotice({ ok: true, text: `Added ${added} to your cart. Your cart now holds ${units} ${units === 1 ? 'item' : 'items'}.` })
   }
 
   return <div className="catalogue-variant-selection">
@@ -59,7 +38,7 @@ export default function VariantSelection({ variants, lowStockThreshold = configu
       <select id="catalogue-variant" value={selected.variant_id} onChange={event => {
         setSelectedId(Number(event.target.value))
         setQuantity('1')
-        setCheckoutStatus('idle')
+        setNotice(undefined)
       }}>
         {variants.map(variant => <option key={variant.variant_id} value={variant.variant_id}>
           {variantLabel(variant)} — {stockLabel(variant.stock_quantity, lowStockThreshold)}
@@ -78,20 +57,12 @@ export default function VariantSelection({ variants, lowStockThreshold = configu
       aria-describedby={error ? 'catalogue-quantity-error' : undefined}
       onChange={event => {
         setQuantity(event.target.value)
-        setCheckoutStatus('idle')
+        setNotice(undefined)
       }} />
     {error && <p id="catalogue-quantity-error" className="catalogue-field-error" role="alert">{error}</p>}
-    
-    <button 
-      type="button" 
-      className="catalogue-primary" 
-      disabled={selected.stock_quantity === 0 || !!error || checkoutStatus === 'loading'} 
-      onClick={handleCheckout}
-    >
-      {checkoutStatus === 'loading' ? 'Processing...' : 'Buy Now'}
-    </button>
-    
-    {checkoutStatus === 'success' && <p className="catalogue-fine-print" style={{color: 'green', fontWeight: 'bold', marginTop: '10px'}}>✅ {checkoutMessage}</p>}
-    {checkoutStatus === 'error' && <p className="catalogue-field-error" role="alert" style={{marginTop: '10px'}}>❌ {checkoutMessage}</p>}
+    <button type="button" className="catalogue-primary" disabled={!!error} onClick={add}
+      aria-describedby="catalogue-cart-note">Add to Cart</button>
+    <p className={`catalogue-cart-result ${notice && !notice.ok ? 'failed' : ''}`} role="status">{notice?.text}</p>
+    <p id="catalogue-cart-note" className="catalogue-fine-print">Your cart is kept for this browser session. Stock is not reserved until checkout.</p>
   </div>
 }
