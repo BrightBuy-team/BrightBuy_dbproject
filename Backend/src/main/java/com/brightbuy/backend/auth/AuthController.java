@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -53,6 +54,16 @@ public class AuthController {
         return new RegisterResponse(customerId, request.email().trim().toLowerCase(Locale.ROOT));
     }
 
+    @PostMapping("/employees")
+    public ResponseEntity<EmployeeResponse> createEmployee(@Valid @RequestBody CreateEmployeeRequest request) {
+        Integer employeeId = authService.createEmployee(new AuthService.CreateEmployeeRequest(
+                request.firstName(), request.lastName(), request.email(), request.password(), request.contactNo(),
+                request.role()));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new EmployeeResponse(employeeId, request.email().trim().toLowerCase(Locale.ROOT),
+                        request.role().databaseValue()));
+    }
+
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest,
             HttpServletResponse servletResponse) {
@@ -90,14 +101,23 @@ public class AuthController {
     public record RegisterRequest(@NotBlank @Size(max = 100) String firstName,
             @NotBlank @Size(max = 100) String lastName, @NotBlank @Email @Size(max = 150) String email,
             @NotBlank @Size(min = 8, max = 72) String password, @Size(max = 20) String phone,
-            @Size(max = 255) String addressLine, @NotNull Integer cityId) {
+            @Size(max = 255) String addressLine, Integer cityId) {
     }
 
     public record LoginRequest(@NotBlank @Email @Size(max = 150) String email,
             @NotBlank @Size(max = 72) String password, @NotNull AccountType accountType) {
     }
 
+    public record CreateEmployeeRequest(@NotBlank @Size(max = 100) String firstName,
+            @NotBlank @Size(max = 100) String lastName, @NotBlank @Email @Size(max = 150) String email,
+            @NotBlank @Size(min = 8, max = 72) String password, @Size(max = 20) String contactNo,
+            @NotNull EmployeeRole role) {
+        }
+
     public record RegisterResponse(Integer customerId, String email) {
+    }
+
+    public record EmployeeResponse(Integer employeeId, String email, String role) {
     }
 
     public record AuthResponse(AuthenticatedUser user) {
