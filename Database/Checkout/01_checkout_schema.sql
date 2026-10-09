@@ -1,10 +1,10 @@
 -- Orders Table
 CREATE TABLE orders (
     order_id INT AUTO_INCREMENT PRIMARY KEY,
-    customer_id INT,
-    order_date DATETIME,
-    order_status VARCHAR(50),
-    total_amount DECIMAL(10,2),
+    customer_id INT NOT NULL,
+    order_date DATETIME NOT NULL,
+    order_status VARCHAR(50) NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL CHECK (total_amount >= 0),
     delivery_mode VARCHAR(50),
     payment_method VARCHAR(50),
     FOREIGN KEY (customer_id) REFERENCES customer(customer_id)
@@ -14,8 +14,8 @@ CREATE TABLE orders (
 CREATE TABLE order_item (
     order_id INT,
     variant_id INT,
-    quantity INT,
-    unit_price DECIMAL(10,2),
+    quantity INT NOT NULL CHECK (quantity > 0),
+    unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price >= 0),
     PRIMARY KEY (order_id, variant_id),
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE RESTRICT,
     FOREIGN KEY (variant_id) REFERENCES variant(variant_id) ON DELETE RESTRICT
@@ -24,8 +24,9 @@ CREATE TABLE order_item (
 -- Delivery Table
 CREATE TABLE delivery (
     delivery_id INT AUTO_INCREMENT PRIMARY KEY,
-    order_id INT, 
+    order_id INT NOT NULL UNIQUE,
     city_id INT,
+    address_line VARCHAR(255), -- Purchase-time address; profile edits do not rewrite history.
     delivery_mode VARCHAR(50),
     est_delivery_date DATE,
     delivery_status VARCHAR(50),
@@ -36,7 +37,7 @@ CREATE TABLE delivery (
 -- Payment Table
 CREATE TABLE payment (
     payment_id INT AUTO_INCREMENT PRIMARY KEY,
-    order_id INT,
+    order_id INT NOT NULL UNIQUE,
     payment_method VARCHAR(50),
     payment_status VARCHAR(50),
     amount DECIMAL(10,2),
