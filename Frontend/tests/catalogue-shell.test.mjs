@@ -92,7 +92,7 @@ test('untrusted category text is escaped', () => {
 test('footer includes SRS policy and distinguishes adding items from placing orders', () => {
   const html = footer('')
   for (const text of ['Delivery policy', 'Texas', 'Store Pickup', 'Payment methods',
-    'Cash on Delivery', 'Card Payment', 'LKR', 'Checkout requires a confirmed account session',
+    'Cash on Delivery', 'Card Payment', 'USD', 'Checkout requires a confirmed account session',
     'adding an item does not place an order']) assert.ok(html.includes(text), text)
   assert.doesNotMatch(html, /mailto:|tel:|Free shipping/)
   assert.match(html, /Contact details will be published when confirmed/)

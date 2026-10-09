@@ -17,13 +17,13 @@ Catalogue routes:
 - `inventory.html`: real staff session, authenticated/CSRF stock updates.
 - `delivery.html`: authenticated order ownership and persisted delivery estimates.
 
-All monetary data is converted once from USD to stored LKR by
-`Database/Integration/03_convert_currency_to_lkr.sql`, using the CBSL indicative
-rate retrieved 2026-10-09: 1 USD = 330.9617 LKR. New prices, filters, cart
-snapshots and checkout amounts are already LKR; the browser never converts twice.
-Older browser carts remain archived under their USD keys. Active carts use
-`brightbuy_cart_lkr_v1_guest` / `brightbuy_cart_lkr_v1_<email>`; re-add products to
-refresh their converted prices. The conversion is fixed, not a live FX feed.
+Prices, staff inputs, filters, cart totals, order history, inventory and reports
+use USD, matching the existing Azure database and the SRS. No exchange-rate
+conversion runs in the browser or fresh database installer.
+Active carts use `brightbuy_cart_usd_v1_guest` /
+`brightbuy_cart_usd_v1_<email>`. Older unversioned/LKR snapshots remain archived;
+re-add products to get current USD prices rather than relabelling old amounts.
+The previous local-only LKR conversion is retired; do not apply it to Azure.
 Texas city data
 comes from the backend; pickup has no invented delivery date. Card checkout is
 disabled until a real authorization gateway exists. The contact mailbox is still
@@ -123,7 +123,7 @@ provides loading/retry states without hiding All products.
 
 The footer explains the SRS Texas delivery restriction, planned Store Pickup,
 destination/stock-dependent estimates, and planned Cash on Delivery/Card Payment
-methods. Catalogue prices are displayed in LKR; adding items does not place an
+methods. Catalogue prices are displayed in USD; adding items does not place an
 order or take payment. No delivery fees or fixed delivery dates are invented.
 
 The default contact is `support@brightbuy.example`, labelled as a non-working
@@ -143,11 +143,11 @@ page. Category links from details start a fresh browse of that category.
 
 The page shows name, SKU, description, image/fallback and categories. A variant
 selector displays the available colour/memory combinations, including zero-stock
-choices. Selecting an option immediately changes its LKR price, stock status and
+choices. Selecting an option immediately changes its USD price, stock status and
 available quantity without a reload, and resets quantity to 1. A single default
 variant is selected automatically without showing a selector. Browse cards retain
-their matching-variant price ranges; catalogue prices show LKR with two decimal
-places as requested on 2026-10-09, superseding the SRS AS-12 USD display.
+their matching-variant price ranges; catalogue prices show USD with two decimal
+places, matching the SRS AS-12 and unchanged Azure monetary values.
 
 Quantity must be a positive whole number no greater than the selected stock;
 invalid input displays an inline error. Quantity is disabled for zero stock.

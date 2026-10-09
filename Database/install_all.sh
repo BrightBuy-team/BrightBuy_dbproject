@@ -39,6 +39,6 @@ for task_script in "${task_scripts[@]}"; do
   fi
 done
 "${task_client[@]}" brightbuy -e 'CALL sp_populate_sales_summary(7);'
-echo 'Converting fresh USD fixtures to stored LKR amounts'
-"${task_client[@]}" --init-command='SET @brightbuy_convert_all_usd=1' brightbuy < "$task_root/Database/Integration/03_convert_currency_to_lkr.sql"
+# Keep stored prices/totals in USD, matching the current shared Azure database.
+# The historical opt-in LKR migration is intentionally NOT part of setup.
 echo 'Fresh installation complete. No source SQL was skipped and no existing database was deleted.'

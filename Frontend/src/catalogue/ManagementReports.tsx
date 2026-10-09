@@ -1,3 +1,4 @@
+import { formatPrice } from './search'
 import { apiBase } from './client'
 import { useState } from 'react'
 
@@ -32,7 +33,7 @@ function display(value: unknown, column: Column, row: ReportRow) {
   if (value === null || value === undefined || value === '') return '—'
   if (column.kind === 'money' && (typeof value === 'number' || typeof value === 'string')) {
     const amount = Number(value)
-    return Number.isFinite(amount) ? new Intl.NumberFormat(undefined, { style: 'currency', currency: 'LKR' }).format(amount) : String(value)
+    return Number.isFinite(amount) ? formatPrice(amount) : String(value)
   }
   if (column.kind === 'date' && typeof value === 'string') {
     const date = new Date(`${value.slice(0, 10)}T00:00:00`)

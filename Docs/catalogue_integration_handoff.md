@@ -65,7 +65,7 @@ current files does not erase Git history. Configure the new secret privately.
 
 `Frontend/src/inventory/InventoryApp.tsx` now checks real staff sessions,
 uses the configured backend, sends cookies/CSRF, accepts only whole nonnegative
-stock and displays LKR. Variant labels use the actual `variantName` response
+stock and displays USD. Variant labels use the actual `variantName` response
 rather than an absent `sku` field. Stock errors are visible and writes are guarded.
 
 `Frontend/src/delivery/DeliveryApp.tsx` uses authenticated requests and the
@@ -87,7 +87,7 @@ warehouse/pickup instructions with the team.
 ## To Senadheera — reporting
 
 Reporting uses authenticated Management identity, not a submitted employee ID.
-Report currency display is LKR. Quarterly revenue and top products now read
+Report currency display is USD. Quarterly revenue and top products now read
 authoritative non-cancelled order history, including today's purchases, instead
 of mixing current order counts with a yesterday-only summary or requiring cron.
 Historical order totals/unit prices are used. Category counts remain distinct
@@ -115,9 +115,8 @@ preserves references and historical orders.
 
 The public home, working links, login styling, cart recovery, logout, delivery,
 inventory and payment footer are consistent with the integrated functionality.
-The user subsequently requested conversion of ALL existing amounts: this now
-uses a one-time USD→LKR database migration at 330.9617 LKR/USD, not just a label.
-See the currency migration instructions below before deploying against Azure.
+Currency is now restored to USD across the UI and new local installations to
+match Azure without a currency migration. The earlier LKR experiment is archived.
 Texas remains the supported delivery region. Contact is still an explicit demo.
 
 ## Verified locally
@@ -225,36 +224,19 @@ a container labelled as a test while connected to shared data.
 
 ## Existing shared DB / Azure upgrade (owner-run, not executed here)
 
-### Currency conversion follow-up
+### Current currency policy: USD (supersedes the LKR experiment)
 
-The user confirmed that every pre-existing monetary amount should be treated as
-USD and converted to LKR. The CBSL indicative chart displayed 330.9617 when
-retrieved on 2026-10-09:
-https://www.cbsl.gov.lk/cbsl_custom/charts/usd/indexsmall.php
-This is a frozen migration rate, not a guaranteed live/bank settlement rate.
-USD 1,099 becomes LKR 363,726.91; USD 449 becomes LKR 148,601.80.
+The user reverted to USD because they cannot change the Azure database.
+All display/input/filter/cart/report amounts now remain USD. The fresh installer
+does not run any currency conversion; **do not apply the historical LKR script
+to Azure**. No Azure currency/data edits are needed for this change.
 
-`Database/Integration/03_convert_currency_to_lkr.sql` converts variant prices,
-historic order-unit prices, order totals, payment amounts and sales summaries.
-It records original/converted values and source/rate metadata. Full payments
-follow the converted order total; order totals sum rounded per-unit prices.
-Rerunning the script is a no-op once `USD_TO_LKR_V1` is recorded. NEVER delete
-the migration marker or independently multiply the amounts again.
-
-Pause writes, back up the shared database, and confirm the USD assumption with
-the team before its owner applies this script. Missing approval, non-strict mode,
-overflow or inconsistent original order totals fail without monetary changes.
-DDL helper tables can persist independently; they are not evidence of success.
-The fresh installer applies conversion automatically after USD fixtures/summaries.
-Existing deployments must apply the migration BEFORE exposing the new LKR UI.
-For an owner-approved SQL connection, explicitly set
-`SET @brightbuy_convert_all_usd=1;` in the same connection before sourcing the file.
-
-Local conversion was applied only to the disposable preview database. Azure was
-not modified. Fifteen migration assertions and all six real read-only catalogue
-API tests passed against converted LKR fixtures; the 148 SQL baseline assertions
-also passed. Active browser carts use a new LKR namespace; old USD carts remain
-archived, and customers should re-add products to refresh prices.
+Existing local LKR databases and their original-value audit records are preserved,
+not relabelled, divided or overwritten. The current local preview uses a separate
+fresh USD database. LKR and ambiguous legacy carts remain archived; active carts
+use `brightbuy_cart_usd_v1_*`. Customers should re-add products to refresh prices.
+`03_convert_currency_to_lkr.sql` and its tests remain historical opt-in artifacts,
+outside the standard setup. They are not required deployment steps.
 
 ### Shared upgrade order
 
@@ -274,8 +256,8 @@ archived, and customers should re-add products to refresh prices.
    application role; record existing grants first. Provision/rotate the actual
    application login privately and set its default role.
 6. Do NOT run fresh CREATE TABLE, seed, fixture, performance or test scripts.
-7. Apply the currency migration above while writes are still paused, then deploy
-   matching backend/frontend together. Configure private
+7. Keep the existing USD amounts unchanged. Deploy matching backend/frontend
+   together after reviewing the other integration upgrades. Configure private
    `BRIGHTBUY_DB_URL` with verified MySQL TLS, username/password, CORS origins,
    Secure cookies, and SameSite policy. Cross-site cookies require HTTPS,
    SameSite=None and browser support; a same-site gateway avoids many issues.

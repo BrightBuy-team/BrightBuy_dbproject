@@ -50,13 +50,13 @@ test('home shows only top-level category links with counts', () => {
   assert.doesNotMatch(html, /Mobile phones|categoryId=4/)
   assert.match(html, /href="\?categoryId=1&amp;sort=name_asc&amp;page=1&amp;pageSize=12"/)
 })
-test('featured card opens detail with default return context and LKR range', () => {
+test('featured card opens detail with default return context and USD range', () => {
   const html = render()
   assert.match(html, /Featured products/)
   assert.match(html, /newest in-stock products/)
   assert.match(html, /pageSize=12&amp;productId=1/)
-  assert.match(html, /LKR 100.00/)
-  assert.match(html, /LKR 120.00/)
+  assert.match(html, /USD 100.00/)
+  assert.match(html, /USD 120.00/)
   assert.match(html, /href="#results-heading"/)
 })
 test('featured list is capped at six even if API returns more', () => {
