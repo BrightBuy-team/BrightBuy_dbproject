@@ -73,7 +73,7 @@ export function searchParams(query: Search): URLSearchParams {
 export const defaultSearch = parseSearch(new URLSearchParams())
 
 export function formatPrice(price: number): string {
-  // The requested LKR display applies to catalogue and shared cart snapshots.
-  // Database migration converts USD amounts once; returned prices are already LKR.
-  return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', currencyDisplay: 'code', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
+  // Prices are stored and returned as USD, matching the unchanged Azure database.
+  // Formatting never converts monetary values.
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', currencyDisplay: 'code', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
 }

@@ -1,3 +1,5 @@
+-- HISTORICAL OPT-IN ONLY: current project currency is USD. DO NOT RUN this
+-- during normal setup or Azure deployment. Retained for audit/recovery history.
 -- One-time stored-money conversion. All pre-existing amounts are treated as USD
 -- by explicit user/team approval. New writes after completion are already LKR.
 -- PAUSE APPLICATION WRITES and back up shared DBs before owner-run deployment.

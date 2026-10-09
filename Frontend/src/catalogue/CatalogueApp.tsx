@@ -66,7 +66,7 @@ function Filters({ query, categories, reset }: { query: Search; categories: Cate
       <button className="catalogue-primary" type="submit">Apply filters</button>
       <button className="catalogue-text-button" type="button" onClick={reset}>Reset all filters</button>
     </form>
-    <p className="catalogue-fine-print">All prices are shown in LKR.</p>
+    <p className="catalogue-fine-print">All prices are shown in USD.</p>
   </aside>
 }
 

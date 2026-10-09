@@ -14,7 +14,7 @@ export default function CartView({ onCheckout, onContinueShopping }: { onCheckou
 
   return <section className="catalogue-cart">
     <h1>Your Shopping Cart</h1>
-    <p>Prices and checkout totals are stored in LKR. Older currency carts are kept separately; re-add products to refresh their converted prices.</p>
+    <p>Prices and checkout totals are in USD. Older currency carts are kept separately; re-add products to refresh their USD prices.</p>
     {snapshot.error&&<div role="alert"><p>{snapshot.error}</p><button onClick={()=>clearCart()}>Clear unreadable cart</button></div>}
     <p role="status">{typeof sessionStorage!=='undefined'?sessionStorage.getItem('brightbuy_cart_notice'):''}</p>
     {cart.length === 0 ? (

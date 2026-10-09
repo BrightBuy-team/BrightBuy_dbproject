@@ -41,9 +41,9 @@ bash Database/install_all.sh --docker YOUR_DISPOSABLE_CONTAINER
 The installer applies all five modules in dependency order and refuses an existing
 populated database. It stops at the first SQL error; never use `--force`.
 Inventory owns city/warehouse/variant; checkout owns the single delivery table.
-The installer finally converts all USD monetary fixtures to stored LKR once,
-using `Integration/03_convert_currency_to_lkr.sql` (330.9617 LKR per USD).
-Its log/audit tables retain original values and prevent repeat conversion.
+The installer keeps all monetary fixtures in USD, matching Azure and the SRS.
+`Integration/03_convert_currency_to_lkr.sql` is a historical opt-in script only;
+do not run it during normal setup or Azure deployment.
 Auth runs after city and before checkout. Catalogue audit/initial-variant routines
 (`11_catalogue_audit.sql`) run before catalogue role grants (`09`).
 

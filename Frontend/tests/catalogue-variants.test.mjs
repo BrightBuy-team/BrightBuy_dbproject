@@ -51,7 +51,7 @@ test('multiple options have labelled selector and live price/stock region', () =
 test('single variant hides selector and disables quantity for zero stock', () => {
   const html = render({ variants: [variants[1]] })
   assert.doesNotMatch(html, /<select/)
-  assert.match(html, /LKR 150.00/)
+  assert.match(html, /USD 150.00/)
   assert.match(html, /<input[^>]*disabled=""/)
   assert.match(html, /<button[^>]*disabled=""/)
   assert.match(html, /Out of Stock/)

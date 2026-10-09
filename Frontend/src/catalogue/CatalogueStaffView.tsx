@@ -49,7 +49,7 @@ export default function CatalogueStaffView(){
    <label>Image URL<input name="imageUrl" maxLength={500} defaultValue={selected?.image_url||''}/></label>
    {!selected&&<><label>First category<select name="categoryId" required><option value="">Select category</option>{categories.map(c=><option key={c.category_id} value={c.category_id}>{c.name}</option>)}</select></label>
     <label>Warehouse ID (optional)<input name="warehouseId" type="number" min={1}/></label>
-    <label>Initial variant price (LKR)<input name="price" type="number" min="0.01" step="0.01" required/></label>
+    <label>Initial variant price (USD)<input name="price" type="number" min="0.01" step="0.01" required/></label>
     <label>Initial stock<input name="stock" type="number" min={0} step={1} required/></label></>}
    <button disabled={busy}>Save product</button><button type="button" onClick={()=>setSelected(null)}>New product</button>
   </form>

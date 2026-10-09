@@ -173,3 +173,14 @@ Updated: 2026-10-09. Status reflects this local checkout, not unmerged teammate 
 - Active cart storage is versioned LKR; old USD snapshots stay archived.
 - Applied only to the disposable local preview; Azure unchanged. USD 1,099 now
   displays as LKR 363,726.91. Migration assertions and converted SQL/API tests pass.
+# Restore USD to match Azure — 2026-10-09
+
+- User reverted the currency decision because Azure database changes are not available.
+- Restored USD across catalogue, staff inputs, cart/checkout, order history,
+  inventory, reports and policy text; formatting never changes numeric values.
+- Removed automatic LKR conversion from the fresh installer. The older opt-in
+  migration/test remain historical artifacts and must not be applied to Azure.
+  migration/test remain historical artifacts and must not be applied to Azure.
+- New USD cart keys isolate older LKR/unversioned snapshots without deleting them.
+- Kept the previously converted local DB/audits intact and switched the preview
+  to a separate fresh USD database. Other integration/security changes remain.

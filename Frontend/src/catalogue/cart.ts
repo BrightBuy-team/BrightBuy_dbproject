@@ -8,12 +8,12 @@ export type CartItem = {
   stockQuantity: number;
 }
 
-export const guestCartKey='brightbuy_cart_lkr_v1_guest';
-export const customerCartKey=(email:string)=>`brightbuy_cart_lkr_v1_${email}`;
+export const guestCartKey='brightbuy_cart_usd_v1_guest';
+export const customerCartKey=(email:string)=>`brightbuy_cart_usd_v1_${email}`;
 function getCartKey(): string {
   const email = localStorage.getItem('currentUserEmail');
-  // Older USD snapshots stay archived under their original keys. Never relabel
-  // them as LKR or multiply an already-converted snapshot again.
+  // Keep legacy and LKR snapshots archived. New USD carts never reuse them
+  // or silently interpret converted amounts as dollars.
   return email ? customerCartKey(email) : guestCartKey;
 }
 

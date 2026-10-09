@@ -26,7 +26,7 @@ test('loading state is announced and marks the detail region busy', () => {
 })
 test('loaded detail shows product details and the selected variant price', () => {
   const html = render({ data })
-  for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', 'LKR', '100.00', 'In Stock', 'Image coming soon']) assert.ok(html.includes(text), text)
+  for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', 'USD', '100.00', 'In Stock', 'Image coming soon']) assert.ok(html.includes(text), text)
   assert.match(html, /categoryId=4/)
   assert.match(html, /<select id="catalogue-variant"/)
   assert.match(html, /<button[^>]*>Add to Cart/)
