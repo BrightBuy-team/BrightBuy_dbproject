@@ -1,3 +1,10 @@
+USE brightbuy;
+DROP PROCEDURE IF EXISTS sp_populate_sales_summary;
+DROP PROCEDURE IF EXISTS get_quarterly_sales_report;
+DROP PROCEDURE IF EXISTS get_top_selling_products;
+DROP PROCEDURE IF EXISTS get_category_order_counts;
+DROP PROCEDURE IF EXISTS get_upcoming_delivery_estimates;
+DROP PROCEDURE IF EXISTS get_customer_order_summary;
 DELIMITER //
 
 -- inserting values to sales_summary table
@@ -50,28 +57,13 @@ Begin
     INSERT INTO report_access_log(employee_id, report_name)
 	VALUES(p_employee_id, 'quarterly_sales_report');
 
-	SELECT 
-		oc.quarter_num AS quarter,
-		oc.order_count,
-		COALESCE(rv.total_revenue, 0) AS total_revenue
-	FROM(
-		SELECT 
-			QUARTER(o.order_date) AS quarter_num,
-			COUNT(DISTINCT o.order_id) AS order_count
-		FROM orders AS o
-		WHERE YEAR(o.order_date) = p_year AND o.order_status NOT IN ('Cancelled')
-		GROUP BY QUARTER(o.order_date)
-	) AS oc
-	LEFT JOIN(
-		SELECT 
-			QUARTER(ss.summary_date) AS quarter_num,
-			SUM(ss.total_revenue) AS total_revenue
-		FROM sales_summary AS ss
-		WHERE YEAR(ss.summary_date) = p_year
-		GROUP BY QUARTER(ss.summary_date)
-	) AS rv
-	ON oc.quarter_num = rv.quarter_num
-	ORDER BY oc.quarter_num;
+    -- Live history avoids mismatching today's order count with yesterday's summary.
+    SELECT QUARTER(o.order_date) AS quarter,COUNT(*) AS order_count,
+           SUM(o.total_amount) AS total_revenue
+    FROM orders o
+    WHERE o.order_date>=MAKEDATE(p_year,1) AND o.order_date<MAKEDATE(p_year+1,1)
+      AND o.order_status<>'Cancelled'
+    GROUP BY QUARTER(o.order_date) ORDER BY quarter;
 END//
 
 -- Top selling products report
@@ -86,18 +78,13 @@ BEGIN
 	INSERT INTO report_access_log(employee_id, report_name)
 	VALUES (p_employee_id, 'top_selling_products_report');
 
-	SELECT 
-		p.product_id,
-		p.name,
-		SUM(ss.units_sold) AS units_sold,
-		SUM(ss.total_revenue) AS revenue
-	FROM sales_summary ss
-	JOIN variant v ON v.variant_id = ss.variant_id
-	JOIN product p ON p.product_id = v.product_id
-	WHERE ss.summary_date BETWEEN p_start_date AND p_end_date
-	GROUP BY p.product_id, p.name
-	ORDER BY units_sold DESC
-	LIMIT p_top_n;
+    SELECT p.product_id,p.name,SUM(oi.quantity) AS units_sold,
+           SUM(oi.quantity*oi.unit_price) AS revenue
+    FROM orders o JOIN order_item oi ON oi.order_id=o.order_id
+    JOIN variant v ON v.variant_id=oi.variant_id JOIN product p ON p.product_id=v.product_id
+    WHERE o.order_date>=p_start_date AND o.order_date<DATE_ADD(p_end_date,INTERVAL 1 DAY)
+      AND o.order_status<>'Cancelled'
+    GROUP BY p.product_id,p.name ORDER BY units_sold DESC,p.product_id LIMIT p_top_n;
 END//
 
 -- Category-wise total number of orders
@@ -140,8 +127,8 @@ BEGIN
 	FROM delivery d
 	JOIN orders o ON o.order_id = d.order_id
 	JOIN customer cu ON cu.customer_id = o.customer_id
-	JOIN city ci ON ci.city_id = d.city_id
-	WHERE d.delivery_status NOT IN ('Delivered','Cancelled')
+	LEFT JOIN city ci ON ci.city_id = d.city_id
+	WHERE d.delivery_status NOT IN ('Delivered','Cancelled') AND o.order_status<>'Cancelled'
 	ORDER BY d.est_delivery_date;
 END//
 
@@ -163,7 +150,7 @@ BEGIN
 		SELECT
 			customer_id,
 			SUM(total_amount) AS lifetime_spend
-		FROM orders
+		FROM orders WHERE order_status<>'Cancelled'
 		GROUP BY customer_id
 	) AS os 
 	ON os.customer_id = cu.customer_id
@@ -173,6 +160,7 @@ BEGIN
 			GROUP_CONCAT(DISTINCT p.payment_status) AS payment_statuses
 		FROM orders o
 		LEFT JOIN payment p ON p.order_id = o.order_id
+        WHERE o.order_status<>'Cancelled'
 		GROUP BY o.customer_id
 	) AS ps
 	ON ps.customer_id = cu.customer_id

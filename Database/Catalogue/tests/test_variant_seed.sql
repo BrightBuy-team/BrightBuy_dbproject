@@ -55,6 +55,11 @@ BEGIN
         RESIGNAL;
     END;
 
+    SET @catalogue_fixture_rate=1;
+    IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='brightbuy' AND table_name='currency_conversion_log') THEN
+        SELECT COALESCE(MAX(lkr_per_usd),1) INTO @catalogue_fixture_rate
+        FROM currency_conversion_log WHERE migration_key='USD_TO_LKR_V1';
+    END IF;
     SET @seed_safety_passed = 0;
     -- Check prerequisites before any fixture mutation.
     IF NOT EXISTS (
@@ -118,7 +123,7 @@ BEGIN
     CALL catalogue_seed_safety_assert(
         (SELECT COUNT(*) FROM variant)=48
         AND EXISTS (SELECT 1 FROM variant WHERE variant_id=1040 AND product_id=40
-                    AND price=39.00 AND stock_quantity=123)
+                    AND price=ROUND(39.00*@catalogue_fixture_rate,2) AND stock_quantity=123)
         AND EXISTS (SELECT 1 FROM variant WHERE variant_id=1004 AND price=388.00 AND stock_quantity=7),
         'corrected collision allows a successful retry');
 

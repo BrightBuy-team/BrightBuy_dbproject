@@ -74,6 +74,6 @@ export const defaultSearch = parseSearch(new URLSearchParams())
 
 export function formatPrice(price: number): string {
   // The requested LKR display applies to catalogue and shared cart snapshots.
-  // Formatting does not convert or update numeric prices in the database.
+  // Database migration converts USD amounts once; returned prices are already LKR.
   return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', currencyDisplay: 'code', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
 }

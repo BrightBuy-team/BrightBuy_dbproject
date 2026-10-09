@@ -138,3 +138,38 @@ Updated: 2026-10-09. Status reflects this local checkout, not unmerged teammate 
 - Added the missing `ReportService`, delegating the five existing controller operations to `ReportRepository`, plus eight service/scheduler tests.
 - Controller routes, repository queries, DTOs, SQL, checkout and authentication behaviour were not changed. Senadheera should coordinate any local versions of the removed/renamed files and missing service before merging.
 - Full Maven verification and packaging passed with a temporary in-memory H2 database: 71 passed, 4 live-MySQL tests skipped. No shared database was used; live reporting correctness remains unverified.
+# Catalogue/shared integration completion — 2026-10-09
+
+- Completed real inventory/delivery sessions, cookie/CSRF requests, logout,
+  guest-cart merge and corrupt-cart recovery. All price displays use LKR.
+- Fixed procedure binding, authenticated audit actors, fractional/string JSON
+  coercion, disabled-admin provisioning and address-history privacy.
+- Added staff catalogue search/pagination and optimized FULLTEXT candidate selection.
+- Reports now include today's purchases without relying on yesterday's summaries;
+  cancelled orders are excluded from totals and report ranges are validated.
+- Fresh MySQL 8 setup, 148 SQL assertions, 73 integration checks and six read-only
+  HTTP/MySQL catalogue tests passed. Frontend: 188 tests/build/lint passed.
+  Backend: 83 non-DB tests passed; six opt-in tests verified separately.
+- Browser register/login/cart/COD/history/logout flow passed on fictional data.
+- 10k product smoke measurements passed sequential targets; a 200-search burst
+  completed without failures but exceeded the 3-second target (p95 4,351 ms).
+  Production capacity sign-off remains a team/deployment task.
+  Production capacity sign-off remains a team/deployment task.
+- Azure and real payments were not touched. No commits were made automatically.
+- Current owner report, run/upgrade guide and release dependencies:
+  [integration handoff](Docs/catalogue_integration_handoff.md).
+# USD→LKR stored-value conversion — 2026-10-09
+
+- User approved converting all existing monetary values, not just changing labels.
+- Added a one-time transactional migration for variant prices, historical unit
+  prices/order totals, payments and sales summaries. Frozen CBSL indicative rate:
+  330.9617 LKR/USD, retrieved 2026-10-09. Original values/rate retained in audit.
+- Totals sum rounded converted unit prices; full payments and matching summaries
+  remain consistent. Duplicate migration is a no-op; overflow/inconsistent data
+  and missing explicit approval are rejected without monetary writes.
+- Fresh installer converts USD fixtures at the end. Missing variant fixtures
+  restored later use the conversion marker and never revert to USD prices.
+  restored later use the conversion marker and never revert to USD prices.
+- Active cart storage is versioned LKR; old USD snapshots stay archived.
+- Applied only to the disposable local preview; Azure unchanged. USD 1,099 now
+  displays as LKR 363,726.91. Migration assertions and converted SQL/API tests pass.

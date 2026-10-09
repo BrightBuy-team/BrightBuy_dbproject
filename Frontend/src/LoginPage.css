@@ -125,6 +125,10 @@
   gap: 1.5rem;
 }
 
+.login-form > label { display: flex; flex-direction: column; gap: .5rem; color: #0f172a; }
+.login-form input, .login-form select { width: 100%; box-sizing: border-box; padding: .75rem; border: 1px solid #64748b; border-radius: 8px; background: white; color: #0f172a; }
+.login-form button { padding: .75rem; border-radius: 8px; background: #123f37; color: white; }
+
 .form-group {
   display: flex;
   flex-direction: column;

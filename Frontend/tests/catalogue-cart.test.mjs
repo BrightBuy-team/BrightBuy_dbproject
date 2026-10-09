@@ -89,12 +89,15 @@ test('default bridge uses the checkout storage keys and emits its update event w
     Object.defineProperty(globalThis, 'window', { configurable: true, value: { dispatchEvent: event => events.push(event.type) } })
     Object.defineProperty(globalThis, 'fetch', { configurable: true, value() { assert.fail('Add to Cart must not contact checkout') } })
     assert.equal(addCatalogueItem(phone).ok, true)
-    assert.deepEqual(JSON.parse(saved.get('brightbuy_cart_guest')), [phone])
+    assert.deepEqual(JSON.parse(saved.get('brightbuy_cart_lkr_v1_guest')), [phone])
     assert.equal(catalogueCartQuantity(), 2)
     email = 'customer@example.com'
     assert.equal(catalogueCartQuantity(), 0)
+    saved.set('brightbuy_cart_customer@example.com', JSON.stringify([{...phone,price:'1.00'}]))
+    assert.equal(catalogueCartQuantity(), 0, 'legacy USD snapshots must not be treated as LKR')
     assert.equal(addCatalogueItem({ ...phone, quantity: 1 }).ok, true)
-    assert.equal(JSON.parse(saved.get('brightbuy_cart_customer@example.com'))[0].quantity, 1)
+    assert.equal(JSON.parse(saved.get('brightbuy_cart_lkr_v1_customer@example.com'))[0].quantity, 1)
+    assert.equal(JSON.parse(saved.get('brightbuy_cart_customer@example.com'))[0].price,'1.00', 'legacy cart retained unchanged')
     assert.deepEqual(events, ['cart-updated', 'cart-updated'])
   } finally {
     for (const [key, descriptor] of Object.entries(originals)) {
