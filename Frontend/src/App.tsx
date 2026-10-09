@@ -1,15 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import './App.css'
 
 export function Home() {
-  const [scrollY, setScrollY] = useState(0);
+  
 
   useEffect(() => {
-    const handleScroll = () => {
-      setScrollY(window.scrollY);
-    };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -26,13 +22,12 @@ export function Home() {
     hiddenElements.forEach((el) => observer.observe(el));
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+
       observer.disconnect();
     };
   }, []);
 
-  // Calculate cloud parallax (move inward when scrolling down)
-  const cloudOffset = Math.max(0, 100 - (scrollY * 0.15));
+
 
   return (
     <div className="store-container">
@@ -99,32 +94,6 @@ export function Home() {
 import LoginPage from './LoginPage';
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('role'));
-
-  const handleLogin = (role: string, email: string) => {
-    localStorage.setItem('role', role);
-    localStorage.setItem('currentUserEmail', email);
-    setIsLoggedIn(true);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('role');
-    localStorage.removeItem('currentUserEmail');
-    setIsLoggedIn(false);
-  };
-
-  if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />;
-  }
-
-  return (
-    <>
-      <div style={{ position: 'absolute', top: '1rem', right: '1rem', zIndex: 1000 }}>
-        <button onClick={handleLogout} style={{ padding: '0.5rem 1rem', background: '#ef4444', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          Logout
-        </button>
-      </div>
-      <Home />
-    </>
-  );
+ return new URLSearchParams(window.location.search).get('view')==='login'
+  ? <LoginPage/> : <Home/>
 }

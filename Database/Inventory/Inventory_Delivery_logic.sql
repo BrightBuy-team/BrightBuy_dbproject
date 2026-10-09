@@ -1,9 +1,12 @@
 DELIMITER //
+DROP FUNCTION IF EXISTS calculate_delivery_date//
+DROP TRIGGER IF EXISTS after_variant_update//
 
 -- Function: Calculates delivery date (5 days vs 7 days + out of stock penalty)
 CREATE FUNCTION calculate_delivery_date(p_city_id INT, p_order_id INT) 
 RETURNS DATE
-DETERMINISTIC
+NOT DETERMINISTIC
+READS SQL DATA
 BEGIN
     DECLARE v_is_main_city BOOLEAN;
     DECLARE v_base_days INT;
@@ -36,7 +39,7 @@ FOR EACH ROW
 BEGIN
     IF OLD.stock_quantity != NEW.stock_quantity THEN
         INSERT INTO variant_audit (variant_id, old_stock_quantity, new_stock_quantity, changed_by)
-        VALUES (NEW.variant_id, OLD.stock_quantity, NEW.stock_quantity, USER());
+        VALUES (NEW.variant_id, OLD.stock_quantity, NEW.stock_quantity, COALESCE(@brightbuy_actor, USER()));
     END IF;
 END //
 

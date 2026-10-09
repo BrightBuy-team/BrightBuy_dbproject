@@ -1,55 +1,34 @@
 package com.brightbuy.backend.checkout.repository;
-
-import com.brightbuy.backend.checkout.dto.CartItemDto;
-import tools.jackson.core.JacksonException;
+import com.brightbuy.backend.checkout.dto.*;
 import tools.jackson.databind.ObjectMapper;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.SqlParameterSource;
+import org.springframework.jdbc.core.*;
 import org.springframework.jdbc.core.simple.SimpleJdbcCall;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Repository;
-
+import java.sql.Types;
 import java.util.List;
-import java.util.Map;
-
-@Repository 
-
+@Repository
 public class CheckoutRepository {
-    
-    private final JdbcTemplate jdbcTemplate;
-    private final ObjectMapper objectMapper;
-
-    public CheckoutRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
-        this.jdbcTemplate = jdbcTemplate;
-        this.objectMapper = objectMapper;
-    }
-
-    public String callProcessCheckout(Integer customerId, List<CartItemDto> cartItems, String deliveryMode, String paymentMethod) {
-
-        try {
-            //convert list of Java cartItems to strign, to send to sql procedure
-            String cartItemsJson = objectMapper.writeValueAsString(cartItems);
-
-            // Configure the call to your exact stored procedure
-            SimpleJdbcCall jdbcCall = new SimpleJdbcCall(jdbcTemplate)
-                    .withProcedureName("ProcessCheckout");
-
-            // Bind the IN parameters
-            SqlParameterSource in = new MapSqlParameterSource()
-                    .addValue("p_customer_id", customerId)
-                    .addValue("p_cart_json", cartItemsJson)
-                    .addValue("p_delivery_mode", deliveryMode)
-                    .addValue("p_payment_method", paymentMethod);
-
-            // Execute the procedure and capture the OUT parameter
-            Map<String, Object> out = jdbcCall.execute(in);
-            
-            return (String) out.get("p_status");
-
-        } catch (JacksonException e) {
-            throw new RuntimeException("Failed to parse cart JSON", e);
-        }
-
-    }
+ private final SimpleJdbcCall call;
+ private final ObjectMapper mapper;
+ public CheckoutRepository(JdbcTemplate jdbc,ObjectMapper mapper) {
+  this.mapper=mapper;
+  call=new SimpleJdbcCall(jdbc).withProcedureName("ProcessCheckoutV2")
+   .withoutProcedureColumnMetaDataAccess().declareParameters(
+    new SqlParameter("p_customer_id",Types.INTEGER),new SqlParameter("p_cart_json",Types.VARCHAR),
+    new SqlParameter("p_delivery_mode",Types.VARCHAR),new SqlParameter("p_payment_method",Types.VARCHAR),
+    new SqlParameter("p_city_id",Types.INTEGER),new SqlParameter("p_address",Types.VARCHAR),
+    new SqlOutParameter("p_status",Types.VARCHAR),new SqlOutParameter("p_order_id",Types.INTEGER));
+ }
+ public CheckoutResult checkout(int customerId,CheckoutRequestDto request) {
+  var out=call.execute(new MapSqlParameterSource().addValue("p_customer_id",customerId)
+   .addValue("p_cart_json",mapper.writeValueAsString(request.cartItems()))
+   .addValue("p_delivery_mode",request.deliveryMode()).addValue("p_payment_method",request.paymentMethod())
+   .addValue("p_city_id",request.cityId()).addValue("p_address",request.addressLine()));
+  return new CheckoutResult((String)out.get("p_status"),(Integer)out.get("p_order_id"));
+ }
+ // Older callers retain the status-only interface.
+ public String callProcessCheckout(Integer id,List<CartItemDto> items,String mode,String method) {
+  return checkout(id,new CheckoutRequestDto(items,mode,method)).status();
+ }
 }
-

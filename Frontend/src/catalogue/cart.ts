@@ -17,7 +17,15 @@ export function getCart(): CartItem[] {
   try {
     const data = sessionStorage.getItem(getCartKey());
     if (data) {
-      return JSON.parse(data);
+      const parsed: unknown = JSON.parse(data);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((item): item is CartItem => !!item && typeof item === 'object'
+        && Number.isSafeInteger(item.variantId) && item.variantId>0
+        && Number.isSafeInteger(item.productId) && item.productId>0
+        && Number.isSafeInteger(item.quantity) && item.quantity>0
+        && Number.isSafeInteger(item.stockQuantity) && item.stockQuantity>=item.quantity
+        && typeof item.price==='string' && /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/.test(item.price)
+        && typeof item.productName==='string' && typeof item.variantLabel==='string');
     }
   } catch (e) {
     console.error('Failed to parse cart', e);
@@ -26,10 +34,11 @@ export function getCart(): CartItem[] {
 }
 
 export function addToCart(item: CartItem) {
+  if (!Number.isSafeInteger(item.quantity) || item.quantity<1 || item.quantity>item.stockQuantity) throw new Error('Invalid cart quantity');
   const cart = getCart();
   const existingIndex = cart.findIndex(i => i.variantId === item.variantId);
   if (existingIndex >= 0) {
-    cart[existingIndex].quantity += item.quantity;
+    cart[existingIndex] = { ...item, quantity: cart[existingIndex].quantity + item.quantity };
     if (cart[existingIndex].quantity > item.stockQuantity) {
         cart[existingIndex].quantity = item.stockQuantity;
     }
@@ -41,7 +50,8 @@ export function addToCart(item: CartItem) {
 }
 
 export function updateCartQuantity(variantId: number, quantity: number) {
-  let cart = getCart();
+  if (!Number.isSafeInteger(quantity)) return;
+  const cart = getCart();
   const existingIndex = cart.findIndex(i => i.variantId === variantId);
   if (existingIndex >= 0) {
     if (quantity <= 0) {

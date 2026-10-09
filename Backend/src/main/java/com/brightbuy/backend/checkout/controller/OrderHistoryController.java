@@ -27,7 +27,6 @@ public class OrderHistoryController {
         if (user == null || user.id() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User must be authenticated to view orders");
         }
-        return orderHistoryRepository.getCustomerOrders(user.id());
+        return orderHistoryRepository.getCustomerOrders(com.brightbuy.backend.auth.Access.customer(user));
     }
 }
-

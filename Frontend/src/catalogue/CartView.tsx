@@ -4,10 +4,9 @@ import type { CartItem } from './cart';
 import { formatPrice } from './search';
 
 export default function CartView({ onCheckout, onContinueShopping }: { onCheckout: () => void, onContinueShopping: () => void }) {
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(getCart);
 
   useEffect(() => {
-    setCart(getCart());
     const handleUpdate = () => setCart(getCart());
     window.addEventListener('cart-updated', handleUpdate);
     return () => window.removeEventListener('cart-updated', handleUpdate);
@@ -42,7 +41,7 @@ export default function CartView({ onCheckout, onContinueShopping }: { onCheckou
                 </td>
                 <td>{formatPrice(parseFloat(item.price))}</td>
                 <td>
-                  <input type="number" min="1" max={item.stockQuantity} value={item.quantity}
+                  <input aria-label={`Quantity for ${item.productName}`} type="number" min="1" max={item.stockQuantity} value={item.quantity}
                     onChange={(e) => updateCartQuantity(item.variantId, parseInt(e.target.value, 10))}
                     style={{width: '60px'}}
                   />

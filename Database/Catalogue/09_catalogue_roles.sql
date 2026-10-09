@@ -8,6 +8,7 @@
 USE brightbuy;
 
 CREATE ROLE IF NOT EXISTS 'brightbuy_catalogue_reader', 'brightbuy_catalogue_maintainer';
+GRANT EXECUTE ON PROCEDURE brightbuy.sp_catalogue_create_product_with_variant TO 'brightbuy_catalogue_maintainer';
 
 -- Storefront/API account: read-only browsing, search and product detail.
 GRANT SELECT ON brightbuy.category                  TO 'brightbuy_catalogue_reader';
