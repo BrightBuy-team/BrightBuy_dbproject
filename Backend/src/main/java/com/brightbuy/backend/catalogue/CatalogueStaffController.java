@@ -25,8 +25,12 @@ public class CatalogueStaffController {
    throw new ResponseStatusException(HttpStatus.FORBIDDEN);
   return "employee:"+id;
  }
- @GetMapping("/products") public List<Map<String,Object>> products(@AuthenticationPrincipal AuthenticatedUser u){
-  staff(u);return jdbc.queryForList("SELECT * FROM product ORDER BY product_id LIMIT 500");
+ @GetMapping("/products") public List<Map<String,Object>> products(@AuthenticationPrincipal AuthenticatedUser u,
+  @RequestParam(defaultValue="") String keyword,@RequestParam(defaultValue="1") int page){
+  staff(u);
+  if(keyword.length()>255||page<1||page>100000)throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
+  return jdbc.queryForList("SELECT * FROM product WHERE ?='' OR LOCATE(?,name)>0 OR LOCATE(?,sku)>0 ORDER BY product_id LIMIT 100 OFFSET ?",
+   keyword.trim(),keyword.trim(),keyword.trim(),(page-1)*100);
  }
  @GetMapping("/categories") public List<Map<String,Object>> categories(@AuthenticationPrincipal AuthenticatedUser u){
   staff(u);return jdbc.queryForList("SELECT * FROM category ORDER BY category_id");

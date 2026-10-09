@@ -11,13 +11,16 @@ export default function CatalogueStaffView(){
  const [busy,setBusy]=useState(false)
  const [selected,setSelected]=useState<Product|null>(null)
  const [category,setCategory]=useState<Category|null>(null)
+ const [keyword,setKeyword]=useState('')
+ const [page,setPage]=useState(1)
  const base=catalogueBase+'/staff'
+ const productsUrl=base+'/products?'+new URLSearchParams({keyword,page:String(page)})
  async function refresh(){
-  const [p,c]=await Promise.all([apiRequest<Product[]>(base+'/products'),apiRequest<Category[]>(base+'/categories')])
+  const [p,c]=await Promise.all([apiRequest<Product[]>(productsUrl),apiRequest<Category[]>(base+'/categories')])
   setProducts(p);setCategories(c)
  }
- useEffect(()=>{let alive=true;Promise.all([apiRequest<Product[]>(base+'/products'),apiRequest<Category[]>(base+'/categories')])
-  .then(([p,c])=>{if(alive){setProducts(p);setCategories(c)}}).catch(e=>{if(alive)setMessage((e as Error).message)});return()=>{alive=false}},[base])
+ useEffect(()=>{let alive=true;Promise.all([apiRequest<Product[]>(productsUrl),apiRequest<Category[]>(base+'/categories')])
+  .then(([p,c])=>{if(alive){setProducts(p);setCategories(c)}}).catch(e=>{if(alive)setMessage((e as Error).message)});return()=>{alive=false}},[base,productsUrl])
  async function write(url:string,method:string,body?:unknown){
   setBusy(true);setMessage('')
   try{await apiRequest(url,{method,body:body===undefined?undefined:JSON.stringify(body)});await refresh();setMessage('Saved.');setSelected(null);setCategory(null)}
@@ -50,10 +53,14 @@ export default function CatalogueStaffView(){
     <label>Initial stock<input name="stock" type="number" min={0} step={1} required/></label></>}
    <button disabled={busy}>Save product</button><button type="button" onClick={()=>setSelected(null)}>New product</button>
   </form>
-  <h2>Products</h2><p>Showing at most 500. Use the public catalogue for keyword search.</p>
+  <h2>Products</h2><form onSubmit={e=>{e.preventDefault();setKeyword(String(new FormData(e.currentTarget).get('keyword')||''));setPage(1)}}>
+   <label>Find staff products (including retired)<input name="keyword" maxLength={255}/></label><button>Search</button></form>
+  <p>Page {page} — up to 100 products per page.</p>
   {products.map(p=><article key={p.product_id}><span>#{p.product_id} {p.name} ({p.sku})</span>
    <button disabled={busy} onClick={()=>setSelected(p)}>Edit</button>
    <button disabled={busy} onClick={()=>void write(base+'/products/'+p.product_id+'/active','PATCH',{active:!p.is_active})}>{p.is_active?'Retire':'Restore'}</button></article>)}
+  <button disabled={page===1||busy} onClick={()=>setPage(p=>p-1)}>Previous products</button>
+  <button disabled={products.length<100||busy} onClick={()=>setPage(p=>p+1)}>Next products</button>
   <h2>{category?'Edit category':'Create category'}</h2>
   <form key={'c'+(category?.category_id||0)} onSubmit={saveCategory}>
    <label>Name<input name="name" required maxLength={100} defaultValue={category?.name}/></label>

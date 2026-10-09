@@ -20,8 +20,8 @@ CREATE TABLE variant (
     variant_name VARCHAR(100),
     colour VARCHAR(50),
     memory_size VARCHAR(50),
-    price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
-    stock_quantity INT NOT NULL CHECK (stock_quantity >= 0),
+    price DECIMAL(10,2) NOT NULL CONSTRAINT ck_variant_price_nonnegative CHECK (price >= 0),
+    stock_quantity INT NOT NULL CONSTRAINT ck_variant_stock_nonnegative CHECK (stock_quantity >= 0),
     FOREIGN KEY (warehouse_id) REFERENCES warehouse(warehouse_id),
     FOREIGN KEY (product_id) REFERENCES product(product_id) -- Links to Mihisara's domain
 );

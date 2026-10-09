@@ -55,7 +55,12 @@ public class AuthController {
     }
 
     @PostMapping("/employees")
-    public ResponseEntity<EmployeeResponse> createEmployee(@Valid @RequestBody CreateEmployeeRequest request) {
+    public ResponseEntity<EmployeeResponse> createEmployee(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody CreateEmployeeRequest request) {
+        if (!authService.employeeHasRole(Access.employee(user), EmployeeRole.ADMIN)) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN);
+        }
         Integer employeeId = authService.createEmployee(new AuthService.CreateEmployeeRequest(
                 request.firstName(), request.lastName(), request.email(), request.password(), request.contactNo(),
                 request.role()));

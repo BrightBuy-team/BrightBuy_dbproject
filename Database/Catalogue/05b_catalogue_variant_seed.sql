@@ -13,6 +13,7 @@ DELIMITER $$
 
 CREATE PROCEDURE seed_catalogue_variants()
 BEGIN
+    DECLARE fixture_rate DECIMAL(12,4) DEFAULT 1;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
         ROLLBACK;
@@ -20,6 +21,10 @@ BEGIN
         RESIGNAL;
     END;
 
+    IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='brightbuy' AND table_name='currency_conversion_log') THEN
+        SELECT COALESCE(MAX(lkr_per_usd),1) INTO fixture_rate
+        FROM currency_conversion_log WHERE migration_key='USD_TO_LKR_V1';
+    END IF;
     DROP TEMPORARY TABLE IF EXISTS catalogue_variant_fixtures;
     CREATE TEMPORARY TABLE catalogue_variant_fixtures LIKE variant;
     START TRANSACTION;
@@ -115,7 +120,7 @@ BEGIN
     INSERT INTO variant
         (variant_id, product_id, warehouse_id, variant_name, colour, memory_size, price, stock_quantity)
     SELECT f.variant_id, f.product_id, f.warehouse_id, f.variant_name,
-           f.colour, f.memory_size, f.price, f.stock_quantity
+           f.colour, f.memory_size, ROUND(f.price*fixture_rate,2), f.stock_quantity
     FROM catalogue_variant_fixtures f
     WHERE NOT EXISTS (SELECT 1 FROM variant v WHERE v.variant_id = f.variant_id);
 

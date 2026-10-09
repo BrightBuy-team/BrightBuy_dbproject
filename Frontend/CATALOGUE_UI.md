@@ -1,57 +1,53 @@
 # Catalogue frontend
 
-## Current catalogue integration — 2026-10-09
+## Current integrated frontend — 2026-10-09
 
-Currency display now uses LKR (`en-LK`, two decimal places) at the user's request,
-superseding the SRS AS-12 USD display for catalogue cards, details and the shared
-cart view that imports `formatPrice`. Numeric API/database amounts are unchanged;
-no exchange-rate conversion is performed. Checkout's hardcoded dollar total and
-reporting's separate USD formatter remain owner integration tasks because their
-files were not authorized for edits. Historical verification amounts below retain
-their original currency.
+Home is public. Sign in/register at `/?view=login` using backend customer or
+employee accounts; mock accounts and browser-stored passwords are removed.
+Account status and Sign out use the real session, with cookies and CSRF.
+Session failure never creates a fake customer or silently falls back to ID 1.
 
-The checkout owner has added cart and checkout views. The catalogue now links
-to `catalogue.html?view=cart`, uses the current shared cart API, and announces
-whether Add to Cart succeeded. It never calls checkout or reserves stock.
+Catalogue routes:
+- `catalogue.html`: public browsing, filters, categories and product details.
+- `catalogue.html?view=cart`: validated session-storage cart.
+- `catalogue.html?view=checkout`: customer-only COD delivery/pickup checkout.
+- `catalogue.html?view=orders`: signed-in customer's order history.
+- `catalogue.html?view=staff`: warehouse/admin catalogue upkeep, search and pagination.
+- `catalogue.html?view=reports`: management reports using authenticated identity.
+- `inventory.html`: real staff session, authenticated/CSRF stock updates.
+- `delivery.html`: authenticated order ownership and persisted delivery estimates.
 
-The current shared cart (`src/catalogue/cart.ts`) stores a JSON array of
-`{ productId, variantId, productName, variantLabel, price, quantity, stockQuantity }`.
-`price` is a string. Storage is `sessionStorage`: `brightbuy_cart_guest`, or
-`brightbuy_cart_<currentUserEmail>` according to the owner's browser account key.
-These keys separate browser display carts; they do not authenticate a customer.
-The old `brightbuy.cart.v1`/`unitPrice` contract below has been superseded.
+All monetary data is converted once from USD to stored LKR by
+`Database/Integration/03_convert_currency_to_lkr.sql`, using the CBSL indicative
+rate retrieved 2026-10-09: 1 USD = 330.9617 LKR. New prices, filters, cart
+snapshots and checkout amounts are already LKR; the browser never converts twice.
+Older browser carts remain archived under their USD keys. Active carts use
+`brightbuy_cart_lkr_v1_guest` / `brightbuy_cart_lkr_v1_<email>`; re-add products to
+refresh their converted prices. The conversion is fixed, not a live FX feed.
+Texas city data
+comes from the backend; pickup has no invented delivery date. Card checkout is
+disabled until a real authorization gateway exists. The contact mailbox is still
+explicitly a demo, not a functioning address.
 
-`cartHandoff.ts` validates snapshots at the catalogue boundary and calls the
-owner's existing `getCart`/`addToCart`. Invalid quantities, duplicate/corrupt
-saved lines, full carts, and combined quantities above displayed stock are
-refused with feedback. A changed stock snapshot that would exceed the saved
-cart line's maximum requires reviewing/removing that saved line before adding
-it again. No second storage format or database cart was introduced.
-The header counts total units, listens for `cart-updated` and storage events,
-and links to the existing cart view. Database price/stock remain authoritative.
+Guest/customer cart lines merge at login. Duplicates combine, quantities cap to
+the smaller known stock snapshot with a notice, and over-100-line/corrupt merges
+retain original data. Cookies authorize requests; browser email keys never do.
+Unreadable carts show a recovery action. Adding items never reserves stock.
+The database revalidates prices, products and stock at order confirmation.
+A successful response returns an order ID and JSON status; the UI clears the cart
+and links to order history. UI duplicate clicks are guarded; do not automatically
+retry a timed-out checkout without checking history.
 
-Account status uses only the validated `GET /api/auth/me` response. Local mock
-email/role values no longer imply a signed-in session in catalogue navigation.
-401 shows signed out; failures show unavailable with retry. The catalogue no
-longer provides a browser-only Logout button that would leave the server
-session alive. The existing sign-in page still needs its owner's real auth wiring.
+`client.ts` derives module API addresses from the catalogue deployment and
+adds cookies/fresh CSRF headers to writes. Use the same hostname for local
+frontend/backend (both `localhost`, or both `127.0.0.1`) to avoid SameSite cookie
+problems. Explicit per-module env overrides are supported but must preserve the
+agreed cookie/session gateway. Vite reads frontend env files only at startup.
 
-Verification on 2026-10-09: all 179 frontend tests passed; catalogue TypeScript
-checking and lint passed (excluding checkout-owner `cart.ts`, `CartView.tsx`,
-and `CheckoutView.tsx`); the separate production build emitted
-`dist/catalogue/catalogue.html` and its assets. Local browser verification used
-fictional HTTP fixtures, not Azure or a database: added three units, refused
-another three against five in stock, opened the shared cart with the same
-three units, confirmed persistence across navigation, disabled the out-of-stock
-variant, and confirmed no horizontal overflow at 360px on product details.
-These checks do not establish complete authenticated checkout or MySQL integration.
-
-Remaining shared work: connect real login/logout; remove checkout's mock session
-fallback; transmit/persist delivery addresses; complete payment/delivery record
-creation and customer-only authorization; verify the full purchase flow on a
-disposable database. The default whole-site build still fails on the unused
-`cloudOffset` in `src/App.tsx`; that teammate-owned page was not edited.
-The shared Vite build must include the team's separate HTML entries for deployment.
+`npm run build` includes all four HTML entry points. Full frontend tests and lint
+pass. See [the current integration handoff](../Docs/catalogue_integration_handoff.md)
+for verified results, local run instructions, changed teammate files and Azure
+deployment requirements. Older sections below retain historical milestones.
 
 ## Historical catalogue handoff — 2026-10-08
 
@@ -283,7 +279,9 @@ screen. The team's actual MySQL 8 deployment still requires integration testing.
 - 161 frontend tests, lint and both builds passed. Only catalogue CSS and this
   guide changed; cart/account integration is still pending.
 
-## Integration handoff checklist
+## Historical integration handoff checklist (superseded)
+
+The current shared integrations are implemented; use the handoff linked above. The older requests below show what was pending at that milestone.
 
 Checked against the local source tree on 2026-10-04. No cart/auth application
 interface is present here yet; this does not describe unmerged teammate work.

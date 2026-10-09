@@ -22,13 +22,14 @@ public class ReportController {
         return id;
     }
     @GetMapping("/quarterly-sales")
-    public List<QuarterlySales> quarterlySales(@RequestParam int year, @org.springframework.security.core.annotation.AuthenticationPrincipal com.brightbuy.backend.auth.AuthenticatedUser user) {
+    public List<QuarterlySales> quarterlySales(@RequestParam @jakarta.validation.constraints.Min(2000) @jakarta.validation.constraints.Max(2100) int year, @org.springframework.security.core.annotation.AuthenticationPrincipal com.brightbuy.backend.auth.AuthenticatedUser user) {
         return rService.getQuarterlySales(year, manager(user));
     }
 
     @GetMapping("/top-selling-products")
     public List<TopSellingProduct> topSellingProducts(@RequestParam LocalDate startDate, @RequestParam LocalDate endDate,
-                                                      @RequestParam(defaultValue = "10") int topN, @org.springframework.security.core.annotation.AuthenticationPrincipal com.brightbuy.backend.auth.AuthenticatedUser user) {
+                                                      @RequestParam(defaultValue = "10") @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(100) int topN, @org.springframework.security.core.annotation.AuthenticationPrincipal com.brightbuy.backend.auth.AuthenticatedUser user) {
+        if(startDate.isAfter(endDate)) throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST,"Invalid date range");
         return rService.getTopSellingProducts(startDate, endDate, topN, manager(user));
     }
 

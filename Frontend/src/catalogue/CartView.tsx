@@ -1,19 +1,22 @@
 import { useEffect, useState } from 'react';
-import { getCart, updateCartQuantity, removeFromCart, getCartTotalPrice } from './cart';
-import type { CartItem } from './cart';
+import { cartSnapshot, clearCart, updateCartQuantity, removeFromCart } from './cart';
 import { formatPrice } from './search';
 
 export default function CartView({ onCheckout, onContinueShopping }: { onCheckout: () => void, onContinueShopping: () => void }) {
-  const [cart, setCart] = useState<CartItem[]>(getCart);
+  const [snapshot, setSnapshot] = useState(cartSnapshot);
+  const cart=snapshot.items;
 
   useEffect(() => {
-    const handleUpdate = () => setCart(getCart());
+    const handleUpdate = () => setSnapshot(cartSnapshot());
     window.addEventListener('cart-updated', handleUpdate);
     return () => window.removeEventListener('cart-updated', handleUpdate);
   }, []);
 
   return <section className="catalogue-cart">
     <h1>Your Shopping Cart</h1>
+    <p>Prices and checkout totals are stored in LKR. Older currency carts are kept separately; re-add products to refresh their converted prices.</p>
+    {snapshot.error&&<div role="alert"><p>{snapshot.error}</p><button onClick={()=>clearCart()}>Clear unreadable cart</button></div>}
+    <p role="status">{typeof sessionStorage!=='undefined'?sessionStorage.getItem('brightbuy_cart_notice'):''}</p>
     {cart.length === 0 ? (
       <div className="catalogue-empty">
         <p>Your cart is empty.</p>
@@ -42,7 +45,7 @@ export default function CartView({ onCheckout, onContinueShopping }: { onCheckou
                 <td>{formatPrice(parseFloat(item.price))}</td>
                 <td>
                   <input aria-label={`Quantity for ${item.productName}`} type="number" min="1" max={item.stockQuantity} value={item.quantity}
-                    onChange={(e) => updateCartQuantity(item.variantId, parseInt(e.target.value, 10))}
+                    onChange={(e) => updateCartQuantity(item.variantId, Number(e.target.value))}
                     style={{width: '60px'}}
                   />
                   <br/>
@@ -58,7 +61,7 @@ export default function CartView({ onCheckout, onContinueShopping }: { onCheckou
         </table>
         
         <div style={{display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '2rem'}}>
-          <h3>Total: {formatPrice(getCartTotalPrice())}</h3>
+          <h3>Total: {formatPrice(cart.reduce((sum,i)=>sum+Number(i.price)*i.quantity,0))}</h3>
           <button onClick={onCheckout} className="catalogue-primary">Proceed to Checkout</button>
         </div>
         <div style={{marginTop: '2rem'}}>

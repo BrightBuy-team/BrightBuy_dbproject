@@ -25,7 +25,7 @@ export async function apiRequest<T>(url: string, init: RequestInit = {}): Promis
   if(response.status===401) throw new Error('Please sign in to continue.')
   if(response.status===403) throw new Error('Your account does not have permission for this action.')
   if(response.status===409) throw new Error('Stock or records changed. Refresh and try again.')
-  if(response.status===503) throw new Error('This service is unavailable. Card payment is not yet enabled; use COD.')
+  if(response.status===503) throw new Error('This service is temporarily unavailable. Please try again later.')
   throw new Error('Request failed. Check your entries and try again.')
  }
  if(response.status===204 || !response.headers.get('content-type')?.includes('application/json')) return undefined as T

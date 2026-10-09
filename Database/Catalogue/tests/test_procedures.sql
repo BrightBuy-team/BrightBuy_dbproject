@@ -45,6 +45,11 @@ BEGIN
         ROLLBACK;
         RESIGNAL;
     END;
+    SET @catalogue_fixture_rate=1;
+    IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='brightbuy' AND table_name='currency_conversion_log') THEN
+        SELECT COALESCE(MAX(lkr_per_usd),1) INTO @catalogue_fixture_rate
+        FROM currency_conversion_log WHERE migration_key='USD_TO_LKR_V1';
+    END IF;
     SET @procedure_test_count = 0;
     START TRANSACTION;
     SAVEPOINT initial_state;
@@ -137,13 +142,13 @@ BEGIN
 
     CALL sp_catalogue_search(NULL, NULL, NULL, NULL, 1, 'name_asc', 1, 100, result);
     CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 37, 'stock filter removes completely unavailable products');
-    CALL sp_catalogue_search('IPHONE-15-PRO', NULL, 1299, 1299, 1, 'name_asc', 1, 100, result);
+    CALL sp_catalogue_search('IPHONE-15-PRO', NULL, ROUND(1299*@catalogue_fixture_rate,2), ROUND(1299*@catalogue_fixture_rate,2), 1, 'name_asc', 1, 100, result);
     CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 0, 'price and stock must match the same variant');
-    CALL sp_catalogue_search('IPHONE-15-PRO', NULL, 1299, 1299, 0, 'name_asc', 1, 100, result);
-    CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 1 AND JSON_EXTRACT(result,'$.items[0].min_price') = 1299 AND JSON_EXTRACT(result,'$.items[0].matching_variant_count') = 1, 'inclusive price bounds and matching summaries');
-    CALL sp_catalogue_search('BB-PHONE-NOVA', 4, 400, 500, 1, 'name_asc', 1, 100, result);
-    CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 1 AND JSON_EXTRACT(result,'$.items[0].min_price') = 449 AND JSON_EXTRACT(result,'$.items[0].matching_stock_quantity') = 24, 'combined keyword category price and stock');
-    CALL sp_catalogue_search(NULL, NULL, NULL, 20, 0, 'name_asc', 1, 100, result);
+    CALL sp_catalogue_search('IPHONE-15-PRO', NULL, ROUND(1299*@catalogue_fixture_rate,2), ROUND(1299*@catalogue_fixture_rate,2), 0, 'name_asc', 1, 100, result);
+    CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 1 AND JSON_EXTRACT(result,'$.items[0].min_price') = ROUND(1299*@catalogue_fixture_rate,2) AND JSON_EXTRACT(result,'$.items[0].matching_variant_count') = 1, 'inclusive price bounds and matching summaries');
+    CALL sp_catalogue_search('BB-PHONE-NOVA', 4, ROUND(400*@catalogue_fixture_rate,2), ROUND(500*@catalogue_fixture_rate,2), 1, 'name_asc', 1, 100, result);
+    CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 1 AND JSON_EXTRACT(result,'$.items[0].min_price') = ROUND(449*@catalogue_fixture_rate,2) AND JSON_EXTRACT(result,'$.items[0].matching_stock_quantity') = 24, 'combined keyword category price and stock');
+    CALL sp_catalogue_search(NULL, NULL, NULL, ROUND(20*@catalogue_fixture_rate,2), 0, 'name_asc', 1, 100, result);
     CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 3, 'maximum-only price filter');
 
     CALL sp_catalogue_categories(result);
@@ -169,9 +174,8 @@ BEGIN
     CALL catalogue_procedure_assert(JSON_TYPE(JSON_EXTRACT(result,'$.image_url')) = 'NULL', 'missing image is JSON null');
     CALL sp_catalogue_product_detail(13,result);
     CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.variants[0].stock_quantity') = 0, 'out-of-stock product detail remains visible');
-    UPDATE variant SET price = NULL WHERE product_id = 1;
-    CALL sp_catalogue_search('iPhone', NULL, NULL, NULL, 0, 'name_asc', 1, 100, result);
-    CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 0, 'invalid inventory prices excluded');
+    CALL catalogue_procedure_reject('UPDATE variant SET price = NULL WHERE product_id = 1',
+        '23000', 'null inventory prices rejected by NOT NULL');
     ROLLBACK TO SAVEPOINT initial_state;
     -- Invalid negatives must be rejected by the current inventory CHECK, not
     -- inserted by disabling a constraint just to exercise catalogue filtering.
@@ -190,10 +194,8 @@ BEGIN
             (variant_id = 2 AND stock_quantity = 15) OR
             (variant_id = 3 AND stock_quantity = 0)) = 3,
         'rejected stock update leaves all product variants unchanged');
-    -- A CHECK allows NULL; catalogue must still hide unknown inventory.
-    UPDATE variant SET stock_quantity = NULL WHERE product_id = 1;
-    CALL sp_catalogue_search('iPhone', NULL, NULL, NULL, 0, 'name_asc', 1, 100, result);
-    CALL catalogue_procedure_assert(JSON_EXTRACT(result,'$.total_products') = 0, 'null inventory stock excluded');
+    CALL catalogue_procedure_reject('UPDATE variant SET stock_quantity = NULL WHERE product_id = 1',
+        '23000', 'null inventory stock rejected by NOT NULL');
     ROLLBACK TO SAVEPOINT initial_state;
 
     CALL catalogue_procedure_reject('CALL sp_catalogue_search(NULL,NULL,NULL,NULL,0,''name_asc'',0,12,@rejected_result)', '45000', 'zero page');

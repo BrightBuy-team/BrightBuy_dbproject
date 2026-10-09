@@ -55,9 +55,9 @@ class CatalogueMySqlTests {
 
     @Test
     void combinedVariantFilterAndPagination() throws Exception {
-        JsonNode matches = ok("/api/catalogue/products?keyword=BB-PHONE-NOVA&categoryId=4&minPrice=400&maxPrice=500&inStockOnly=true&sort=price_asc");
+        JsonNode matches = ok("/api/catalogue/products?keyword=BB-PHONE-NOVA&categoryId=4&minPrice=132384.68&maxPrice=165480.85&inStockOnly=true&sort=price_asc");
         assertThat(matches.get("total_products").asInt()).isEqualTo(1);
-        assertThat(matches.get("items").get(0).get("min_price").decimalValue()).isEqualByComparingTo("449.00");
+        assertThat(matches.get("items").get(0).get("min_price").decimalValue()).isEqualByComparingTo("148601.80");
         assertThat(ok("/api/catalogue/products?page=4").get("items").size()).isEqualTo(3);
         assertThat(ok("/api/catalogue/products?page=99").get("items").isEmpty()).isTrue();
     }
