@@ -64,7 +64,7 @@ function Filters({ query, categories, reset }: { query: Search; categories: Cate
       <button className="catalogue-primary" type="submit">Apply filters</button>
       <button className="catalogue-text-button" type="button" onClick={reset}>Reset all filters</button>
     </form>
-    <p className="catalogue-fine-print">All prices are shown in USD.</p>
+    <p className="catalogue-fine-print">All prices are shown in LKR.</p>
   </aside>
 }
 
@@ -143,15 +143,15 @@ function CatalogueStorefront() {
     <main id="catalogue-content" tabIndex={-1}>
       {viewParam === 'cart' ? (
         <CartView 
-          onCheckout={() => window.location.href = '?view=checkout'} 
-          onContinueShopping={() => window.location.href = catalogueHref(query)} 
+          onCheckout={() => window.location.assign('?view=checkout')}
+          onContinueShopping={() => window.location.assign(catalogueHref(query))}
         />
       ) : viewParam === 'checkout' ? (
         <CheckoutView 
-          onBack={() => window.location.href = '?view=cart'} 
+          onBack={() => window.location.assign('?view=cart')}
           onComplete={() => {
             alert('Order placed successfully!');
-            window.location.href = catalogueHref(query);
+            window.location.assign(catalogueHref(query));
           }} 
         />
       ) : (
