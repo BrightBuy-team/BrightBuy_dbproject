@@ -1,41 +1,59 @@
 # Catalogue frontend
 
-## Session cart — 2026-10-08
+## Current catalogue integration — 2026-10-09
 
-Add to Cart now works on the product page and the header shows the cart count.
-The cart page and checkout screens are still to come from the checkout owner.
+Currency display now uses LKR (`en-LK`, two decimal places) at the user's request,
+superseding the SRS AS-12 USD display for catalogue cards, details and the shared
+cart view that imports `formatPrice`. Numeric API/database amounts are unchanged;
+no exchange-rate conversion is performed. Checkout's hardcoded dollar total and
+reporting's separate USD formatter remain owner integration tasks because their
+files were not authorized for edits. Historical verification amounts below retain
+their original currency.
 
-**Contract for the cart and checkout pages** (`src/catalogue/cart.ts`):
+The checkout owner has added cart and checkout views. The catalogue now links
+to `catalogue.html?view=cart`, uses the current shared cart API, and announces
+whether Add to Cart succeeded. It never calls checkout or reserves stock.
 
-- Stored in `sessionStorage` under the key `brightbuy.cart.v1` (SRS AS-11:
-  guest cart held in the browser session, not in the database).
-- Value: a JSON array of lines
-  `{ variantId, quantity, productId, productName, variantLabel, unitPrice }`.
-  One line per variant; adding the same variant again increases its quantity.
-- `variantId` and `quantity` match the backend `CartItemDto`.
-  `checkoutItems(readCart())` returns exactly the `cartItems` array that
-  `POST /api/checkout` expects.
-- `productName`, `variantLabel` and `unitPrice` are display snapshots taken
-  when the item was added. Never use them for totals that matter: checkout
-  reads price and stock from the database.
-- Helpers: `readCart`, `addToCart`, `clearCart` (call it after a successful
-  checkout), `cartUnitCount`, `checkoutItems`, `subscribeCart`, and the React
-  hook `useCart` in `useCatalogue.ts`.
-- Unreadable or unexpected stored data is treated as an empty cart.
+The current shared cart (`src/catalogue/cart.ts`) stores a JSON array of
+`{ productId, variantId, productName, variantLabel, price, quantity, stockQuantity }`.
+`price` is a string. Storage is `sessionStorage`: `brightbuy_cart_guest`, or
+`brightbuy_cart_<currentUserEmail>` according to the owner's browser account key.
+These keys separate browser display carts; they do not authenticate a customer.
+The old `brightbuy.cart.v1`/`unitPrice` contract below has been superseded.
 
-Behaviour: the button is disabled for out-of-stock variants and invalid
-quantities. Adding more than the stock shown, counting what is already in the
-cart, is refused with a message. Nothing is reserved (AS-10) and no request is
-sent to the backend. The header shows `Cart (n)` as text; set `VITE_CART_URL`
-to a path or http(s) address to turn it into a link once the cart page exists.
+`cartHandoff.ts` validates snapshots at the catalogue boundary and calls the
+owner's existing `getCart`/`addToCart`. Invalid quantities, duplicate/corrupt
+saved lines, full carts, and combined quantities above displayed stock are
+refused with feedback. A changed stock snapshot that would exceed the saved
+cart line's maximum requires reviewing/removing that saved line before adding
+it again. No second storage format or database cart was introduced.
+The header counts total units, listens for `cart-updated` and storage events,
+and links to the existing cart view. Database price/stock remain authoritative.
 
-Checked on 2026-10-08: 179 frontend tests, catalogue lint, typecheck and build
-passed. In a browser against a local backend and an isolated MySQL 9.7.1
-database: added 3 units, a further 11 was refused against 13 in stock, the
-count survived a page load, an out-of-stock variant stayed disabled, and the
-page had no horizontal overflow at 360px.
+Account status uses only the validated `GET /api/auth/me` response. Local mock
+email/role values no longer imply a signed-in session in catalogue navigation.
+401 shows signed out; failures show unavailable with retry. The catalogue no
+longer provides a browser-only Logout button that would leave the server
+session alive. The existing sign-in page still needs its owner's real auth wiring.
 
-## Current catalogue handoff — 2026-10-08
+Verification on 2026-10-09: all 179 frontend tests passed; catalogue TypeScript
+checking and lint passed (excluding checkout-owner `cart.ts`, `CartView.tsx`,
+and `CheckoutView.tsx`); the separate production build emitted
+`dist/catalogue/catalogue.html` and its assets. Local browser verification used
+fictional HTTP fixtures, not Azure or a database: added three units, refused
+another three against five in stock, opened the shared cart with the same
+three units, confirmed persistence across navigation, disabled the out-of-stock
+variant, and confirmed no horizontal overflow at 360px on product details.
+These checks do not establish complete authenticated checkout or MySQL integration.
+
+Remaining shared work: connect real login/logout; remove checkout's mock session
+fallback; transmit/persist delivery addresses; complete payment/delivery record
+creation and customer-only authorization; verify the full purchase flow on a
+disposable database. The default whole-site build still fails on the unused
+`cloudOffset` in `src/App.tsx`; that teammate-owned page was not edited.
+The shared Vite build must include the team's separate HTML entries for deployment.
+
+## Historical catalogue handoff — 2026-10-08
 
 - Removed the temporary Buy Now POST, hardcoded Azure checkout URL and customer
   ID 1 from the catalogue variant component. Add to Cart is explicitly disabled
@@ -109,8 +127,8 @@ provides loading/retry states without hiding All products.
 
 The footer explains the SRS Texas delivery restriction, planned Store Pickup,
 destination/stock-dependent estimates, and planned Cash on Delivery/Card Payment
-methods in USD. It explicitly states that this catalogue cannot accept orders
-or payments yet. No delivery fees or fixed delivery dates are invented.
+methods. Catalogue prices are displayed in LKR; adding items does not place an
+order or take payment. No delivery fees or fixed delivery dates are invented.
 
 The default contact is `support@brightbuy.example`, labelled as a non-working
 demo address with no mail link. Once the team owns a real mailbox, set the public
@@ -129,11 +147,11 @@ page. Category links from details start a fresh browse of that category.
 
 The page shows name, SKU, description, image/fallback and categories. A variant
 selector displays the available colour/memory combinations, including zero-stock
-choices. Selecting an option immediately changes its USD price, stock status and
+choices. Selecting an option immediately changes its LKR price, stock status and
 available quantity without a reload, and resets quantity to 1. A single default
 variant is selected automatically without showing a selector. Browse cards retain
-their matching-variant price ranges; all prices show USD with two decimal places
-as required by SRS AS-12.
+their matching-variant price ranges; catalogue prices show LKR with two decimal
+places as requested on 2026-10-09, superseding the SRS AS-12 USD display.
 
 Quantity must be a positive whole number no greater than the selected stock;
 invalid input displays an inline error. Quantity is disabled for zero stock.
@@ -174,21 +192,24 @@ Search errors belong to the current route and do not persist after category,
 sort, page or browser-history navigation. Applied query values are restored from
 the URL; the existing validation limits remain unchanged.
 
-### Automated checks
+### Automated catalogue checks
 
 ```sh
 node --test tests/catalogue*.test.mjs
-npm run lint
-npm run build
-npx vite build --config vite.catalogue.config.ts
+./node_modules/.bin/tsc -p tsconfig.catalogue.json
+./node_modules/.bin/eslint src/catalogue --ignore-pattern src/catalogue/cart.ts --ignore-pattern src/catalogue/CartView.tsx --ignore-pattern src/catalogue/CheckoutView.tsx
+./node_modules/.bin/vite build --config vite.catalogue.config.ts
 ```
 
 Use a Node release supporting native TypeScript stripping (validated with
 Node 26). The rendering tests use the existing Vite/React dependencies, without
 opening a browser or connecting to the backend. API tests mock HTTP responses.
-The default build uses the current root catalogue entry; the separate catalogue build
-outputs to `dist/catalogue`. Run the shared build before the catalogue build,
-because the shared build clears `dist`.
+The separate catalogue build outputs its HTML and assets to `dist/catalogue`.
+The dedicated TypeScript configuration checks catalogue imports without pulling
+in the unrelated shared home page. The lint exclusions identify checkout-owned
+files; they are not a whole-project lint pass. Run `npm run lint` and
+`npm run build` separately when verifying the team's shared site. Run the shared
+build before the catalogue build, because the shared build clears `dist`.
 
 Manual checks: open a product from filtered results, return and check the
 filters/page, refresh a detail link, browse a category from details, check

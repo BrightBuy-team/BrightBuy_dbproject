@@ -51,7 +51,7 @@ test('multiple options have labelled selector and live price/stock region', () =
 test('single variant hides selector and disables quantity for zero stock', () => {
   const html = render({ variants: [variants[1]] })
   assert.doesNotMatch(html, /<select/)
-  assert.match(html, /USD 150.00/)
+  assert.match(html, /LKR 150.00/)
   assert.match(html, /<input[^>]*disabled=""/)
   assert.match(html, /<button[^>]*disabled=""/)
   assert.match(html, /Out of Stock/)
@@ -66,6 +66,6 @@ test('in-stock variants can be added to the cart but never place an order', () =
   assert.match(html, /<button[^>]*>Add to Cart/)
   assert.doesNotMatch(html, /<button[^>]*disabled=""[^>]*>Add to Cart/)
   assert.match(html, /aria-describedby="catalogue-cart-note"/)
-  assert.match(html, /class="catalogue-cart-result[^"]*" role="status"><\/p>/)
+  assert.match(html, /class="catalogue-cart-result[^"]*" role="status" aria-live="polite"><\/p>/)
   assert.doesNotMatch(html, /Buy Now|Processing|Checkout completed|Cart integration is not available/)
 })

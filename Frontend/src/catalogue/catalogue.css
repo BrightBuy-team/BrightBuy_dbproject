@@ -126,6 +126,12 @@ body { margin: 0; }
 .catalogue-footer-pending { font-size: 12px; }
 @media (max-width: 700px) { .catalogue-category-navigation { padding: 0 20px; } .catalogue-footer { grid-template-columns: 1fr; gap: 24px; } }
 .catalogue-visually-hidden, .catalogue-skip:not(:focus) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.catalogue-site-navigation { display: flex; flex-wrap: wrap; gap: 16px; font-weight: 600; }
+.catalogue-site-navigation a { color: inherit; text-decoration: none; }
+@media (max-width: 1100px) {
+  .catalogue-header { flex-wrap: wrap; }
+  .catalogue-site-navigation { flex: 1 1 100%; }
+}
 .catalogue-skip:focus { display: block; padding: 12px; background: white; }
 .catalogue-card h3 a { text-decoration: none; }
 .catalogue-card h3 a:hover { text-decoration: underline; color: var(--green); }

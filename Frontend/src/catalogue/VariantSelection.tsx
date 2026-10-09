@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { ProductVariant } from './api'
 import { formatPrice } from './search'
 import { parseLowStockThreshold, quantityError, stockLabel, variantLabel } from './variants'
-import { addToCart } from './cart'
+import { addCatalogueItem } from './cartHandoff'
 
 const configuredThreshold = parseLowStockThreshold(import.meta.env.VITE_CATALOGUE_LOW_STOCK_THRESHOLD)
 
@@ -14,6 +14,7 @@ export default function VariantSelection({ variants, productId, productName, low
 }) {
   const [selectedId, setSelectedId] = useState(variants[0]?.variant_id)
   const [quantity, setQuantity] = useState('1')
+  const [feedback, setFeedback] = useState<{ ok: boolean; message: string }>()
   const selected = variants.find(variant => variant.variant_id === selectedId) ?? variants[0]
   if (!selected) return <p role="status">No variants are available.</p>
   const error = quantityError(quantity, selected.stock_quantity)
@@ -25,6 +26,7 @@ export default function VariantSelection({ variants, productId, productName, low
       <select id="catalogue-variant" value={selected.variant_id} onChange={event => {
         setSelectedId(Number(event.target.value))
         setQuantity('1')
+        setFeedback(undefined)
       }}>
         {variants.map(variant => <option key={variant.variant_id} value={variant.variant_id}>
           {variantLabel(variant)} — {stockLabel(variant.stock_quantity, lowStockThreshold)}
@@ -43,13 +45,15 @@ export default function VariantSelection({ variants, productId, productName, low
       aria-describedby={error ? 'catalogue-quantity-error' : undefined}
       onChange={event => {
         setQuantity(event.target.value)
+        setFeedback(undefined)
       }} />
     {error && <p id="catalogue-quantity-error" className="catalogue-field-error" role="alert">{error}</p>}
     
-    <button type="button" className="catalogue-primary" 
+    <p id="catalogue-cart-note" className="catalogue-fine-print">Your cart is kept for this browser session. Stock is not reserved until checkout.</p>
+    <button type="button" className="catalogue-primary" aria-describedby="catalogue-cart-note"
       disabled={selected.stock_quantity === 0 || !!error}
       onClick={() => {
-        addToCart({
+        setFeedback(addCatalogueItem({
           productId,
           variantId: selected.variant_id,
           productName,
@@ -57,9 +61,10 @@ export default function VariantSelection({ variants, productId, productName, low
           price: selected.price.toString(),
           quantity: parseInt(quantity, 10),
           stockQuantity: selected.stock_quantity
-        })
+        }))
       }}>
       Add to Cart
     </button>
+    <p className={`catalogue-cart-result${feedback && !feedback.ok ? ' failed' : ''}`} role="status" aria-live="polite">{feedback?.message}</p>
   </div>
 }

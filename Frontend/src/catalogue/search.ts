@@ -73,6 +73,7 @@ export function searchParams(query: Search): URLSearchParams {
 export const defaultSearch = parseSearch(new URLSearchParams())
 
 export function formatPrice(price: number): string {
-  // SRS AS-12: Phase 1 prices are USD, including browse cards and details.
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', currencyDisplay: 'code', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
+  // The requested LKR display applies to catalogue and shared cart snapshots.
+  // Formatting does not convert or update numeric prices in the database.
+  return new Intl.NumberFormat('en-LK', { style: 'currency', currency: 'LKR', currencyDisplay: 'code', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
 }

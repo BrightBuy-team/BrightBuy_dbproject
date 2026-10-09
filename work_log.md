@@ -25,7 +25,30 @@
 
 ## Catalogue & Search — Kavindu Mihisara
 
-Updated: 2026-10-08. Status reflects this local checkout, not unmerged teammate branches.
+Updated: 2026-10-09. Status reflects this local checkout, not unmerged teammate branches.
+
+### Catalogue integration repairs — 2026-10-09
+
+- Changed catalogue/card/detail/shared-cart currency display to LKR at the user's
+  request. Numeric database prices are unchanged; no exchange-rate conversion.
+  Checkout/reporting currency formatting remains with those owners.
+- Adapted catalogue Add to Cart to Adeesha's current cart interface through
+  `cartHandoff.ts`; kept his cart storage, cart page and checkout files unchanged.
+  Restored success/error announcements and checks for combined quantities,
+  invalid snapshots and storage failures. Adding items never creates orders.
+- Fixed catalogue navigation lint, cart badge subscription and mobile header
+  wrapping. Cart links now open the implemented cart view.
+- Restored account status from the real session endpoint only; removed catalogue
+  mock-login fallback and browser-only logout. Updated stale footer guidance.
+- Added catalogue-only TypeScript configuration and updated regression checks
+  and `Frontend/CATALOGUE_UI.md` to document the current shared cart contract.
+- All 179 frontend tests, catalogue typecheck, scoped lint and separate production
+  build passed. Browser checks used fictional local HTTP fixtures: three units
+  added, excess refused, shared cart received them, unavailable variant disabled,
+  and no overflow on a 360px product-detail screen. No Azure/database writes.
+- Shared blockers remain with their owners: real frontend authentication,
+  authenticated checkout/address/payment/delivery integration, default home-page
+  build error, shared HTML build entries and full disposable-database verification.
 
 ### Install script and session cart — 2026-10-08
 
