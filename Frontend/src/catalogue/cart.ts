@@ -12,8 +12,8 @@ export const guestCartKey='brightbuy_cart_usd_v1_guest';
 export const customerCartKey=(email:string)=>`brightbuy_cart_usd_v1_${email}`;
 function getCartKey(): string {
   const email = localStorage.getItem('currentUserEmail');
-  // Keep legacy and LKR snapshots archived. New USD carts never reuse them
-  // or silently interpret converted amounts as dollars.
+  // A guest's cart and each customer's cart are kept apart (AS-11). The key names the
+  // currency, so a cart saved under another currency is never read as dollars.
   return email ? customerCartKey(email) : guestCartKey;
 }
 

@@ -1,7 +1,8 @@
 -- =========================================================
--- BrightBuy Catalogue Tables
--- Author: Kavindu Mihisara
+-- BrightBuy | Catalogue | 01 Tables, indexes and hierarchy triggers
+-- Module owner: Mihisara LHK
 -- Tables: category, product, product_category
+-- Safe to rerun: existing tables are kept, triggers are replaced.
 -- =========================================================
 
 USE brightbuy;
@@ -13,7 +14,7 @@ USE brightbuy;
 -- A NULL parent_category_id represents a top-level category.
 -- ---------------------------------------------------------
 
-CREATE TABLE category (
+CREATE TABLE IF NOT EXISTS category (
     category_id INT AUTO_INCREMENT,
     parent_category_id INT NULL,
     name VARCHAR(100) NOT NULL,
@@ -44,6 +45,10 @@ CREATE TABLE category (
 -- CATEGORY HIERARCHY GUARDS
 -- Enforce a maximum depth of two levels: parent and child.
 -- ---------------------------------------------------------
+
+DROP TRIGGER IF EXISTS trg_category_two_levels_insert;
+DROP TRIGGER IF EXISTS trg_category_not_own_parent_insert;
+DROP TRIGGER IF EXISTS trg_category_two_levels_update;
 
 DELIMITER $$
 
@@ -124,7 +129,7 @@ DELIMITER ;
 -- Price and stock belong to variant, not product.
 -- ---------------------------------------------------------
 
-CREATE TABLE product (
+CREATE TABLE IF NOT EXISTS product (
     product_id INT AUTO_INCREMENT,
     sku VARCHAR(50) NOT NULL,
     name VARCHAR(150) NOT NULL,
@@ -140,7 +145,12 @@ CREATE TABLE product (
         PRIMARY KEY (product_id),
 
     CONSTRAINT uq_product_sku
-        UNIQUE (sku)
+        UNIQUE (sku),
+
+    -- Browse/sort by name, storefront visibility, and keyword search (CON-6).
+    INDEX idx_product_name (name),
+    INDEX idx_product_active_name (is_active, name),
+    FULLTEXT INDEX idx_product_search (name, description)
 ) ENGINE = InnoDB;
 
 
@@ -150,7 +160,7 @@ CREATE TABLE product (
 -- product and category.
 -- ---------------------------------------------------------
 
-CREATE TABLE product_category (
+CREATE TABLE IF NOT EXISTS product_category (
     product_id INT NOT NULL,
     category_id INT NOT NULL,
     assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -175,9 +175,6 @@ body { margin: 0; }
 @media (max-width: 700px) { .catalogue-header { flex-wrap: wrap; padding: 20px; gap: 20px; } .catalogue-brand { font-size: 22px; } .catalogue-search { flex-basis: 100%; } .catalogue-app main { padding: 0 20px 40px; } .catalogue-hero { padding: 28px; min-height: 280px; } .catalogue-hero-art { display: none; } .catalogue-hero h1 { font-size: 37px; } .catalogue-layout { grid-template-columns: 1fr; gap: 30px; } .catalogue-sidebar nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .catalogue-sidebar nav button { font-size: 12px; } .catalogue-sidebar nav button.child { padding-left: 12px; } .catalogue-price-form { margin-top: 18px; } .catalogue-price-form .catalogue-primary { max-width: 200px; } .catalogue-app .catalogue-text-button { width: auto; margin-left: 10px; } .catalogue-fine-print { margin-top: 12px !important; } .catalogue-results-header { flex-direction: row; align-items: center; gap: 10px; } .catalogue-sort { display: grid; gap: 3px; } .catalogue-sort select { max-width: 145px; } .catalogue-results h2 { font-size: 23px; } .catalogue-grid { gap: 12px; } .catalogue-product-image { height: 145px; } .catalogue-card-content { padding: 12px; } .catalogue-card h3 { font-size: 13px; } .catalogue-product-price { font-size: 14px; } .catalogue-footer { margin: 0 20px; flex-wrap: wrap; } }
 @media (max-width: 380px) { .catalogue-grid { grid-template-columns: 1fr; } .catalogue-results-header { align-items: flex-start; flex-direction: column; } .catalogue-hero { padding: 22px; } .catalogue-hero h1 { font-size: 33px; } }
 
-.management-app { min-height: 100vh; }
-.management-header { width: 100%; }
-.management-main { flex: 1; width: 100%; }
 .management-intro { padding: 34px 0 24px; }
 .management-intro h1 { font: 500 clamp(32px, 4vw, 48px)/1.15 Georgia, serif; letter-spacing: -1px; margin: 10px 0; color: var(--ink); }
 .management-intro > p:last-child { color: var(--muted); font-size: 14px; }
@@ -207,9 +204,6 @@ body { margin: 0; }
 .management-table tbody tr:last-child td { border-bottom: 0; }
 .management-note { margin: 14px 2px 0 !important; font-size: 11px; color: var(--muted); }
 @media (max-width: 700px) {
-  .management-header { padding: 20px; gap: 12px; }
-  .management-header .catalogue-header-note { display: none; }
-  .management-main { padding: 0 20px 40px !important; }
   .management-intro { padding-top: 24px; }
   .management-panel { padding: 17px; }
   .management-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -220,3 +214,15 @@ body { margin: 0; }
   .management-filters input { width: 100%; }
   .catalogue-management-link { font-size: 11px; }
 }
+
+/* Forms and order summaries on the account, checkout and staff pages */
+.catalogue-form { display: grid; gap: 14px; max-width: 560px; margin-bottom: 20px; }
+.catalogue-form label { display: grid; gap: 5px; font-size: 12px; font-weight: 650; }
+.catalogue-form input, .catalogue-form select, .catalogue-form textarea { font: inherit; width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); }
+.catalogue-form input[type="checkbox"] { width: auto; }
+.catalogue-form fieldset { display: grid; gap: 14px; border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+.catalogue-form legend { font-size: 13px; font-weight: 700; padding: 0 6px; }
+.catalogue-form p { margin: 0; font-size: 12px; }
+.catalogue-order { border-top: 1px solid var(--line); padding: 18px 0; }
+.catalogue-order h2 { font-size: 18px; }
+.catalogue-order p { margin: 10px 0; font-size: 13px; }

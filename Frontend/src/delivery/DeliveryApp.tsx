@@ -30,8 +30,7 @@ export default function DeliveryApp() {
         }
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching cities:", err);
-        setError("Could not connect to the backend server. Make sure your Spring Boot server is running!");
+        setError(err instanceof Error ? err.message : 'The delivery service is unavailable.');
         setLoading(false);
       }
     };
@@ -41,7 +40,7 @@ export default function DeliveryApp() {
   const handleCalculate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCityId || !orderId) {
-      alert("Please enter an Order ID and select a Destination City.");
+      setError('Enter an order ID and choose the destination city.');
       return;
     }
 
@@ -61,8 +60,7 @@ export default function DeliveryApp() {
       setEstimatedDate(dateObj.toLocaleDateString(undefined, options));
 
     } catch (err: unknown) {
-      console.error(err);
-      setError(err instanceof Error?err.message:"An error occurred during calculation.");
+      setError(err instanceof Error ? err.message : 'The estimate could not be loaded.');
     } finally {
       setCalculating(false);
     }
@@ -136,7 +134,7 @@ export default function DeliveryApp() {
           <div className="result-card">
             <h3>Estimated Delivery Date</h3>
             <div className="date-display">{estimatedDate}</div>
-            <p className="success-note">✔ Logistics planned successfully via BrightBuy SQL Engine.</p>
+            <p className="success-note">Recorded when the order was placed.</p>
           </div>
         )}
 

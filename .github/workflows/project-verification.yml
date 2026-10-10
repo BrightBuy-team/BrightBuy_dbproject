@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, kavindu/catalogue-database]
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
@@ -29,7 +29,7 @@ jobs:
       - name: Install locked frontend dependencies
         working-directory: Frontend
         run: npm ci
-      - name: Test UI, backend, SQL and real HTTP integration on isolated MySQL
+      - name: Frontend, backend, SQL suites, backup and restore, and HTTP tests on a disposable MySQL
         run: bash scripts/verify-project.sh
       - name: Retain test reports
         if: always()

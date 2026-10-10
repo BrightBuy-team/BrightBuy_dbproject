@@ -38,7 +38,7 @@ export default function CatalogueHeader({ query, homeHref }: { query: Search; ho
         Cart (<span id="cart-count">{cartCount}</span>)
       </a>
       <a className="catalogue-management-link" href="/?view=login">Sign in</a>
-      <a href="?view=orders">My orders</a><a href="?view=staff">Catalogue staff</a><a href="?view=reports">Reports</a>
+      <a href="?view=orders">My orders</a><a href="?view=staff">Catalogue staff</a><a href="?view=reports">Reports</a><a href="?view=admin">Admin</a>
     </header>
     {error && <p className="catalogue-field-error catalogue-search-error" id="search-error" role="alert">{error}</p>}
     <AccountStatus />
