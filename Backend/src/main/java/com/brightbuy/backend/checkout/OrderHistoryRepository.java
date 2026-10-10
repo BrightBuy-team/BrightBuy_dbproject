@@ -15,7 +15,7 @@ public class OrderHistoryRepository {
             SELECT o.order_id, o.order_date, o.order_status, o.total_amount,
                    d.delivery_mode, c.name AS delivery_city, d.address_line, d.est_delivery_date, d.delivery_status,
                    p.payment_method, p.payment_status, p.card_type, p.card_last_four,
-                   oi.quantity, oi.unit_price,
+                   oi.quantity, oi.backordered_quantity, oi.unit_price,
                    v.variant_name, v.colour, v.memory_size,
                    pr.name AS product_name, pr.sku AS product_sku
             FROM orders o
@@ -58,7 +58,8 @@ public class OrderHistoryRepository {
                 }
                 order.items().add(new OrderSummary.Line(rows.getString("product_name"),
                         rows.getString("product_sku"), rows.getString("variant_name"), rows.getString("colour"),
-                        rows.getString("memory_size"), rows.getInt("quantity"), rows.getBigDecimal("unit_price")));
+                        rows.getString("memory_size"), rows.getInt("quantity"), rows.getInt("backordered_quantity"),
+                        rows.getBigDecimal("unit_price")));
             }
             return List.copyOf(orders.values());
         }, customerId);

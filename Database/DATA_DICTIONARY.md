@@ -61,7 +61,7 @@ A delivery destination. Main cities are delivered in 5 days, others in 7 (BR-8).
 
 ### warehouse
 
-A place that holds stock.
+The central warehouse, where all stock is kept. One row.
 
 | Column | Type | Required | Key | Default | Meaning |
 |---|---|---|---|---|---|
@@ -77,12 +77,12 @@ One sellable version of a product (colour, memory size) with its price and stock
 |---|---|---|---|---|---|
 | `variant_id` | int | yes | PK | auto | Identifier |
 | `product_id` | int | yes | FK product |  | The product this is a version of |
-| `warehouse_id` | int | no | FK warehouse |  | Where the stock is held |
+| `warehouse_id` | int | no | FK warehouse |  | The central warehouse |
 | `variant_name` | varchar(100) | no |  |  | Display name, for example "Galaxy S24 - Black 256GB" |
 | `colour` | varchar(50) | no |  |  | Colour, when it applies |
 | `memory_size` | varchar(50) | no |  |  | Memory size, when it applies |
 | `price` | decimal(10,2) | yes |  |  | Current price of one unit (USD) |
-| `stock_quantity` | int | yes |  |  | Units available; never negative |
+| `stock_quantity` | int | yes |  |  | Units in the warehouse; never negative. An order for more than this is back-ordered |
 
 ### variant_audit
 
@@ -178,7 +178,7 @@ One confirmed order of one customer. CHECK total_amount >= 0.
 
 ### order_item
 
-One line of an order: a variant, a quantity and the price paid (BR-13). Primary key (order_id, variant_id); CHECK quantity > 0 and unit_price >= 0.
+One line of an order: a variant, a quantity and the price paid (BR-13). Primary key (order_id, variant_id); CHECK quantity > 0, unit_price >= 0, and backordered_quantity between 0 and quantity.
 
 | Column | Type | Required | Key | Default | Meaning |
 |---|---|---|---|---|---|
@@ -186,6 +186,7 @@ One line of an order: a variant, a quantity and the price paid (BR-13). Primary 
 | `variant_id` | int | yes | PK, FK variant |  | The variant bought |
 | `quantity` | int | yes |  |  | Units bought |
 | `unit_price` | decimal(10,2) | yes |  |  | Price of one unit when the order was placed (USD) |
+| `backordered_quantity` | int | yes |  | 0 | Units of this line that were out of stock when the order was placed. They were not taken from stock and follow later |
 
 ### delivery
 
@@ -224,7 +225,7 @@ Module owner: Senadheera S.D.A.P
 
 ### sales_summary
 
-Sales per variant and day, filled every night for fast reports. Derived from orders. Unique (variant_id, summary_date). The reports also read today's orders directly.
+Sales per variant and day, rebuilt every night for the last 7 days. Derived data: it can always be recomputed from orders and order_item. Unique (variant_id, summary_date). The five report procedures read the live order tables and do not read this table at present.
 
 | Column | Type | Required | Key | Default | Meaning |
 |---|---|---|---|---|---|

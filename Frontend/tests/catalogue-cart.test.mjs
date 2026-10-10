@@ -23,10 +23,13 @@ test('adding an existing variant counts all units already in the cart', () => {
   const cart = bridge([{ ...phone }])
   assert.equal(addCatalogueItem({ ...phone, quantity: 3 }, cart).ok, true)
   assert.equal(catalogueCartQuantity(cart), 5)
-  const result = addCatalogueItem({ ...phone, quantity: 1 }, cart)
-  assert.equal(result.ok, false)
-  assert.match(result.message, /already has 5.*Only 5/)
-  assert.equal(catalogueCartQuantity(cart), 5)
+  const beyondStock = addCatalogueItem({ ...phone, quantity: 1 }, cart)
+  assert.equal(beyondStock.ok, true, 'more than the stock shown is a back-order, not a refusal')
+  assert.match(beyondStock.message, /now has 6.*Only 5 in stock.*1 unit is back-ordered.*3 days longer/)
+  const tooMany = addCatalogueItem({ ...phone, quantity: 95 }, cart)
+  assert.equal(tooMany.ok, false)
+  assert.match(tooMany.message, /already has 6.*at most 100/)
+  assert.equal(catalogueCartQuantity(cart), 6)
 })
 test('different variants remain separate lines with a total unit count', () => {
   const cart = bridge([{ ...phone }])
@@ -34,16 +37,17 @@ test('different variants remain separate lines with a total unit count', () => {
   assert.equal(cart.read().length, 2)
   assert.equal(catalogueCartQuantity(cart), 3)
 })
-test('an old stock snapshot cannot produce a line exceeding the cart UI maximum', () => {
-  const cart = bridge([{ ...phone, stockQuantity: 2 }])
-  const result = addCatalogueItem({ ...phone, quantity: 1, stockQuantity: 5 }, cart)
-  assert.equal(result.ok, false)
-  assert.match(result.message, /stock shown has changed/)
+test('an out-of-stock variant can be added and the customer is told about the delay', () => {
+  const cart = bridge()
+  const result = addCatalogueItem({ ...phone, quantity: 2, stockQuantity: 0 }, cart)
+  assert.equal(result.ok, true)
+  assert.match(result.message, /Out of stock.*still order.*3 days longer/)
   assert.equal(catalogueCartQuantity(cart), 2)
+  assert.match(addCatalogueItem({ ...phone, variantId: 8, quantity: 5 }, cart).message, /Stock is not reserved until checkout/)
 })
 test('invalid quantities, snapshots and stock do not reach the shared add function', () => {
   const cart = { read: () => [], add() { assert.fail('invalid item was added') } }
-  for (const change of [{ quantity: 0 }, { quantity: 1.5 }, { quantity: -1 }, { quantity: 6 },
+  for (const change of [{ quantity: 0 }, { quantity: 1.5 }, { quantity: -1 }, { quantity: 101 },
     { variantId: 0 }, { variantId: '7' }, { productName: ' ' }, { price: '-1' }, { price: 'NaN' },
     { stockQuantity: -1 }, { stockQuantity: 1.5 }, { stockQuantity: '5' }]) {
     assert.equal(addCatalogueItem({ ...phone, ...change }, cart).ok, false)

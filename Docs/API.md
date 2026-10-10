@@ -71,7 +71,7 @@ An unknown parameter or an invalid value is answered with 400.
 | `GET /products?keyword=&page=` | | Up to 100 products per page, including retired ones |
 | `GET /categories`, `GET /warehouses` | | Lists for the forms |
 | `GET /products/{id}/categories` | | The product's categories |
-| `POST /products` | `sku`, `name`, `description`, `imageUrl`, `categoryId`, optional `warehouseId`, `price`, `stock` | 201 `{productId}`. Creates the product, its first category and its default variant together |
+| `POST /products` | `sku`, `name`, `description`, `imageUrl`, `categoryId`, `price`, `stock` | 201 `{productId}`. Creates the product, its first category and its default variant together, in the central warehouse |
 | `PUT /products/{id}` | `sku`, `name`, `description`, `imageUrl` | 200 |
 | `PATCH /products/{id}/active` | `{active}` | 200. `false` retires the product; nothing is deleted |
 | `POST /products/{id}/categories/{categoryId}` | | 200 |
@@ -85,7 +85,7 @@ An unknown parameter or an invalid value is answered with 400.
 |---|---|---|
 | `GET /variants` | | Every variant: `{variantId, productId, productName, sku, warehouseId, variantName, colour, memorySize, price, stockQuantity}` |
 | `GET /low-stock?threshold=10` | | Variants with stock below the threshold |
-| `POST /variants` | `productId`, optional `warehouseId`, `variantName`, `colour`, `memorySize`, `price`, `stock` | 201 with the new variant |
+| `POST /variants` | `productId`, `variantName`, `colour`, `memorySize`, `price`, `stock` | 201 with the new variant, held in the central warehouse |
 | `PUT /variants/{id}` | `variantName`, `colour`, `memorySize`, `price` | 200 with the variant |
 | `PUT /variants/{id}/stock?quantity=N` | | 200 with the variant. The change is written to the stock audit with the employee |
 
@@ -94,7 +94,7 @@ An unknown parameter or an invalid value is answered with 400.
 | Method and path | Access | Answer |
 |---|---|---|
 | `GET /cities` | anyone | `[{cityId, name, isMainCity}]` |
-| `GET /preview?cityId=1&variantIds=1,2` | anyone | `{estimated_delivery_date}`: 5 days for a main city, 7 otherwise, plus 3 if any listed variant is out of stock |
+| `GET /preview?cityId=1&variantIds=1,2&quantities=1,3` | anyone | `{estimated_delivery_date}`: 5 days for a main city, 7 otherwise, plus 3 if any line asks for more than is in stock. `quantities` is optional (one unit each when left out) and must match `variantIds` in length |
 | `GET /estimate?cityId=1&orderId=101` | signed in | The estimate stored with an order. A customer sees only their own orders |
 
 ## Checkout and orders (customers)
@@ -121,9 +121,13 @@ customer comes from the session and every price from the database, so neither ca
 | 201 | `SUCCESS` | Order placed; `orderId` is set |
 | 400 | `INVALID_CART`, `DUPLICATE_VARIANTS_IN_CART`, `INVALID_DELIVERY_ADDRESS`, `INVALID_PAYMENT_DETAILS`, `INVALID_CARD`, ... | The request is wrong; nothing was changed |
 | 402 | `CARD_DECLINED` | The gateway refused the card; no order |
-| 409 | `INSUFFICIENT_STOCK`, `ITEM_UNAVAILABLE` | `unavailableVariantIds` lists the lines that cannot be supplied; no order, no charge |
+| 409 | `ITEM_UNAVAILABLE` | A line is not sold any more (retired or unknown). `unavailableVariantIds` lists those lines; no order, no charge |
 | 409 | `AUTHORISED_AMOUNT_MISMATCH` | A price changed between authorisation and confirmation; the authorisation is released |
 | 503 | `PAYMENT_GATEWAY_UNAVAILABLE` | Card payments are switched off; cash on delivery still works |
+
+**Out of stock is not a refusal.** A line that asks for more than is in stock is accepted:
+the units in stock are taken, the rest is back-ordered, and the delivery estimate is 3 days
+longer. The order's lines report this as `backorderedQuantity`. Stock never goes below zero.
 
 For a card order the backend asks the database for the total, has the gateway authorise
 exactly that amount, and only then places the order. If the order is then refused, the
@@ -136,7 +140,7 @@ and `378282246310005` (American Express) with any future expiry date, and declin
 other valid number.
 
 `GET /api/orders` returns the signed-in customer's orders, newest first:
-`{orderId, orderDate, orderStatus, totalAmount, deliveryMode, deliveryCity, deliveryAddress, estDeliveryDate, deliveryStatus, paymentMethod, paymentStatus, cardType, cardLastFour, items: [{productName, productSku, variantName, colour, memorySize, quantity, unitPrice}]}`.
+`{orderId, orderDate, orderStatus, totalAmount, deliveryMode, deliveryCity, deliveryAddress, estDeliveryDate, deliveryStatus, paymentMethod, paymentStatus, cardType, cardLastFour, items: [{productName, productSku, variantName, colour, memorySize, quantity, backorderedQuantity, unitPrice}]}`.
 
 ## Reports — `/api/reports` (management)
 

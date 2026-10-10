@@ -167,8 +167,10 @@ BEGIN
     INSERT INTO product_category (product_id, category_id)
     VALUES (p_product_id, p_category_id);
 
+    -- Without a warehouse the stock goes to the central warehouse.
     INSERT INTO variant (product_id, warehouse_id, variant_name, price, stock_quantity)
-    VALUES (p_product_id, p_warehouse_id, LEFT(clean_name, 100), p_price, p_stock);
+    VALUES (p_product_id, COALESCE(p_warehouse_id, (SELECT MIN(warehouse_id) FROM warehouse)),
+            LEFT(clean_name, 100), p_price, p_stock);
 
     COMMIT;
 END$$

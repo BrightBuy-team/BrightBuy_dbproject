@@ -1,7 +1,6 @@
 package com.brightbuy.backend.checkout;
 
 import com.brightbuy.backend.checkout.PaymentGateway.Authorisation;
-import java.util.Set;
 import org.springframework.stereotype.Service;
 
 /**
@@ -17,7 +16,6 @@ import org.springframework.stereotype.Service;
 @Service
 public class CheckoutService {
     private static final String CURRENCY = "USD";
-    private static final Set<String> STOCK_CONFLICTS = Set.of("INSUFFICIENT_STOCK", "ITEM_UNAVAILABLE");
 
     private final CheckoutRepository repository;
     private final PaymentGateway gateway;
@@ -31,7 +29,9 @@ public class CheckoutService {
         CheckoutResult result = "card".equals(request.paymentMethod())
                 ? payByCard(customerId, request)
                 : repository.placeOrder(customerId, request, null, null);
-        if (STOCK_CONFLICTS.contains(result.status())) {
+        // A retired or unknown item: say which lines, so the customer can remove them.
+        // Out-of-stock items are not a refusal: the database back-orders them.
+        if ("ITEM_UNAVAILABLE".equals(result.status())) {
             return new CheckoutResult(result.status(), null, repository.unavailableVariants(request.cartItems()));
         }
         return result;

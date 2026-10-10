@@ -73,6 +73,9 @@ BEGIN
     DECLARE order_card INT;
     DECLARE order_last INT;
     DECLARE order_none INT;
+    DECLARE order_back INT;
+    DECLARE order_part INT;
+    DECLARE audits_before INT;
     DECLARE orders_before INT;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -112,7 +115,7 @@ BEGIN
                                       JSON_OBJECT('variantId', variant_a, 'quantity', 1)), status_text, quoted);
     CALL checkout_test_assert(status_text = 'DUPLICATE_VARIANTS_IN_CART', 'quote rejects a repeated variant');
     CALL sp_checkout_quote(JSON_ARRAY(JSON_OBJECT('variantId', variant_b, 'quantity', 4)), status_text, quoted);
-    CALL checkout_test_assert(status_text = 'INSUFFICIENT_STOCK' AND quoted IS NULL, 'quote reports insufficient stock');
+    CALL checkout_test_assert(status_text = 'OK' AND quoted = 200.00, 'quote prices a line that is partly out of stock');
     CALL sp_checkout_quote(JSON_ARRAY(JSON_OBJECT('variantId', variant_retired, 'quantity', 1)), status_text, quoted);
     CALL checkout_test_assert(status_text = 'ITEM_UNAVAILABLE', 'quote refuses a retired product');
     CALL sp_checkout_quote(JSON_ARRAY(JSON_OBJECT('variantId', 2147483647, 'quantity', 1)), status_text, quoted);
@@ -137,9 +140,6 @@ BEGIN
     CALL checkout_test_assert(status_text = 'INVALID_DELIVERY_ADDRESS', 'delivery without an address refused');
     CALL ProcessCheckout(buyer, cart, 'delivery', 'cod', 2147483647, '1 Test Street', NULL, NULL, NULL, NULL, NULL, status_text, order_none);
     CALL checkout_test_assert(status_text = 'INVALID_DELIVERY_ADDRESS', 'delivery to an unknown city refused');
-    CALL ProcessCheckout(buyer, JSON_ARRAY(JSON_OBJECT('variantId', variant_a, 'quantity', 1),
-        JSON_OBJECT('variantId', variant_b, 'quantity', 4)), 'pickup', 'cod', NULL, NULL, NULL, NULL, NULL, NULL, NULL, status_text, order_none);
-    CALL checkout_test_assert(status_text = 'INSUFFICIENT_STOCK', 'one short line refuses the whole order');
     CALL ProcessCheckout(buyer, JSON_ARRAY(JSON_OBJECT('variantId', variant_retired, 'quantity', 1)),
         'pickup', 'cod', NULL, NULL, NULL, NULL, NULL, NULL, NULL, status_text, order_none);
     CALL checkout_test_assert(status_text = 'ITEM_UNAVAILABLE', 'retired product refused');
@@ -156,8 +156,9 @@ BEGIN
         AND customer_id = buyer AND order_status = 'Confirmed' AND total_amount = 250.00), 'cash-on-delivery order confirmed with the database total');
     CALL checkout_test_assert((SELECT COUNT(*) FROM order_item WHERE order_id = order_cod) = 2
         AND (SELECT unit_price FROM order_item WHERE order_id = order_cod AND variant_id = variant_a) = 100.00
-        AND (SELECT quantity FROM order_item WHERE order_id = order_cod AND variant_id = variant_b) = 1,
-        'order lines keep variant, quantity and unit price');
+        AND (SELECT quantity FROM order_item WHERE order_id = order_cod AND variant_id = variant_b) = 1
+        AND (SELECT SUM(backordered_quantity) FROM order_item WHERE order_id = order_cod) = 0,
+        'order lines keep variant, quantity and unit price; nothing is back-ordered while stock lasts');
     CALL checkout_test_assert((SELECT stock_quantity FROM variant WHERE variant_id = variant_a) = 8
         AND (SELECT stock_quantity FROM variant WHERE variant_id = variant_b) = 2, 'stock decremented once per line');
     CALL checkout_test_assert((SELECT COUNT(*) FROM variant_audit WHERE variant_id = variant_a
@@ -194,12 +195,45 @@ BEGIN
     CALL checkout_test_assert(status_text = 'SUCCESS' AND (SELECT stock_quantity FROM variant WHERE variant_id = variant_b) = 0
         AND (SELECT est_delivery_date FROM delivery WHERE order_id = order_last) = CURDATE() + INTERVAL 7 DAY,
         'buying the last units empties stock and keeps the 7-day estimate');
-    CALL ProcessCheckout(buyer, JSON_ARRAY(JSON_OBJECT('variantId', variant_b, 'quantity', 1)), 'pickup', 'cod', NULL,
-        NULL, NULL, NULL, NULL, NULL, NULL, status_text, order_none);
-    CALL checkout_test_assert(status_text = 'INSUFFICIENT_STOCK' AND order_none IS NULL
-        AND (SELECT stock_quantity FROM variant WHERE variant_id = variant_b) = 0, 'sold-out variant cannot be ordered and stock stays at zero');
-    CALL checkout_test_assert(fn_delivery_preview_date(3, JSON_ARRAY(variant_b)) = CURDATE() + INTERVAL 10 DAY,
-        'the estimate for the sold-out variant now includes the 3-day delay');
+
+    -- Out of stock at the time of order: back-ordered, 3 days later, stock never below zero
+    CALL checkout_test_assert(fn_delivery_preview_date(3, JSON_ARRAY(JSON_OBJECT('variantId', variant_b, 'quantity', 1)))
+        = CURDATE() + INTERVAL 10 DAY, 'the estimate for the sold-out variant includes the 3-day delay');
+    SELECT COUNT(*) INTO audits_before FROM variant_audit WHERE variant_id = variant_b;
+    CALL ProcessCheckout(buyer, JSON_ARRAY(JSON_OBJECT('variantId', variant_b, 'quantity', 2)), 'delivery', 'cod', 1,
+        '5 Back Order Lane', NULL, NULL, NULL, NULL, NULL, status_text, order_back);
+    CALL checkout_test_assert(status_text = 'SUCCESS' AND EXISTS (SELECT 1 FROM order_item WHERE order_id = order_back
+        AND variant_id = variant_b AND quantity = 2 AND backordered_quantity = 2 AND unit_price = 50.00)
+        AND (SELECT total_amount FROM orders WHERE order_id = order_back) = 100.00,
+        'a sold-out variant can be ordered and the whole line is back-ordered');
+    CALL checkout_test_assert((SELECT stock_quantity FROM variant WHERE variant_id = variant_b) = 0
+        AND (SELECT COUNT(*) FROM variant_audit WHERE variant_id = variant_b) = audits_before,
+        'a back-order takes nothing from stock: it stays at zero and no stock change is recorded');
+    CALL checkout_test_assert((SELECT est_delivery_date FROM delivery WHERE order_id = order_back) = CURDATE() + INTERVAL 8 DAY,
+        'out of stock in a main city: 5 days plus 3');
+    CALL checkout_test_assert(calculate_delivery_date(1, order_back) = CURDATE() + INTERVAL 8 DAY
+        AND calculate_delivery_date(1, order_cod) = CURDATE() + INTERVAL 5 DAY,
+        'the order estimate function follows the back-order recorded on the order');
+
+    -- Partly in stock (5 left, 7 ordered), mixed with a back-ordered line, paid by card
+    SET cart = JSON_ARRAY(JSON_OBJECT('variantId', variant_a, 'quantity', 7), JSON_OBJECT('variantId', variant_b, 'quantity', 1));
+    CALL sp_checkout_quote(cart, status_text, quoted);
+    CALL ProcessCheckout(buyer, cart, 'delivery', 'card', 3, '9 Test Road', 'tok_test_partial', 'SIM-TEST-PARTIAL', '4242', 'Visa',
+        quoted, status_text, order_part);
+    CALL checkout_test_assert(status_text = 'SUCCESS' AND quoted = 750.00
+        AND (SELECT backordered_quantity FROM order_item WHERE order_id = order_part AND variant_id = variant_a) = 2
+        AND (SELECT backordered_quantity FROM order_item WHERE order_id = order_part AND variant_id = variant_b) = 1
+        AND (SELECT amount FROM payment WHERE order_id = order_part AND payment_status = 'Paid') = 750.00,
+        'a line that is partly in stock back-orders only the shortfall and is charged in full');
+    CALL checkout_test_assert((SELECT stock_quantity FROM variant WHERE variant_id = variant_a) = 0
+        AND (SELECT COUNT(*) FROM variant_audit WHERE variant_id = variant_a AND old_stock_quantity = 5
+             AND new_stock_quantity = 0) = 1, 'only the units that were in stock leave it');
+    CALL checkout_test_assert((SELECT est_delivery_date FROM delivery WHERE order_id = order_part) = CURDATE() + INTERVAL 10 DAY,
+        'out of stock in another city: 7 days plus 3');
+    CALL checkout_test_assert((SELECT COUNT(*) FROM email_outbox WHERE related_id = order_part
+        AND category = 'order_confirmation' AND body LIKE '%out of stock and will follow%') = 1,
+        'the confirmation says that part of the order follows later');
+    CALL checkout_test_assert(NOT EXISTS (SELECT 1 FROM variant WHERE stock_quantity < 0), 'no variant ever has negative stock');
 
     -- History is protected
     CALL sp_inventory_update_variant(variant_a, 'Checkout Test Phone', NULL, NULL, 175.00);
@@ -218,6 +252,10 @@ BEGIN
         'HY000', 'non-numeric last four digits rejected by the CHECK constraint');
     CALL checkout_test_reject(CONCAT('UPDATE order_item SET quantity = 0 WHERE order_id = ', order_cod),
         'HY000', 'zero quantity rejected by the CHECK constraint');
+    CALL checkout_test_reject(CONCAT('UPDATE order_item SET backordered_quantity = quantity + 1 WHERE order_id = ', order_cod),
+        'HY000', 'a back-order larger than the line rejected by the CHECK constraint');
+    CALL checkout_test_reject(CONCAT('UPDATE order_item SET backordered_quantity = -1 WHERE order_id = ', order_cod),
+        'HY000', 'a negative back-order rejected by the CHECK constraint');
     CALL checkout_test_reject(CONCAT('UPDATE orders SET total_amount = -1 WHERE order_id = ', order_cod),
         'HY000', 'negative order total rejected by the CHECK constraint');
 

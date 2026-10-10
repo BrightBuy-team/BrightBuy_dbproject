@@ -21,8 +21,9 @@ calls them.
 - Accounts: customer registration, sign-in for customers and employees, password reset by emailed code, sign-out.
 - Cart and checkout: guest cart that joins the customer's cart at sign-in, delivery or pickup,
   cash on delivery or card, delivery estimate before ordering, order confirmation, order history.
-- Warehouse: stock updates with an audit trail, low-stock list, new variants, price changes,
-  product and category maintenance.
+  An item that is out of stock can still be ordered: it is back-ordered and delivery takes 3 days longer.
+- Warehouse: one central warehouse; stock updates with an audit trail, low-stock list, new
+  variants, price changes, product and category maintenance.
 - Management: five reports with CSV export.
 - Administration: creating employee accounts.
 

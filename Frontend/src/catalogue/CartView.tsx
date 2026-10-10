@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { cartSnapshot, clearCart, updateCartQuantity, removeFromCart } from './cart';
 import { formatPrice } from './search';
+import { backorderNote, maxOrderQuantity } from './variants';
 
 export default function CartView({ onCheckout, onContinueShopping }: { onCheckout: () => void, onContinueShopping: () => void }) {
   const [snapshot, setSnapshot] = useState(cartSnapshot);
@@ -14,7 +15,7 @@ export default function CartView({ onCheckout, onContinueShopping }: { onCheckou
 
   return <section className="catalogue-cart">
     <h1>Your Shopping Cart</h1>
-    <p>Prices are in USD. Stock is not reserved until you place the order.</p>
+    <p>Prices are in USD. Stock is not reserved until you place the order. An item that is out of stock can still be ordered: it is back-ordered and delivery takes 3 days longer.</p>
     {snapshot.error&&<div role="alert"><p>{snapshot.error}</p><button onClick={()=>clearCart()}>Clear unreadable cart</button></div>}
     <p role="status">{typeof sessionStorage!=='undefined'?sessionStorage.getItem('brightbuy_cart_notice'):''}</p>
     {cart.length === 0 ? (
@@ -44,12 +45,12 @@ export default function CartView({ onCheckout, onContinueShopping }: { onCheckou
                 </td>
                 <td>{formatPrice(parseFloat(item.price))}</td>
                 <td>
-                  <input aria-label={`Quantity for ${item.productName}`} type="number" min="1" max={item.stockQuantity} value={item.quantity}
+                  <input aria-label={`Quantity for ${item.productName}`} type="number" min="1" max={maxOrderQuantity} value={item.quantity}
                     onChange={(e) => updateCartQuantity(item.variantId, Number(e.target.value))}
                     style={{width: '60px'}}
                   />
                   <br/>
-                  <small>{item.stockQuantity} available</small>
+                  <small>{backorderNote(item.quantity, item.stockQuantity) ?? `${item.stockQuantity} in stock`}</small>
                 </td>
                 <td>{formatPrice(parseFloat(item.price) * item.quantity)}</td>
                 <td>

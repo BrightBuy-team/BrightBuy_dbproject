@@ -67,10 +67,10 @@ class CheckoutServiceTests {
     void aCartThatCannotBeBoughtIsNeverSentToTheGateway() {
         var request = request("card", card);
         when(gateway.available()).thenReturn(true);
-        when(repository.quote(cart)).thenReturn(new CheckoutRepository.Quote("INSUFFICIENT_STOCK", null));
+        when(repository.quote(cart)).thenReturn(new CheckoutRepository.Quote("ITEM_UNAVAILABLE", null));
         when(repository.unavailableVariants(cart)).thenReturn(List.of(7));
 
-        assertThat(service.checkout(5, request)).isEqualTo(new CheckoutResult("INSUFFICIENT_STOCK", null, List.of(7)));
+        assertThat(service.checkout(5, request)).isEqualTo(new CheckoutResult("ITEM_UNAVAILABLE", null, List.of(7)));
         verify(gateway, never()).authorise(any(), any(), any());
     }
 
@@ -122,9 +122,9 @@ class CheckoutServiceTests {
     }
 
     @Test
-    void aStockConflictNamesTheLinesThatCannotBeSupplied() {
+    void anItemNoLongerSoldNamesTheLinesToRemove() {
         var request = request("cod", null);
-        when(repository.placeOrder(5, request, null, null)).thenReturn(CheckoutResult.refused("INSUFFICIENT_STOCK"));
+        when(repository.placeOrder(5, request, null, null)).thenReturn(CheckoutResult.refused("ITEM_UNAVAILABLE"));
         when(repository.unavailableVariants(cart)).thenReturn(List.of(7));
 
         assertThat(service.checkout(5, request).unavailableVariantIds()).containsExactly(7);

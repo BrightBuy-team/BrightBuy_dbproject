@@ -9,6 +9,7 @@ Open the shop at `/catalogue.html`. Without an account you can:
 - browse all products, or pick a category from the bar under the header;
 - search by name, brand or SKU, filter by price and stock, and sort the results;
 - open a product, choose a variant (colour, memory size) and see its price and stock;
+- order an item that is out of stock: it is back-ordered and delivery takes 3 days longer;
 - add items to the cart. The cart is kept in this browser tab only.
 
 To place an order you need an account. Your cart is kept when you register or sign in.
@@ -34,9 +35,13 @@ sent a one-time code that is valid for 30 minutes. Enter the code with your new 
 3. Choose *Cash on delivery* or *Card*. For a card, enter the number, expiry date,
    security code and the name on the card.
 4. Choose *Place order*. Prices and stock are checked again at this moment. If an item
-   has just sold out or a card is declined, the page says so and nothing is charged.
-5. The confirmation shows the order number, the items, the delivery details and the
-   payment status. A confirmation email is sent as well.
+   has just sold out, the order still goes through: that item is back-ordered and the
+   delivery date moves 3 days later. If a card is declined or an item is no longer sold,
+   the page says so and nothing is charged.
+5. The confirmation shows the order number, the items (with any units on back-order), the
+   delivery details and the payment status. A confirmation email is sent as well.
+
+You can order up to 100 units of one item in one order.
 
 **Your orders.** *My orders* lists every order with its items, the price paid, the
 delivery estimate and status, and the payment status.
@@ -54,7 +59,8 @@ Sign in with the account type *Employee*. You land on the warehouse page (`/inve
   quantity and choose *Save* to set the stock. Every change is recorded with your account,
   the time, and the quantity before and after.
 - **Add a variant** creates a new version of an existing product: enter the product ID,
-  a name, colour, memory size, price and opening stock.
+  a name, colour, memory size, price and opening stock. All stock is held in the one
+  central warehouse, so there is no warehouse to choose.
 - **Edit** next to a variant changes its name, colour, memory size or price.
 
 Products and categories are maintained under *Catalogue staff* in the shop header:

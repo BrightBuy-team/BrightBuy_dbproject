@@ -113,7 +113,7 @@ task_rows() {
   task_mysql --batch --skip-column-names brightbuy -e "SELECT CONCAT_WS(',',
     (SELECT COUNT(*) FROM product), (SELECT COUNT(*) FROM variant), (SELECT COUNT(*) FROM customer),
     (SELECT COUNT(*) FROM orders), (SELECT COUNT(*) FROM order_item), (SELECT COUNT(*) FROM payment),
-    (SELECT COUNT(*) FROM audit_log), (SELECT COUNT(*) FROM variant_audit),
+    (SELECT COUNT(*) FROM audit_log), (SELECT COUNT(*) FROM variant_audit), (SELECT COUNT(*) FROM warehouse),
     (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()),
     (SELECT COUNT(*) FROM information_schema.routines WHERE routine_schema = DATABASE()),
     (SELECT COUNT(*) FROM information_schema.triggers WHERE trigger_schema = DATABASE()))"

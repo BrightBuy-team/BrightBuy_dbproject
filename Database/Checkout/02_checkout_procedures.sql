@@ -9,6 +9,11 @@
 -- order, its items, its delivery record and its payment record. Any failure
 -- rolls everything back, so there are no partial orders (SAF-1).
 --
+-- Out of stock (project brief: "add 3 days if the item is out of stock at
+-- the time of order"): a line may ask for more than is in stock. What is in
+-- stock is taken; the rest is recorded as backordered_quantity and the
+-- delivery estimate gets the 3-day delay. Stock never goes below zero.
+--
 -- The cart is a JSON array: [{"variantId": 12, "quantity": 2}, ...].
 -- =========================================================
 USE brightbuy;
@@ -57,8 +62,9 @@ END //
 
 -- Read-only price check used before a card is authorised (BR-12): the
 -- gateway is asked for exactly the amount the database would charge now.
--- p_status: OK, INVALID_CART, DUPLICATE_VARIANTS_IN_CART, ITEM_UNAVAILABLE
--- or INSUFFICIENT_STOCK. Nothing is locked or reserved (AS-10).
+-- p_status: OK, INVALID_CART, DUPLICATE_VARIANTS_IN_CART or ITEM_UNAVAILABLE.
+-- Nothing is locked or reserved (AS-10). Stock is not checked here: a line
+-- that is out of stock is still priced, because it can be back-ordered.
 CREATE PROCEDURE sp_checkout_quote(
     IN  p_cart_json JSON,
     OUT p_status    VARCHAR(255),
@@ -68,7 +74,6 @@ READS SQL DATA
 quote: BEGIN
     DECLARE v_lines INT;
     DECLARE v_sellable INT;
-    DECLARE v_short INT;
 
     SET p_total = NULL;
     CALL sp_checkout_validate_cart(p_cart_json, p_status);
@@ -77,8 +82,8 @@ quote: BEGIN
     END IF;
     SET v_lines = JSON_LENGTH(p_cart_json);
 
-    SELECT COUNT(*), COALESCE(SUM(j.quantity > v.stock_quantity), 0), SUM(j.quantity * v.price)
-    INTO v_sellable, v_short, p_total
+    SELECT COUNT(*), SUM(j.quantity * v.price)
+    INTO v_sellable, p_total
     FROM JSON_TABLE(p_cart_json, '$[*]'
          COLUMNS (variant_id INT PATH '$.variantId', quantity INT PATH '$.quantity')) j
     JOIN variant v ON v.variant_id = j.variant_id
@@ -87,9 +92,6 @@ quote: BEGIN
 
     IF v_sellable <> v_lines THEN
         SET p_status = 'ITEM_UNAVAILABLE';
-        SET p_total = NULL;
-    ELSEIF v_short > 0 THEN
-        SET p_status = 'INSUFFICIENT_STOCK';
         SET p_total = NULL;
     END IF;
 END //
@@ -103,7 +105,7 @@ END //
 -- p_status: SUCCESS, INVALID_CART, DUPLICATE_VARIANTS_IN_CART,
 --   INVALID_PAYMENT_METHOD, INVALID_PAYMENT_DETAILS, INVALID_DELIVERY_MODE,
 --   INVALID_CUSTOMER, INVALID_DELIVERY_ADDRESS, ITEM_UNAVAILABLE,
---   INSUFFICIENT_STOCK, AUTHORISED_AMOUNT_MISMATCH or SQL_ERROR.
+--   AUTHORISED_AMOUNT_MISMATCH or SQL_ERROR.
 CREATE PROCEDURE ProcessCheckout(
     IN  p_customer_id       INT,
     IN  p_cart_json         JSON,
@@ -127,6 +129,7 @@ checkout: BEGIN
     DECLARE v_stock INT;
     DECLARE v_price DECIMAL(10,2);
     DECLARE v_total DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_backorder BOOLEAN DEFAULT FALSE;
     DECLARE v_estimate DATE DEFAULT NULL;
     DECLARE v_email VARCHAR(150) DEFAULT NULL;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -180,7 +183,8 @@ checkout: BEGIN
     START TRANSACTION;
 
     -- Lock each variant row in ascending ID order (no deadlocks between two
-    -- carts), then validate against the locked stock and price.
+    -- carts), then read the locked stock and price. From here to COMMIT no
+    -- other order can change these rows.
     WHILE v_count > 0 DO
         SELECT MIN(variant_id) INTO v_id
         FROM JSON_TABLE(p_cart_json, '$[*]' COLUMNS (variant_id INT PATH '$.variantId')) j
@@ -205,10 +209,9 @@ checkout: BEGIN
         FROM JSON_TABLE(p_cart_json, '$[*]'
              COLUMNS (variant_id INT PATH '$.variantId', quantity INT PATH '$.quantity')) j
         WHERE variant_id = v_id;
+        -- More than is in stock: the shortfall is back-ordered.
         IF v_quantity > v_stock THEN
-            ROLLBACK;
-            SET p_status = 'INSUFFICIENT_STOCK';
-            LEAVE checkout;
+            SET v_backorder = TRUE;
         END IF;
 
         SET v_total = v_total + v_quantity * v_price;
@@ -228,16 +231,16 @@ checkout: BEGIN
     VALUES (p_customer_id, NOW(), 'Confirmed', v_total, p_delivery_mode, p_payment_method);
     SET p_order_id = LAST_INSERT_ID();
 
-    INSERT INTO order_item (order_id, variant_id, quantity, unit_price)
-    SELECT p_order_id, j.variant_id, j.quantity, v.price
+    INSERT INTO order_item (order_id, variant_id, quantity, unit_price, backordered_quantity)
+    SELECT p_order_id, j.variant_id, j.quantity, v.price, GREATEST(j.quantity - v.stock_quantity, 0)
     FROM JSON_TABLE(p_cart_json, '$[*]'
          COLUMNS (variant_id INT PATH '$.variantId', quantity INT PATH '$.quantity')) j
     JOIN variant v ON v.variant_id = j.variant_id;
 
-    -- Estimated before the stock is decremented: every ordered item is in
-    -- stock at this point, so buying the last unit does not add the delay.
+    -- 5 or 7 days by city, plus 3 when a line was out of stock at this moment
+    -- (BR-8). Buying the last unit in stock is not out of stock.
     IF p_delivery_mode = 'delivery' THEN
-        SET v_estimate = DATE_ADD(CURDATE(), INTERVAL fn_delivery_days(p_city_id, FALSE) DAY);
+        SET v_estimate = DATE_ADD(CURDATE(), INTERVAL fn_delivery_days(p_city_id, v_backorder) DAY);
     END IF;
     INSERT INTO delivery (order_id, city_id, address_line, delivery_mode, est_delivery_date, delivery_status)
     VALUES (p_order_id,
@@ -255,9 +258,10 @@ checkout: BEGIN
         VALUES (p_order_id, 'cod', 'Pending', v_total, NULL);
     END IF;
 
+    -- Only the units that were in stock leave it, so stock never goes below zero.
     UPDATE variant v
     JOIN order_item i ON i.variant_id = v.variant_id AND i.order_id = p_order_id
-    SET v.stock_quantity = v.stock_quantity - i.quantity;
+    SET v.stock_quantity = v.stock_quantity - (i.quantity - i.backordered_quantity);
 
     COMMIT;
     SET p_status = 'SUCCESS';
@@ -269,6 +273,7 @@ checkout: BEGIN
         CALL sp_email_enqueue(v_email, 'order_confirmation',
             CONCAT('BrightBuy order #', p_order_id, ' confirmed'),
             CONCAT('Thank you for your order. Order #', p_order_id, ' for USD ', v_total, ' is confirmed. ',
+                   IF(v_backorder, 'Part of it is out of stock and will follow. ', ''),
                    IF(p_delivery_mode = 'delivery',
                       CONCAT('Estimated delivery: ', DATE_FORMAT(v_estimate, '%Y-%m-%d'), '. '),
                       'Collect it at the store. '),

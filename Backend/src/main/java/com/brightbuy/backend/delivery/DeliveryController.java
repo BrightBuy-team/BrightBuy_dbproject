@@ -5,6 +5,7 @@ import com.brightbuy.backend.auth.AuthService;
 import com.brightbuy.backend.auth.AuthenticatedUser;
 import com.brightbuy.backend.auth.EmployeeRole;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -34,17 +35,22 @@ public class DeliveryController {
     }
 
     /**
-     * Public: the estimated delivery date before ordering (UI-8). Pass the cart's variant IDs so
-     * that an out-of-stock item adds its three days.
+     * Public: the estimated delivery date before ordering (UI-8). Pass the cart's variant IDs and,
+     * in the same order, the wanted quantities, so that a line with more than is in stock adds its
+     * three days. Without quantities each variant counts as one unit.
      */
     @GetMapping("/preview")
     public Map<String, Object> preview(@RequestParam int cityId,
-            @RequestParam(required = false) List<Integer> variantIds) {
+            @RequestParam(required = false) List<Integer> variantIds,
+            @RequestParam(required = false) List<Integer> quantities) {
         List<Integer> variants = variantIds == null ? List.of() : variantIds;
-        if (variants.size() > 100 || variants.stream().anyMatch(id -> id == null || id < 1)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid variants");
+        List<Integer> wanted = quantities == null ? Collections.nCopies(variants.size(), 1) : quantities;
+        if (variants.size() > 100 || variants.stream().anyMatch(id -> id == null || id < 1)
+                || wanted.size() != variants.size()
+                || wanted.stream().anyMatch(quantity -> quantity == null || quantity < 1 || quantity > 100000)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid variants or quantities");
         }
-        LocalDate date = repository.previewDate(cityId, variants)
+        LocalDate date = repository.previewDate(cityId, variants, wanted)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown city"));
         return Map.of("estimated_delivery_date", date);
     }

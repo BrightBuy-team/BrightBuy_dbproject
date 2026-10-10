@@ -110,11 +110,15 @@ BEGIN
     CALL catalogue_test_assert(
         (SELECT COUNT(*) FROM variant WHERE
           (variant_id=1 AND product_id=1 AND warehouse_id=1 AND price=1099.00 AND stock_quantity=50) OR
-          (variant_id=2 AND product_id=1 AND warehouse_id=2 AND price=1099.00 AND stock_quantity=15) OR
+          (variant_id=2 AND product_id=1 AND warehouse_id=1 AND price=1099.00 AND stock_quantity=15) OR
           (variant_id=3 AND product_id=1 AND warehouse_id=1 AND price=1299.00 AND stock_quantity=0) OR
-          (variant_id=4 AND product_id=2 AND warehouse_id=3 AND price=1299.99 AND stock_quantity=30) OR
+          (variant_id=4 AND product_id=2 AND warehouse_id=1 AND price=1299.99 AND stock_quantity=30) OR
           (variant_id=5 AND product_id=3 AND warehouse_id=1 AND price=348.00 AND stock_quantity=120)) = 5,
         'original inventory variant fixtures preserved');
+    CALL catalogue_test_assert(
+        (SELECT COUNT(*) FROM warehouse) = 1
+        AND NOT EXISTS (SELECT 1 FROM variant WHERE NOT (warehouse_id <=> (SELECT MIN(warehouse_id) FROM warehouse))),
+        'all stock is held in one central warehouse');
     CALL catalogue_test_assert(
         (SELECT COUNT(*) FROM variant WHERE stock_quantity=0) = 3,
         'three out-of-stock variant fixtures');

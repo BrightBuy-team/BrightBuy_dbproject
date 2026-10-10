@@ -74,16 +74,15 @@ public class CheckoutRepository {
         });
     }
 
-    /** After a stock conflict: which cart lines cannot be supplied, so the customer can be told. */
+    /** Which cart lines are not sold any more (unknown, retired or unpriced), so the customer can be told. */
     public List<Integer> unavailableVariants(List<CartItem> cart) {
         String sql = """
                 SELECT j.variant_id
                 FROM JSON_TABLE(?, '$[*]'
-                     COLUMNS (variant_id INT PATH '$.variantId', quantity INT PATH '$.quantity')) j
+                     COLUMNS (variant_id INT PATH '$.variantId')) j
                 LEFT JOIN variant v ON v.variant_id = j.variant_id
                 LEFT JOIN product p ON p.product_id = v.product_id
                 WHERE v.variant_id IS NULL OR p.is_active = FALSE OR v.price <= 0
-                   OR j.quantity > v.stock_quantity
                 ORDER BY j.variant_id
                 """;
         return jdbc.queryForList(sql, Integer.class, mapper.writeValueAsString(cart));

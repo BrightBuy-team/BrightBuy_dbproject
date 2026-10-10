@@ -3,7 +3,7 @@ import { after, test } from 'node:test'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
-import { parseLowStockThreshold, quantityError, stockLabel, variantLabel } from '../src/catalogue/variants.ts'
+import { backorderNote, maxOrderQuantity, parseLowStockThreshold, quantityError, stockLabel, variantLabel } from '../src/catalogue/variants.ts'
 
 test('stock threshold is explicitly configured, positive and integral', () => {
   for (const input of [undefined, '', '0', '-1', '1.5', 'abc', 'Infinity', '9007199254740992']) {
@@ -18,11 +18,18 @@ test('stock status handles zero, threshold boundary, and unset threshold', () =>
   assert.equal(stockLabel(1), 'In Stock')
 })
 test('quantity rejects missing, fractional, negative and excessive values', () => {
-  for (const input of ['', '0', '-1', '1.2', '1e2', 'abc', '9007199254740992']) assert.ok(quantityError(input, 5))
-  assert.equal(quantityError('6', 5), 'Only 5 units are currently available.')
-  assert.equal(quantityError('1', 0), 'This variant is out of stock.')
-  assert.equal(quantityError('1', 5), undefined)
-  assert.equal(quantityError('5', 5), undefined)
+  for (const input of ['', '0', '-1', '1.2', '1e2', 'abc', '9007199254740992']) assert.ok(quantityError(input))
+  assert.equal(quantityError('1'), undefined)
+  assert.equal(quantityError(String(maxOrderQuantity)), undefined)
+  assert.equal(quantityError(String(maxOrderQuantity + 1)), 'You can order at most 100 units of one item.')
+})
+test('asking for more than is in stock is a back-order with a 3-day delay, not an error', () => {
+  assert.equal(backorderNote(5, 5), undefined)
+  assert.equal(backorderNote(1, 50), undefined)
+  assert.match(backorderNote(1, 0), /Out of stock\. You can still order it.*3 days longer/)
+  assert.match(backorderNote(6, 5), /Only 5 in stock: the other 1 unit is back-ordered.*3 days longer/)
+  assert.match(backorderNote(8, 5), /the other 3 units are back-ordered/)
+  assert.equal(backorderNote(NaN, 5), undefined)
 })
 test('variant labels include attributes and support default variants', () => {
   assert.equal(variantLabel({ variant_id: 4, variant_name: 'Phone', colour: 'Blue', memory_size: '256GB' }), 'Phone · Blue · 256GB')
@@ -45,16 +52,17 @@ test('multiple options have labelled selector and live price/stock region', () =
   assert.match(html, /Blue · 256GB/)
   assert.match(html, /Low Stock/)
   assert.match(html, /aria-live="polite"/)
-  assert.match(html, /max="5"/)
+  assert.match(html, /max="100"/)
   assert.match(html, /Stock is not reserved until checkout/)
 })
-test('single variant hides selector and disables quantity for zero stock', () => {
+test('single variant hides selector; an out-of-stock variant can still be ordered as a back-order', () => {
   const html = render({ variants: [variants[1]] })
   assert.doesNotMatch(html, /<select/)
-  assert.match(html, /USD 150.00/)
-  assert.match(html, /<input[^>]*disabled=""/)
-  assert.match(html, /<button[^>]*disabled=""/)
+  assert.match(html, /USD\s150\.00/)
+  assert.doesNotMatch(html, /<input[^>]*disabled=""/)
+  assert.doesNotMatch(html, /<button[^>]*disabled=""/)
   assert.match(html, /Out of Stock/)
+  assert.match(html, /You can still order it[^<]*3 days longer/)
 })
 test('empty variants cannot expose purchase controls', () => {
   const html = render({ variants: [] })

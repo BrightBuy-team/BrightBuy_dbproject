@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS city (
     is_main_city BOOLEAN
 ) ENGINE=InnoDB;
 
+-- BrightBuy keeps all stock in one central warehouse, so this table holds a
+-- single row. It stays a table so the address is data, not code.
 CREATE TABLE IF NOT EXISTS warehouse (
     warehouse_id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100),

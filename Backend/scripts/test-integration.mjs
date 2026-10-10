@@ -72,6 +72,9 @@ const inStock = await guest.request('/api/delivery/preview?cityId=1&variantIds=1
 check(inStock.status === 200 && inStock.body.estimated_delivery_date === isoDay(5), 'delivery preview: main city, in stock, 5 days')
 const delayed = await guest.request('/api/delivery/preview?cityId=1&variantIds=1,3')
 check(delayed.body.estimated_delivery_date === isoDay(8), 'delivery preview adds 3 days when an item is out of stock')
+const beyondStock = await guest.request('/api/delivery/preview?cityId=1&variantIds=1&quantities=100000')
+check(beyondStock.body.estimated_delivery_date === isoDay(8), 'delivery preview adds 3 days when a line asks for more than is in stock')
+expectStatus(await guest.request('/api/delivery/preview?cityId=1&variantIds=1,3&quantities=1'), 400, 'delivery preview needs one quantity per variant')
 expectStatus(await guest.request('/api/delivery/preview?cityId=2147483647&variantIds=1'), 400, 'delivery preview rejects an unknown city')
 
 const registered = await customer.request('/api/auth/register', 'POST',
@@ -114,7 +117,8 @@ expectStatus(await staff.request('/api/inventory/variants/1/stock?quantity=5', '
 expectStatus(await staff.request('/api/inventory/variants/1/stock?quantity=-1', 'PUT'), 400, 'negative stock rejected')
 expectStatus(await staff.request('/api/inventory/variants/2147483647/stock?quantity=1', 'PUT'), 404, 'stock change for a missing variant is not found')
 const variants = await staff.request('/api/inventory/variants')
-check(variants.status === 200 && variants.body.every(variant => variant.productName && variant.sku && variant.warehouseId > 0), 'inventory list names each product')
+check(variants.status === 200 && variants.body.every(variant => variant.productName && variant.sku), 'inventory list names each product')
+check(count('SELECT COUNT(*) FROM warehouse') === 1 && new Set(variants.body.map(variant => variant.warehouseId)).size === 1, 'all stock is held in the one central warehouse')
 const stockBefore = count('SELECT stock_quantity FROM variant WHERE variant_id=1')
 const stockChange = await staff.request('/api/inventory/variants/1/stock?quantity=' + (stockBefore + 1), 'PUT')
 check(stockChange.status === 200 && stockChange.body.stockQuantity === stockBefore + 1, 'staff stock update returns the stored value')
@@ -145,8 +149,9 @@ expectStatus(await staff.request('/api/catalogue/staff/categories/' + categoryId
 expectStatus(await staff.request(`/api/catalogue/staff/products/${productId}/categories/${categoryId}`, 'POST'), 200, 'staff assigns a category')
 expectStatus(await staff.request(`/api/catalogue/staff/products/${productId}/categories/${categoryId}`, 'DELETE'), 200, 'staff removes a category that is not the last')
 
-const secondVariant = await staff.request('/api/inventory/variants', 'POST', { productId, warehouseId: 1, variantName: 'Integration phone - Blue 256GB', colour: 'Blue', memorySize: '256GB', price: 150, stock: 0 })
+const secondVariant = await staff.request('/api/inventory/variants', 'POST', { productId, variantName: 'Integration phone - Blue 256GB', colour: 'Blue', memorySize: '256GB', price: 150, stock: 0 })
 check(secondVariant.status === 201 && secondVariant.body.variantId > 0 && secondVariant.body.productId === productId, 'staff adds a second variant')
+check(secondVariant.body.warehouseId === variants.body[0].warehouseId, 'a new variant goes to the central warehouse without being told')
 const repriced = await staff.request('/api/inventory/variants/' + secondVariant.body.variantId, 'PUT', { variantName: 'Integration phone - Blue 256GB', colour: 'Blue', memorySize: '256GB', price: 149.5 })
 check(repriced.status === 200 && Number(repriced.body.price) === 149.5, 'staff changes a variant price')
 check(count(`SELECT COUNT(*) FROM audit_log WHERE entity_type='variant' AND entity_id=${secondVariant.body.variantId} AND action='UPDATE' AND actor='employee:${staffId}'`) === 1, 'price change is audited')
@@ -174,9 +179,9 @@ await refused({ ...checkout, paymentMethod: 'card' }, 400, 'INVALID_PAYMENT_DETA
 await refused({ ...checkout, paymentMethod: 'card', card: { ...card, number: '4242424242424241' } }, 400, 'INVALID_CARD', 'mistyped card number rejected')
 await refused({ ...checkout, paymentMethod: 'card', card: { ...card, expiryYear: today.getFullYear() - 1 } }, 400, 'INVALID_CARD', 'expired card rejected')
 await refused({ ...checkout, paymentMethod: 'card', card: { ...card, number: '4000000000000002' } }, 402, 'CARD_DECLINED', 'declined card creates no order')
-const short = await refused({ ...checkout, cartItems: [{ variantId, quantity: 1 }, { variantId: 3, quantity: 1 }] }, 409, 'INSUFFICIENT_STOCK', 'one unavailable line refuses the whole order')
-check(short.body.unavailableVariantIds.length === 1 && short.body.unavailableVariantIds[0] === 3, 'the refusal names the line that cannot be supplied')
-await refused({ ...checkout, paymentMethod: 'card', card, cartItems: [{ variantId, quantity: 4 }] }, 409, 'INSUFFICIENT_STOCK', 'a card is not charged for an order that cannot be supplied')
+const unsold = await refused({ ...checkout, cartItems: [{ variantId, quantity: 1 }, { variantId: 2147483647, quantity: 1 }] }, 409, 'ITEM_UNAVAILABLE', 'one item that is not sold refuses the whole order')
+check(unsold.body.unavailableVariantIds.length === 1 && unsold.body.unavailableVariantIds[0] === 2147483647, 'the refusal names the line to remove')
+await refused({ ...checkout, paymentMethod: 'card', card, cartItems: [{ variantId: 2147483647, quantity: 1 }] }, 409, 'ITEM_UNAVAILABLE', 'a card is not charged for an order that cannot be placed')
 check(sql('SELECT stock_quantity FROM variant WHERE variant_id=' + variantId) === stockAtStart && count('SELECT COUNT(*) FROM orders') === ordersBefore
   && count('SELECT COUNT(*) FROM payment') === paymentsBefore, 'no refused checkout changed stock, orders or payments')
 check(sql(`CALL ProcessCheckout(${customerId},JSON_ARRAY(JSON_OBJECT('variantId',${variantId},'quantity',0.5)),'pickup','cod',NULL,NULL,NULL,NULL,NULL,NULL,NULL,@status,@order);SELECT @status;`) === 'INVALID_CART',
@@ -209,6 +214,7 @@ const codOrder = history.body.find(order => order.orderId === orderId)
 const cardOrder = history.body.find(order => order.orderId === paid.body.orderId)
 check(history.status === 200 && codOrder && cardOrder, 'order history lists the new orders')
 check(codOrder.items.length === 1 && Number(codOrder.items[0].unitPrice) === 123.45 && codOrder.items[0].productSku === sku
+  && codOrder.items[0].backorderedQuantity === 0
   && codOrder.deliveryCity && codOrder.estDeliveryDate === isoDay(5) && codOrder.paymentMethod === 'cod', 'order history shows lines, price paid and delivery estimate')
 check(cardOrder.cardType === 'Visa' && cardOrder.cardLastFour === '4242' && cardOrder.paymentStatus === 'Paid', 'order history shows the card type and last four digits only')
 expectStatus(await customer.request('/api/delivery/estimate?cityId=1&orderId=' + orderId), 200, 'own delivery estimate')
@@ -219,14 +225,26 @@ const pickup = await customer.request('/api/checkout', 'POST', { ...checkout, de
 expectStatus(pickup, 201, 'store pickup needs no address')
 check(sql('SELECT IF(city_id IS NULL AND est_delivery_date IS NULL,1,0) FROM delivery WHERE order_id=' + pickup.body.orderId) === '1', 'pickup has no delivery date')
 
+// ---- Out of stock at the time of order: back-ordered, 3 days later -------------------------
+// Seed variant 3 has no stock. The order is accepted, nothing leaves stock, the estimate is 7 + 3.
+const backorder = await customer.request('/api/checkout', 'POST', { ...checkout, cityId: 3, cartItems: [{ variantId: 3, quantity: 2 }] })
+expectStatus(backorder, 201, 'an out-of-stock item can be ordered')
+check(sql(`SELECT CONCAT_WS('|', quantity, backordered_quantity) FROM order_item WHERE order_id=${backorder.body.orderId}`) === '2|2'
+  && sql('SELECT stock_quantity FROM variant WHERE variant_id=3') === '0', 'the whole line is back-ordered and stock stays at zero')
+const backorderSummary = (await customer.request('/api/orders')).body.find(order => order.orderId === backorder.body.orderId)
+check(backorderSummary.estDeliveryDate === isoDay(10) && backorderSummary.items[0].backorderedQuantity === 2, 'the customer sees the 3-day delay and the back-ordered quantity')
+check(count(`SELECT COUNT(*) FROM email_outbox WHERE related_id=${backorder.body.orderId} AND category='order_confirmation' AND body LIKE '%will follow%'`) === 1, 'the confirmation email mentions the back-order')
+
 // ---- Concurrency (SAF-1, SAF-2) ------------------------------------------------------------
 await staff.request(`/api/inventory/variants/${variantId}/stock?quantity=1`, 'PUT')
 ordersBefore = count('SELECT COUNT(*) FROM orders')
 const raced = await Promise.all([customer.request('/api/checkout', 'POST', checkout), customer.request('/api/checkout', 'POST', checkout)])
-check(raced.filter(result => result.status === 201).length === 1 && raced.filter(result => result.status === 409).length === 1, 'two orders for the last unit: one succeeds, one is refused')
-check(count('SELECT COUNT(*) FROM orders') === ordersBefore + 1 && sql('SELECT stock_quantity FROM variant WHERE variant_id=' + variantId) === '0', 'the refused order left no partial order and no negative stock')
-const lastOrder = raced.find(result => result.status === 201).body.orderId
-check(sql('SELECT DATEDIFF(est_delivery_date,DATE(order_date)) FROM delivery JOIN orders USING(order_id) WHERE order_id=' + lastOrder) === '5', 'buying the last unit is still an in-stock delivery')
+const racedIds = raced.map(result => result.body.orderId).join(',')
+check(raced.every(result => result.status === 201) && count('SELECT COUNT(*) FROM orders') === ordersBefore + 2, 'two orders at once for the last unit are both accepted')
+check(sql(`SELECT GROUP_CONCAT(backordered_quantity ORDER BY backordered_quantity) FROM order_item WHERE order_id IN (${racedIds})`) === '0,1'
+  && sql('SELECT stock_quantity FROM variant WHERE variant_id=' + variantId) === '0', 'the last unit is sold exactly once: one order gets it, the other is back-ordered, stock is zero');
+check(sql(`SELECT GROUP_CONCAT(DATEDIFF(est_delivery_date,DATE(order_date)) ORDER BY DATEDIFF(est_delivery_date,DATE(order_date))) FROM delivery JOIN orders USING(order_id) WHERE order_id IN (${racedIds})`) === '5,8',
+  'the buyer of the last unit keeps 5 days; the back-order gets 8')
 await staff.request(`/api/inventory/variants/${variantId}/stock?quantity=20`, 'PUT')
 const buyers = Array.from({ length: 20 }, () => client())
 for (const buyer of buyers) assert.equal((await buyer.login(email, password, 'CUSTOMER')).status, 200)
@@ -237,7 +255,10 @@ const concurrent = await Promise.all(buyers.map(async (buyer, index) => {
   return { ...await buyer.request('/api/checkout', 'POST', body), ms: Math.round(performance.now() - time) }
 }))
 check(concurrent.every(result => result.status === 201) && new Set(concurrent.map(result => result.body.orderId)).size === 20, '20 sessions at once each place exactly one order')
-check(sql('SELECT stock_quantity FROM variant WHERE variant_id=' + variantId) === '0', '20 orders at once deduct exactly 20 units')
+check(sql('SELECT stock_quantity FROM variant WHERE variant_id=' + variantId) === '0'
+  && count(`SELECT SUM(backordered_quantity) FROM order_item WHERE order_id IN (${concurrent.map(result => result.body.orderId).join(',')})`) === 0,
+  '20 orders at once take exactly the 20 units in stock, none back-ordered')
+check(count('SELECT COUNT(*) FROM variant WHERE stock_quantity < 0') === 0, 'no variant ever has negative stock')
 console.log(`MEASUREMENT 20 concurrent checkouts: elapsed_ms=${Math.round(performance.now() - started)}, max_ms=${Math.max(...concurrent.map(result => result.ms))}`)
 
 // ---- Reports -----------------------------------------------------------------------------

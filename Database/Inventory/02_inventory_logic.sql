@@ -35,10 +35,11 @@ BEGIN
     RETURN IF(v_is_main_city, 5, 7) + IF(COALESCE(p_out_of_stock, FALSE), 3, 0);
 END //
 
--- Estimate shown before ordering (UI-8): destination city plus the current
--- stock of the cart's variants, given as a JSON array of variant IDs.
--- Returns NULL for an unknown city.
-CREATE FUNCTION fn_delivery_preview_date(p_city_id INT, p_variant_ids JSON)
+-- Estimate shown before ordering (UI-8): destination city plus the cart,
+-- given like the checkout cart: [{"variantId": 12, "quantity": 2}, ...].
+-- A line that asks for more than is in stock is out of stock and adds the
+-- delay, exactly as ProcessCheckout decides it. Returns NULL for an unknown city.
+CREATE FUNCTION fn_delivery_preview_date(p_city_id INT, p_cart_json JSON)
 RETURNS DATE
 NOT DETERMINISTIC
 READS SQL DATA
@@ -48,17 +49,19 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM city WHERE city_id = p_city_id) THEN
         RETURN NULL;
     END IF;
-    IF p_variant_ids IS NOT NULL AND JSON_TYPE(p_variant_ids) = 'ARRAY' THEN
+    IF p_cart_json IS NOT NULL AND JSON_TYPE(p_cart_json) = 'ARRAY' THEN
         SELECT COUNT(*) > 0 INTO v_out_of_stock
-        FROM JSON_TABLE(p_variant_ids, '$[*]' COLUMNS (variant_id INT PATH '$')) j
+        FROM JSON_TABLE(p_cart_json, '$[*]'
+             COLUMNS (variant_id INT PATH '$.variantId', quantity INT PATH '$.quantity')) j
         JOIN variant v ON v.variant_id = j.variant_id
-        WHERE v.stock_quantity <= 0;
+        WHERE COALESCE(j.quantity, 1) > v.stock_quantity;
     END IF;
 
     RETURN DATE_ADD(CURDATE(), INTERVAL fn_delivery_days(p_city_id, v_out_of_stock) DAY);
 END //
 
--- Estimate for an existing order, from today, using current stock.
+-- Estimate for an existing order, counted from today. The delay applies when
+-- any of its lines was out of stock when the order was placed.
 CREATE FUNCTION calculate_delivery_date(p_city_id INT, p_order_id INT)
 RETURNS DATE
 NOT DETERMINISTIC
@@ -68,8 +71,7 @@ BEGIN
 
     SELECT COUNT(*) > 0 INTO v_out_of_stock
     FROM order_item oi
-    JOIN variant v ON oi.variant_id = v.variant_id
-    WHERE oi.order_id = p_order_id AND v.stock_quantity <= 0;
+    WHERE oi.order_id = p_order_id AND oi.backordered_quantity > 0;
 
     RETURN DATE_ADD(CURDATE(), INTERVAL fn_delivery_days(p_city_id, v_out_of_stock) DAY);
 END //
@@ -147,8 +149,10 @@ BEGIN
         SIGNAL SQLSTATE '45004' SET MESSAGE_TEXT = 'Warehouse not found';
     END IF;
 
+    -- Without a warehouse the stock goes to the central warehouse.
     INSERT INTO variant (product_id, warehouse_id, variant_name, colour, memory_size, price, stock_quantity)
-    VALUES (p_product_id, p_warehouse_id, v_name, v_colour, v_memory, p_price, p_stock);
+    VALUES (p_product_id, COALESCE(p_warehouse_id, (SELECT MIN(warehouse_id) FROM warehouse)),
+            v_name, v_colour, v_memory, p_price, p_stock);
     SET p_variant_id = LAST_INSERT_ID();
 END //
 

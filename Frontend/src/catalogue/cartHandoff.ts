@@ -1,5 +1,6 @@
 import { addToCart, getCart } from './cart.ts'
 import type { CartItem } from './cart.ts'
+import { backorderNote, maxOrderQuantity } from './variants.ts'
 
 type CartBridge = { read: () => unknown; add: (item: CartItem) => void }
 const sharedCart: CartBridge = { read: getCart, add: addToCart }
@@ -17,8 +18,8 @@ export function decodeCatalogueCart(value: unknown): CartItem[] | undefined {
       || typeof item.productName !== 'string' || !item.productName.trim()
       || typeof item.variantLabel !== 'string' || !item.variantLabel.trim()
       || typeof item.price !== 'string' || !/^\d+(\.\d{1,2})?$/.test(item.price) || !Number.isFinite(Number(item.price))
-      || !Number.isSafeInteger(item.quantity) || item.quantity <= 0
-      || !Number.isSafeInteger(item.stockQuantity) || item.stockQuantity < item.quantity) return undefined
+      || !Number.isSafeInteger(item.quantity) || item.quantity <= 0 || item.quantity > maxOrderQuantity
+      || !Number.isSafeInteger(item.stockQuantity) || item.stockQuantity < 0) return undefined
     seen.add(item.variantId)
     lines.push({ productId: item.productId, variantId: item.variantId, productName: item.productName,
       variantLabel: item.variantLabel, price: item.price, quantity: item.quantity, stockQuantity: item.stockQuantity })
@@ -38,13 +39,12 @@ export function addCatalogueItem(item: CartItem, bridge = sharedCart): { ok: boo
     if (!cart) return { ok: false, message: 'Your saved cart cannot be read. Open the cart and review it before adding items.' }
     const existing = cart.find(line => line.variantId === item.variantId)
     const quantity = (existing?.quantity ?? 0) + item.quantity
-    if (quantity > item.stockQuantity) return { ok: false,
-      message: `Your cart already has ${existing?.quantity ?? 0} of this variant. Only ${item.stockQuantity} are currently available.` }
-    if (existing && quantity > existing.stockQuantity) return { ok: false,
-      message: 'The stock shown has changed since this item was saved. Remove its saved cart line and add it again to refresh it.' }
+    if (quantity > maxOrderQuantity) return { ok: false,
+      message: `Your cart already has ${existing?.quantity ?? 0} of this variant. You can order at most ${maxOrderQuantity} units of one item.` }
     if (!existing && cart.length >= 100) return { ok: false, message: 'Your cart is full. Review it before adding another product.' }
     bridge.add(item)
-    return { ok: true, message: `Added to cart. Your cart now has ${quantity} of this variant. Stock is not reserved until checkout.` }
+    return { ok: true, message: `Added to cart. Your cart now has ${quantity} of this variant. `
+      + (backorderNote(quantity, item.stockQuantity) ?? 'Stock is not reserved until checkout.') }
   } catch {
     return { ok: false, message: 'Your browser blocked saving the cart. Please allow session storage and try again.' }
   }

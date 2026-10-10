@@ -8,10 +8,12 @@
 -- routines and roles, and finish with Shared/05_release_checks.sql.
 -- `bash Database/install_all.sh --upgrade ...` does all of that in order.
 --
--- Non-destructive: it adds columns, constraints and indexes, renames the
--- former catalogue_audit table and drops routines that were replaced. It
--- never deletes rows, runs no seed and changes no price. Existing data that
--- already breaks a rule is reported and nothing is changed.
+-- It adds columns, constraints and indexes, renames the former
+-- catalogue_audit table, drops routines that were replaced, and moves all
+-- stock to one central warehouse. It deletes no customer, order, product or
+-- stock row; the only rows removed are extra warehouse rows that hold no stock
+-- afterwards. It runs no seed and changes no price or quantity. Existing data
+-- that already breaks a rule is reported and nothing is changed.
 -- =========================================================
 USE brightbuy;
 
@@ -125,12 +127,29 @@ BEGIN
         END IF;
     END IF;
 
+    -- ---- 3b. One central warehouse holds all stock ----
+    -- Earlier sample data spread variants over several warehouses. Every
+    -- variant moves to the first warehouse, which becomes the central one;
+    -- the others then hold nothing and are removed. Quantities do not change.
+    IF has_variant AND (SELECT COUNT(*) FROM warehouse) > 1 THEN
+        SET @brightbuy_central_warehouse = (SELECT MIN(warehouse_id) FROM warehouse);
+        UPDATE variant SET warehouse_id = @brightbuy_central_warehouse
+        WHERE NOT (warehouse_id <=> @brightbuy_central_warehouse);
+        DELETE FROM warehouse WHERE warehouse_id <> @brightbuy_central_warehouse;
+        UPDATE warehouse SET name = 'Central Warehouse' WHERE warehouse_id = @brightbuy_central_warehouse;
+        SET @brightbuy_central_warehouse = NULL;
+    END IF;
+
     -- ---- 4. Orders: checkout choices and report indexes ----
     CALL brightbuy_upgrade_add_column('orders', 'delivery_mode', 'VARCHAR(50) NULL');
     CALL brightbuy_upgrade_add_column('orders', 'payment_method', 'VARCHAR(50) NULL');
     CALL brightbuy_upgrade_add_index('orders', 'idx_orders_customer_date', 'INDEX idx_orders_customer_date (customer_id, order_date)');
     CALL brightbuy_upgrade_add_index('orders', 'idx_orders_status_date', 'INDEX idx_orders_status_date (order_status, order_date)');
     CALL brightbuy_upgrade_add_index('orders', 'idx_orders_date', 'INDEX idx_orders_date (order_date)');
+    -- Back-orders: existing lines were all supplied from stock, hence 0.
+    CALL brightbuy_upgrade_add_column('order_item', 'backordered_quantity', 'INT NOT NULL DEFAULT 0');
+    CALL brightbuy_upgrade_add_check('order_item', 'chk_order_item_backorder',
+        'CHECK (backordered_quantity BETWEEN 0 AND quantity)');
 
     -- ---- 5. Delivery: purchase-time address, one row per order ----
     CALL brightbuy_upgrade_add_column('delivery', 'address_line', 'VARCHAR(255) NULL AFTER city_id');

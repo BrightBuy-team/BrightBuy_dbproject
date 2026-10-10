@@ -85,6 +85,16 @@ FROM information_schema.columns
 WHERE table_schema = DATABASE() AND table_name = 'payment'
   AND column_name IN ('gateway_token', 'gateway_reference', 'card_last_four', 'card_type');
 
+-- Back-orders: the out-of-stock part of an order line is recorded.
+SELECT 'order_item_backorder_column' AS check_name, IF(COUNT(*) = 1, 'PASS', 'BLOCK') AS status
+FROM information_schema.columns
+WHERE table_schema = DATABASE() AND table_name = 'order_item'
+  AND column_name = 'backordered_quantity' AND is_nullable = 'NO';
+
+-- All stock is kept in one central warehouse.
+SELECT 'single_central_warehouse' AS check_name, IF(COUNT(*) = 1, 'PASS', 'BLOCK') AS status
+FROM warehouse;
+
 -- CON-5 / SEC-2: no column that could hold a card number or security code.
 SELECT 'no_card_number_column' AS check_name, IF(COUNT(*) = 0, 'PASS', 'BLOCK') AS status
 FROM information_schema.columns

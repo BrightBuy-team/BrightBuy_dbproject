@@ -1,3 +1,7 @@
+import { maxOrderQuantity } from './variants.ts'
+
+// stockQuantity is the stock shown when the item was added. It is only used to tell the
+// customer what will be back-ordered; the database decides at checkout.
 export type CartItem = {
   productId: number;
   variantId: number;
@@ -30,8 +34,8 @@ export function readStoredCart(key: string): CartItem[] {
       const valid = parsed.every(item => !!item && typeof item === 'object'
         && Number.isSafeInteger(item.variantId) && item.variantId>0
         && Number.isSafeInteger(item.productId) && item.productId>0
-        && Number.isSafeInteger(item.quantity) && item.quantity>0
-        && Number.isSafeInteger(item.stockQuantity) && item.stockQuantity>=item.quantity
+        && Number.isSafeInteger(item.quantity) && item.quantity>0 && item.quantity<=maxOrderQuantity
+        && Number.isSafeInteger(item.stockQuantity) && item.stockQuantity>=0
         && typeof item.price==='string' && /^(?:0|[1-9][0-9]*)(?:\.[0-9]{1,2})?$/.test(item.price)
         && typeof item.productName==='string' && typeof item.variantLabel==='string'
         && !seen.has(item.variantId) && !!seen.add(item.variantId));
@@ -45,13 +49,13 @@ export function readStoredCart(key: string): CartItem[] {
 }
 
 export function addToCart(item: CartItem) {
-  if (!Number.isSafeInteger(item.quantity) || item.quantity<1 || item.quantity>item.stockQuantity) throw new Error('Invalid cart quantity');
+  if (!Number.isSafeInteger(item.quantity) || item.quantity<1 || item.quantity>maxOrderQuantity) throw new Error('Invalid cart quantity');
   const cart = getCart();
   const existingIndex = cart.findIndex(i => i.variantId === item.variantId);
   if (existingIndex >= 0) {
     cart[existingIndex] = { ...item, quantity: cart[existingIndex].quantity + item.quantity };
-    if (cart[existingIndex].quantity > item.stockQuantity) {
-        cart[existingIndex].quantity = item.stockQuantity;
+    if (cart[existingIndex].quantity > maxOrderQuantity) {
+        cart[existingIndex].quantity = maxOrderQuantity;
     }
   } else {
     cart.push(item);
@@ -69,8 +73,8 @@ export function updateCartQuantity(variantId: number, quantity: number) {
       cart.splice(existingIndex, 1);
     } else {
       cart[existingIndex].quantity = quantity;
-      if (cart[existingIndex].quantity > cart[existingIndex].stockQuantity) {
-          cart[existingIndex].quantity = cart[existingIndex].stockQuantity;
+      if (cart[existingIndex].quantity > maxOrderQuantity) {
+          cart[existingIndex].quantity = maxOrderQuantity;
       }
     }
     sessionStorage.setItem(getCartKey(), JSON.stringify(cart));

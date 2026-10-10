@@ -29,7 +29,7 @@ export default function CatalogueStaffView(){
  function saveProduct(e:FormEvent<HTMLFormElement>){
   e.preventDefault();const f=new FormData(e.currentTarget)
   const p={sku:f.get('sku'),name:f.get('name'),description:f.get('description'),imageUrl:f.get('imageUrl'),
-   categoryId:Number(f.get('categoryId')),warehouseId:f.get('warehouseId')?Number(f.get('warehouseId')):null,
+   categoryId:Number(f.get('categoryId')),
    price:Number(f.get('price')),stock:Number(f.get('stock'))}
   void write(base+'/products'+(selected?'/'+selected.product_id:''),selected?'PUT':'POST',p)
  }
@@ -48,7 +48,6 @@ export default function CatalogueStaffView(){
    <label>Description<textarea name="description" defaultValue={selected?.description||''}/></label>
    <label>Image URL<input name="imageUrl" maxLength={500} defaultValue={selected?.image_url||''}/></label>
    {!selected&&<><label>First category<select name="categoryId" required><option value="">Select category</option>{categories.map(c=><option key={c.category_id} value={c.category_id}>{c.name}</option>)}</select></label>
-    <label>Warehouse ID (optional)<input name="warehouseId" type="number" min={1}/></label>
     <label>Initial variant price (USD)<input name="price" type="number" min="0.01" step="0.01" required/></label>
     <label>Initial stock<input name="stock" type="number" min={0} step={1} required/></label></>}
    <button disabled={busy}>Save product</button><button type="button" onClick={()=>setSelected(null)}>New product</button>

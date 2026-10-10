@@ -88,8 +88,11 @@ Do this from a computer that is allowed to reach the server, with an administrat
 
 The upgrade adds missing columns, indexes and constraints, renames the old
 `catalogue_audit` table to `audit_log`, replaces every routine and trigger, and refreshes
-the roles. It loads no sample data and deletes no rows. It was tested by installing the
-previous release, placing an order, upgrading, and running every test suite on the result.
+the roles. It also moves all stock to one central warehouse: every variant is assigned to
+the first warehouse, which is renamed *Central Warehouse*, and the other warehouse rows,
+now holding nothing, are removed. It loads no sample data, changes no price or quantity, and
+deletes no customer, order, product or stock row. It was tested by installing the previous
+release, placing an order, upgrading, and running every test suite on the result.
 
 ## Backup and restore (SAF-4, SAF-5)
 
