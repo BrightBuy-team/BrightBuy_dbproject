@@ -1,197 +1,63 @@
-import { useState, useEffect } from 'react';
-import { getCart, clearCart, getCartTotalPrice } from './cart';
-import { authApiBase, requestSession } from './session';
-import type { SessionUser } from './session';
+import { useEffect, useState, useRef } from 'react'
+import { cartSnapshot,clearCart } from './cart'
+import { apiBase,apiRequest } from './client'
+import { requestSession } from './session'
+import type { SessionUser } from './session'
+import { formatPrice } from './search'
 
-export default function CheckoutView({ onBack, onComplete }: { onBack: () => void, onComplete: () => void }) {
-  const [step, setStep] = useState(1);
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [loadingSession, setLoadingSession] = useState(true);
-  
-  const [deliveryMode, setDeliveryMode] = useState('delivery');
-  const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('card');
-  const [error, setError] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [cityType, setCityType] = useState('main');
-
-  useEffect(() => {
-    const controller = new AbortController();
-    const localEmail = localStorage.getItem('currentUserEmail');
-    const localRole = localStorage.getItem('role');
-
-    requestSession(
-      authApiBase(import.meta.env.VITE_CATALOGUE_API_URL || 'http://localhost:8080/api/catalogue', import.meta.env.VITE_AUTH_API_URL),
-      controller.signal
-    ).then(u => {
-      // Use backend user if available, otherwise fallback to local mock user
-      setUser(u || (localEmail ? { id: 1, email: localEmail, accountType: 'CUSTOMER', role: localRole || 'user' } : null));
-      setLoadingSession(false);
-    }).catch(() => {
-      // On failure, rely on local mock user
-      setUser(localEmail ? { id: 1, email: localEmail, accountType: 'CUSTOMER', role: localRole || 'user' } : null);
-      setLoadingSession(false);
-    });
-    return () => controller.abort();
-  }, []);
-
-  const cart = getCart();
-
-  if (cart.length === 0) {
-    return <section className="catalogue-checkout">
-      <h2>Your cart is empty.</h2>
-      <button onClick={onBack}>Back to Cart</button>
-    </section>;
-  }
-
-  if (loadingSession) {
-    return <section className="catalogue-checkout">Checking account...</section>;
-  }
-
-  if (!user) {
-    return <section className="catalogue-checkout catalogue-notice">
-      <h2>Authentication Required</h2>
-      <p>Please log in to proceed with checkout.</p>
-      <button onClick={onBack}>Back to Cart</button>
-      {/* Assuming there is a login route or button somewhere else, maybe header */}
-    </section>;
-  }
-
-  const handleNext = () => setStep(s => s + 1);
-  const handlePrev = () => setStep(s => s - 1);
-
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
-    setError('');
-    const items = cart.map(item => ({
-      variantId: item.variantId,
-      quantity: item.quantity
-    }));
-
-    try {
-      const apiUrl = import.meta.env.VITE_CHECKOUT_API_URL || 'http://localhost:8080/api/checkout';
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          cartItems: items,
-          deliveryMode: deliveryMode,
-          paymentMethod: paymentMethod
-        })
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || 'Checkout failed');
-      }
-
-      clearCart();
-      onComplete();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const hasOutOfStockItems = cart.some(item => item.stockQuantity === 0);
-  const baseDays = cityType === 'main' ? 5 : 7;
-  const estDeliveryDays = deliveryMode === 'delivery' ? baseDays + (hasOutOfStockItems ? 3 : 0) : 0;
-
-  return (
-    <section className="catalogue-checkout" style={{ maxWidth: '600px', margin: '0 auto' }}>
-      <h1>Checkout</h1>
-      
-      {step === 1 && (
-        <div>
-          <h2>Step 1: Delivery Mode</h2>
-          <label>
-            <input type="radio" value="delivery" checked={deliveryMode === 'delivery'} onChange={() => setDeliveryMode('delivery')} />
-            Delivery
-          </label>
-          <br/>
-          <label>
-            <input type="radio" value="pickup" checked={deliveryMode === 'pickup'} onChange={() => setDeliveryMode('pickup')} />
-            Store Pickup
-          </label>
-          <div style={{marginTop: '1rem'}}>
-            <button onClick={handleNext} className="catalogue-primary">Next</button>
-            <button onClick={onBack} className="catalogue-text-button" style={{marginLeft: '1rem'}}>Back to Cart</button>
-          </div>
-        </div>
-      )}
-
-      {step === 2 && (
-        <div>
-          <h2>Step 2: Address & Estimated Delivery</h2>
-          {deliveryMode === 'delivery' ? (
-            <>
-              <label style={{display: 'block', marginBottom: '0.5rem'}}>Shipping Address:</label>
-              <textarea value={address} onChange={e => setAddress(e.target.value)} rows={3} style={{width: '100%'}} />
-              <label style={{display: 'block', marginTop: '1rem', marginBottom: '0.5rem'}}>City Type:</label>
-              <select value={cityType} onChange={e => setCityType(e.target.value)} style={{width: '100%', marginBottom: '1rem', padding: '0.5rem'}}>
-                <option value="main">Main City (e.g. Colombo, Kandy, Galle)</option>
-                <option value="other">Other City / Regional</option>
-              </select>
-              <p><strong>Estimated Delivery:</strong> {estDeliveryDays} days {hasOutOfStockItems && '(Includes +3 days for out of stock items)'}</p>
-            </>
-          ) : (
-            <p>Pickup in store available tomorrow.</p>
-          )}
-          
-          <div style={{marginTop: '1rem'}}>
-            <button onClick={handleNext} className="catalogue-primary" disabled={deliveryMode === 'delivery' && !address.trim()}>Next</button>
-            <button onClick={handlePrev} className="catalogue-text-button" style={{marginLeft: '1rem'}}>Back</button>
-          </div>
-        </div>
-      )}
-
-      {step === 3 && (
-        <div>
-          <h2>Step 3: Payment Method</h2>
-          <label>
-            <input type="radio" value="card" checked={paymentMethod === 'card'} onChange={() => setPaymentMethod('card')} />
-            Credit / Debit Card
-          </label>
-          <br/>
-          <label>
-            <input type="radio" value="paypal" checked={paymentMethod === 'paypal'} onChange={() => setPaymentMethod('paypal')} />
-            PayPal
-          </label>
-          <br/>
-          <label>
-            <input type="radio" value="cod" checked={paymentMethod === 'cod'} onChange={() => setPaymentMethod('cod')} />
-            Cash on Delivery
-          </label>
-          <div style={{marginTop: '1rem'}}>
-            <button onClick={handleNext} className="catalogue-primary">Review Order</button>
-            <button onClick={handlePrev} className="catalogue-text-button" style={{marginLeft: '1rem'}}>Back</button>
-          </div>
-        </div>
-      )}
-
-      {step === 4 && (
-        <div>
-          <h2>Step 4: Review & Submit</h2>
-          <ul>
-            <li><strong>Delivery:</strong> {deliveryMode}</li>
-            {deliveryMode === 'delivery' && <li><strong>Address:</strong> {address}</li>}
-            <li><strong>Payment:</strong> {paymentMethod}</li>
-            <li><strong>Total:</strong> ${getCartTotalPrice().toFixed(2)}</li>
-          </ul>
-          
-          {error && <p className="catalogue-field-error" style={{color: 'red'}}>{error}</p>}
-          
-          <div style={{marginTop: '1rem'}}>
-            <button onClick={handleSubmit} className="catalogue-primary" disabled={isSubmitting}>
-              {isSubmitting ? 'Processing...' : 'Place Order'}
-            </button>
-            <button onClick={handlePrev} className="catalogue-text-button" style={{marginLeft: '1rem'}} disabled={isSubmitting}>Back</button>
-          </div>
-        </div>
-      )}
-
-    </section>
-  );
+type City = {cityId:number;name:string;isMainCity:boolean}
+export default function CheckoutView({onBack}:{onBack:()=>void;onComplete?:()=>void}) {
+ const [user,setUser]=useState<SessionUser|null>(null)
+ const [ready,setReady]=useState(false)
+ const [cities,setCities]=useState<City[]>([])
+ const [cityId,setCityId]=useState('')
+ const [address,setAddress]=useState('')
+ const [mode,setMode]=useState('delivery')
+ const [error,setError]=useState('')
+ const [busy,setBusy]=useState(false)
+ const [orderId,setOrderId]=useState<number|null>(null)
+ const [snapshot]=useState(cartSnapshot)
+ const submitting=useRef(false)
+ useEffect(()=>{
+  const controller=new AbortController()
+  Promise.all([requestSession(apiBase('auth'),controller.signal),
+   apiRequest<City[]>(apiBase('delivery')+'/cities',{signal:controller.signal})])
+   .then(([session,list])=>{setUser(session);setCities(list);setReady(true)})
+   .catch(()=>{if(!controller.signal.aborted){setError('Account or delivery service is unavailable.');setReady(true)}})
+  return ()=>controller.abort()
+ },[])
+ const cart=snapshot.items
+ async function checkout(){
+  if(submitting.current||orderId)return
+  if(mode==='delivery'&&(!cityId||address.trim().length<5)){setError('Choose a Texas city and enter your delivery address.');return}
+  submitting.current=true;setBusy(true);setError('')
+  try {
+   const result=await apiRequest<{status:string;orderId:number}>(apiBase('checkout'),{method:'POST',body:JSON.stringify({
+    cartItems:cart.map(i=>({variantId:i.variantId,quantity:i.quantity})),
+    deliveryMode:mode,paymentMethod:'cod',cityId:mode==='delivery'?Number(cityId):null,
+    addressLine:mode==='delivery'?address.trim():null
+   })})
+   if(result.status!=='SUCCESS'||!Number.isSafeInteger(result.orderId))throw new Error('Invalid checkout response.')
+   setOrderId(result.orderId)
+   try{clearCart()}catch{setError('Order confirmed, but the browser could not clear your cart. Do not submit it again.')}
+  }catch(e){setError((e as Error).message)}
+  finally{submitting.current=false;setBusy(false)}
+ }
+ if(orderId)return <section className="catalogue-detail-state"><h1>Order #{orderId} confirmed</h1>
+  <p>Payment is pending: cash on delivery. Your server-confirmed total and delivery date are in your order history.</p>
+  {error&&<p role="alert">{error}</p>}
+  <a href="?view=orders">View my orders</a> · <a href="/catalogue.html">Continue shopping</a></section>
+ return <section className="catalogue-detail-state"><h1>Checkout</h1>
+  {!ready?<p role="status">Checking account…</p>:user?.accountType!=='CUSTOMER'?<p>A customer account is required. <a href="/?view=login">Sign in</a></p>
+  :cart.length===0?<p>Your cart is empty.</p>:<>
+   <p>Estimated subtotal: {formatPrice(cart.reduce((sum,i)=>sum+Number(i.price)*i.quantity,0))}. The database verifies prices and availability at confirmation.</p>
+   <label>Fulfilment<select value={mode} onChange={e=>setMode(e.target.value)}><option value="delivery">Delivery</option><option value="pickup">Store pickup</option></select></label>
+   {mode==='delivery'&&<><label>Texas city<select value={cityId} onChange={e=>setCityId(e.target.value)}><option value="">Choose city</option>
+    {cities.map(c=><option key={c.cityId} value={c.cityId}>{c.name} — {c.isMainCity?5:7} days</option>)}</select></label>
+    <label>Street address<textarea value={address} onChange={e=>setAddress(e.target.value)} maxLength={255}/></label></>}
+   <p>Cash on delivery. Card checkout is disabled until the payment gateway is connected.</p>
+   <button onClick={checkout} disabled={busy}>{busy?'Confirming…':'Confirm COD order'}</button>
+  </>}
+  {(error||snapshot.error)&&<p role="alert">{error||snapshot.error}</p>}<button onClick={onBack} disabled={busy}>Back to cart</button>
+ </section>
 }

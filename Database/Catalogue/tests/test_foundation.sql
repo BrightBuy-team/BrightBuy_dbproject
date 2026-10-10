@@ -59,6 +59,11 @@ BEGIN
         RESIGNAL;
     END;
 
+    SET @catalogue_fixture_rate=1;
+    IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='brightbuy' AND table_name='currency_conversion_log') THEN
+        SELECT COALESCE(MAX(lkr_per_usd),1) INTO @catalogue_fixture_rate
+        FROM currency_conversion_log WHERE migration_key='USD_TO_LKR_V1';
+    END IF;
     SET @catalogue_test_passed = 0;
     START TRANSACTION;
 
@@ -109,11 +114,11 @@ BEGIN
         '43 catalogue-owned variant fixtures');
     CALL catalogue_test_assert(
         (SELECT COUNT(*) FROM variant WHERE
-          (variant_id=1 AND product_id=1 AND warehouse_id=1 AND price=1099.00 AND stock_quantity=50) OR
-          (variant_id=2 AND product_id=1 AND warehouse_id=2 AND price=1099.00 AND stock_quantity=15) OR
-          (variant_id=3 AND product_id=1 AND warehouse_id=1 AND price=1299.00 AND stock_quantity=0) OR
-          (variant_id=4 AND product_id=2 AND warehouse_id=3 AND price=1299.99 AND stock_quantity=30) OR
-          (variant_id=5 AND product_id=3 AND warehouse_id=1 AND price=348.00 AND stock_quantity=120)) = 5,
+          (variant_id=1 AND product_id=1 AND warehouse_id=1 AND price=ROUND(1099.00*@catalogue_fixture_rate,2) AND stock_quantity=50) OR
+          (variant_id=2 AND product_id=1 AND warehouse_id=2 AND price=ROUND(1099.00*@catalogue_fixture_rate,2) AND stock_quantity=15) OR
+          (variant_id=3 AND product_id=1 AND warehouse_id=1 AND price=ROUND(1299.00*@catalogue_fixture_rate,2) AND stock_quantity=0) OR
+          (variant_id=4 AND product_id=2 AND warehouse_id=3 AND price=ROUND(1299.99*@catalogue_fixture_rate,2) AND stock_quantity=30) OR
+          (variant_id=5 AND product_id=3 AND warehouse_id=1 AND price=ROUND(348.00*@catalogue_fixture_rate,2) AND stock_quantity=120)) = 5,
         'original inventory variant fixtures preserved');
     CALL catalogue_test_assert(
         (SELECT COUNT(*) FROM variant WHERE stock_quantity=0) = 3,
@@ -173,10 +178,10 @@ BEGIN
         'INSERT INTO product_category(product_id,category_id) VALUES(1,4)',
         1062, NULL, 'duplicate category assignment');
     CALL catalogue_test_reject(
-        'INSERT INTO variant(variant_id,product_id) VALUES(99999,99999)',
+        'INSERT INTO variant(variant_id,product_id,price,stock_quantity) VALUES(99999,99999,1,1)',
         1452, NULL, 'orphan variant insert');
     CALL catalogue_test_reject(
-        'INSERT INTO variant(variant_id,product_id) VALUES(99999,NULL)',
+        'INSERT INTO variant(variant_id,product_id,price,stock_quantity) VALUES(99999,NULL,1,1)',
         1048, NULL, 'null variant insert');
     CALL catalogue_test_reject(
         'DELETE FROM product WHERE product_id=1',

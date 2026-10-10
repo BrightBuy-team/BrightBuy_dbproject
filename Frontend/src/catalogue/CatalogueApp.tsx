@@ -18,6 +18,8 @@ import CatalogueHeader from './CatalogueHeader'
 import ManagementReports from './ManagementReports'
 import CartView from './CartView'
 import CheckoutView from './CheckoutView'
+import OrderHistoryView from './OrderHistoryView'
+import CatalogueStaffView from './CatalogueStaffView'
 
 function ErrorNotice({ message, retry }: { message: string; retry: () => void }) {
   return <div className="catalogue-notice" role="alert"><h3>Something needs attention</h3><p>{message}</p><button onClick={retry}>Try again</button></div>
@@ -141,17 +143,17 @@ function CatalogueStorefront() {
     <CategoryNavigation categories={categories.data} loading={categories.loading} error={categories.error}
       retry={categories.retry} currentCategoryId={!productId && !linkError ? query.categoryId : undefined} />
     <main id="catalogue-content" tabIndex={-1}>
-      {viewParam === 'cart' ? (
+      {viewParam === 'staff' ? <CatalogueStaffView /> : viewParam === 'orders' ? <OrderHistoryView /> : viewParam === 'reports' ? <ManagementReports /> : viewParam === 'cart' ? (
         <CartView 
-          onCheckout={() => window.location.href = '?view=checkout'} 
-          onContinueShopping={() => window.location.href = catalogueHref(query)} 
+          onCheckout={() => window.location.assign('?view=checkout')}
+          onContinueShopping={() => window.location.assign(catalogueHref(query))}
         />
       ) : viewParam === 'checkout' ? (
         <CheckoutView 
-          onBack={() => window.location.href = '?view=cart'} 
+          onBack={() => window.location.assign('?view=cart')}
           onComplete={() => {
             alert('Order placed successfully!');
-            window.location.href = catalogueHref(query);
+            window.location.assign(catalogueHref(query));
           }} 
         />
       ) : (

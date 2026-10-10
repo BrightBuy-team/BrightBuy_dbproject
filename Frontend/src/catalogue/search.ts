@@ -73,6 +73,7 @@ export function searchParams(query: Search): URLSearchParams {
 export const defaultSearch = parseSearch(new URLSearchParams())
 
 export function formatPrice(price: number): string {
-  // SRS AS-12: Phase 1 prices are USD, including browse cards and details.
+  // Prices are stored and returned as USD, matching the unchanged Azure database.
+  // Formatting never converts monetary values.
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', currencyDisplay: 'code', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(price)
 }

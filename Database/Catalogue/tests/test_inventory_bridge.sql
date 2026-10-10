@@ -33,9 +33,14 @@ BEGIN
 END$$
 CREATE PROCEDURE test_inventory_bridge()
 BEGIN
+    SET @bridge_fixture_rate=1;
+    IF EXISTS(SELECT 1 FROM information_schema.tables WHERE table_schema='brightbuy' AND table_name='currency_conversion_log') THEN
+        SELECT COALESCE(MAX(lkr_per_usd),1) INTO @bridge_fixture_rate
+        FROM currency_conversion_log WHERE migration_key='USD_TO_LKR_V1';
+    END IF;
     CALL bridge_assert((SELECT COUNT(*) = 0 FROM variant), 'fresh variant table');
     CALL bridge_assert((SELECT COUNT(*) = 2 FROM warehouse), 'two inventory warehouses');
-    INSERT INTO variant (variant_id, product_id) VALUES (99999, NULL);
+    INSERT INTO variant (variant_id, product_id, price, stock_quantity) VALUES (99999, NULL, 1, 1);
     CALL bridge_reject('integration',
         'Variant integration stopped: orphaned or NULL product_id values exist');
     CALL bridge_assert((SELECT is_nullable = 'YES' FROM information_schema.columns
@@ -86,7 +91,7 @@ BEGIN
     CALL bridge_assert((SELECT price = 999.50 AND stock_quantity = 17 FROM variant WHERE variant_id = 1),
         'rerun preserves existing price and stock');
     CALL bridge_assert((SELECT COUNT(*) = 48 FROM variant), 'rerun creates no duplicates');
-    UPDATE variant SET price = 1099.00, stock_quantity = 50 WHERE variant_id = 1;
+    UPDATE variant SET price = ROUND(1099.00*@bridge_fixture_rate,2), stock_quantity = 50 WHERE variant_id = 1;
 END$$
 DELIMITER ;
 CALL test_inventory_bridge();

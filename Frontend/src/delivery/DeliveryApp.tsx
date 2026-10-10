@@ -1,3 +1,4 @@
+import { apiBase,apiRequest } from '../catalogue/client'
 import { useState, useEffect } from 'react';
 
 // Interfaces matching Java Backend
@@ -20,9 +21,7 @@ export default function DeliveryApp() {
   useEffect(() => {
     const fetchCities = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/delivery/cities');
-        if (!res.ok) throw new Error("Failed to fetch cities");
-        const data = await res.json();
+        const data = await apiRequest<City[]>(apiBase('delivery')+'/cities');
         setCities(data);
 
         // Select the first city by default if available
@@ -51,20 +50,19 @@ export default function DeliveryApp() {
     setError(null);
 
     try {
-      const res = await fetch(`http://localhost:8080/api/delivery/estimate?cityId=${selectedCityId}&orderId=${orderId}`);
-      if (!res.ok) {
-        throw new Error("Failed to calculate estimate. Ensure the Order ID exists in the database.");
-      }
-      const data = await res.json();
+      const data = await apiRequest<{est_delivery_date:string|null;delivery_mode:string}>(apiBase('delivery')+'/estimate?'+new URLSearchParams({cityId:selectedCityId,orderId}));
 
       // Formatting the date nicely
-      const dateObj = new Date(data.estimated_delivery_date);
+      if(data.delivery_mode==='pickup'){setEstimatedDate('Store pickup — city-based delivery dates do not apply.');return}
+      if(!data.est_delivery_date)throw new Error('No delivery date has been recorded for this order.');
+      const dateObj = new Date(data.est_delivery_date.slice(0,10)+'T00:00:00');
+      if(Number.isNaN(dateObj.getTime()))throw new Error('Invalid delivery date returned.');
       const options: Intl.DateTimeFormatOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
       setEstimatedDate(dateObj.toLocaleDateString(undefined, options));
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || "An error occurred during calculation.");
+      setError(err instanceof Error?err.message:"An error occurred during calculation.");
     } finally {
       setCalculating(false);
     }
@@ -90,11 +88,11 @@ export default function DeliveryApp() {
             </svg>
           </div>
           <h1>Track & Estimate</h1>
-          <p>Instantly calculate delivery times based on inventory and location.</p>
+          <p>View the purchase-time delivery estimate for your own order. Sign in first.</p>
         </header>
 
         {error && (
-          <div className="error-message">
+          <div className="error-message" role="alert">
             {error}
           </div>
         )}
@@ -110,7 +108,7 @@ export default function DeliveryApp() {
               onChange={(e) => setOrderId(e.target.value)}
               required
             />
-            <small>Must be a valid existing Order ID in the database to calculate out-of-stock penalties.</small>
+            <small>Use one of your order IDs. The destination must match the order; later stock changes do not change its recorded estimate.</small>
           </div>
 
           <div className="form-group">

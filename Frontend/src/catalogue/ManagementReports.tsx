@@ -1,3 +1,5 @@
+import { formatPrice } from './search'
+import { apiBase } from './client'
 import { useState } from 'react'
 
 type ReportKey = 'quarterly-sales' | 'top-selling-products' | 'category-order-counts' | 'delivery-estimates' | 'customer-order-summary'
@@ -31,7 +33,7 @@ function display(value: unknown, column: Column, row: ReportRow) {
   if (value === null || value === undefined || value === '') return '—'
   if (column.kind === 'money' && (typeof value === 'number' || typeof value === 'string')) {
     const amount = Number(value)
-    return Number.isFinite(amount) ? new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(amount) : String(value)
+    return Number.isFinite(amount) ? formatPrice(amount) : String(value)
   }
   if (column.kind === 'date' && typeof value === 'string') {
     const date = new Date(`${value.slice(0, 10)}T00:00:00`)
@@ -50,7 +52,6 @@ export default function ManagementReports() {
   const today = new Date()
   const todayText = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const [active, setActive] = useState<ReportKey>('quarterly-sales')
-  const [employeeId, setEmployeeId] = useState('')
   const [year, setYear] = useState(String(today.getFullYear()))
   const [startDate, setStartDate] = useState(`${today.getFullYear()}-01-01`)
   const [endDate, setEndDate] = useState(todayText)
@@ -61,13 +62,7 @@ export default function ManagementReports() {
   const report = reports.find(item => item.key === active)!
 
   async function loadReport() {
-    const employee = Number(employeeId)
-    if (!Number.isSafeInteger(employee) || employee <= 0) {
-      setError('Enter your employee ID to run a report.')
-      setRows(null)
-      return
-    }
-    const params = new URLSearchParams({ employeeId: String(employee) })
+    const params = new URLSearchParams()
     if (active === 'quarterly-sales') {
       const reportYear = Number(year)
       if (!Number.isInteger(reportYear) || reportYear < 2000 || reportYear > 2100) {
@@ -98,7 +93,7 @@ export default function ManagementReports() {
     setError('')
     setRows(null)
     try {
-      const base = import.meta.env.VITE_REPORTS_API_URL || 'http://localhost:8080/api/reports'
+      const base = apiBase('reports')
       const response = await fetch(`${base.replace(/\/$/, '')}/${active}?${params}`, {
         headers: { Accept: 'application/json' },
         credentials: 'include',
@@ -134,9 +129,7 @@ export default function ManagementReports() {
         <p>Review sales, products, orders, deliveries, and customer payment activity.</p>
       </div>
       <section className="management-panel" aria-label="Report controls">
-        <label className="management-employee">Employee ID
-          <input inputMode="numeric" pattern="[0-9]*" value={employeeId} onChange={event => setEmployeeId(event.target.value)} placeholder="Enter employee ID" />
-        </label>
+        <p>Reports use your signed-in management account. No employee ID is accepted from the browser.</p>
         <div className="management-tabs" role="tablist" aria-label="Choose a report">
           {reports.map(item => <button key={item.key} type="button" role="tab" aria-selected={active === item.key}
             className={active === item.key ? 'active' : ''} onClick={() => { setActive(item.key); setRows(null); setError('') }}>{item.label}</button>)}

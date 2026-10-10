@@ -73,7 +73,7 @@ BEGIN
         'fresh pre-integration fixtures available');
     CALL catalogue_preintegration_unchanged('starting product column nullable with no product index or FK');
 
-    INSERT INTO variant (variant_id, product_id) VALUES (99999, NULL);
+    INSERT INTO variant (variant_id, product_id, price, stock_quantity) VALUES (99999, NULL, 1, 1);
     COMMIT;
     CALL catalogue_preintegration_reject(
         'Variant integration stopped: orphaned or NULL product_id values exist',
@@ -86,7 +86,7 @@ BEGIN
     DELETE FROM variant WHERE variant_id=99999;
     COMMIT;
 
-    INSERT INTO variant (variant_id, product_id) VALUES (99999, 99999);
+    INSERT INTO variant (variant_id, product_id, price, stock_quantity) VALUES (99999, 99999, 1, 1);
     COMMIT;
     CALL catalogue_preintegration_reject(
         'Variant integration stopped: orphaned or NULL product_id values exist',

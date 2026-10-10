@@ -1,133 +1,54 @@
-import { useState } from 'react';
-import './LoginPage.css';
-
-export default function LoginPage({ onLogin }: { onLogin: (role: string, email: string) => void }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      setError('Please enter both email and password.');
-      return;
+import { readStoredCart, customerCartKey, guestCartKey } from './catalogue/cart'
+import { mergeCartLines } from './catalogue/cartMerge'
+import { useState } from 'react'
+import type { FormEvent } from 'react'
+import { apiBase, apiRequest } from './catalogue/client'
+import type { SessionUser } from './catalogue/session'
+import './LoginPage.css'
+export default function LoginPage() {
+ const [register,setRegister]=useState(false)
+ const [error,setError]=useState('')
+ const [busy,setBusy]=useState(false)
+ async function submit(event:FormEvent<HTMLFormElement>){
+  event.preventDefault();setBusy(true);setError('')
+  const data=new FormData(event.currentTarget)
+  const email=String(data.get('email')||'')
+  const password=String(data.get('password')||'')
+  try {
+   if(register) await apiRequest(apiBase('auth')+'/register',{method:'POST',body:JSON.stringify({
+    firstName:data.get('firstName'),lastName:data.get('lastName'),email,password
+   })})
+   const {user}=await apiRequest<{user:SessionUser}>(apiBase('auth')+'/login',{method:'POST',
+    body:JSON.stringify({email,password,accountType:register?'CUSTOMER':data.get('accountType')})})
+   // A namespace for browser cart storage only; never used as authorization.
+   if(user.accountType==='CUSTOMER') {
+    const key=customerCartKey(user.email)
+    localStorage.setItem('currentUserEmail',user.email)
+    try {
+     const merged=mergeCartLines(readStoredCart(key),readStoredCart(guestCartKey))
+     sessionStorage.setItem(key,JSON.stringify(merged.items))
+     sessionStorage.removeItem(guestCartKey)
+     if(merged.adjusted)sessionStorage.setItem('brightbuy_cart_notice','Combined cart quantities were capped to the last known stock. Review before checkout; stock is not reserved.')
+     else sessionStorage.removeItem('brightbuy_cart_notice')
+    } catch {
+     sessionStorage.setItem('brightbuy_cart_notice','You are signed in, but your carts could not be combined. Guest items were retained. Review the saved cart before checkout.')
     }
-    
-    // Get existing users
-    const usersStr = localStorage.getItem('mockUsers');
-    const users = usersStr ? JSON.parse(usersStr) : [];
-
-    if (isRegistering) {
-      // Check if user already exists
-      if (email === 'admin@brightbuy.com' || users.find((u: any) => u.email === email)) {
-        setError('An account with this email already exists.');
-        return;
-      }
-      // Create new user
-      users.push({ email, password });
-      localStorage.setItem('mockUsers', JSON.stringify(users));
-      // Auto-login after registration
-      onLogin('user', email);
-    } else {
-      // Handle Login
-      if (email === 'admin@brightbuy.com' && password === 'admin123') {
-        onLogin('admin', email);
-        return;
-      } 
-      
-      const user = users.find((u: any) => u.email === email && u.password === password);
-      if (user) {
-        onLogin('user', email);
-      } else {
-        setError('Invalid email or password.');
-      }
-    }
-  };
-
-  return (
-    <div className="login-container">
-      <div className="login-left">
-        <div className="login-branding">
-          <div className="login-logo-icon">b.</div>
-          <span className="login-logo-text">BrightBuy</span>
-        </div>
-        <div className="login-quote-container">
-          <h1 className="login-heading">Welcome to BrightBuy</h1>
-          <p className="login-quote">
-            "This platform has completely transformed how I manage my everyday shopping. Good finds, everyday possibilities."
-          </p>
-          <p className="login-author">~ Happy Customer</p>
-        </div>
-      </div>
-      
-      <div className="login-right">
-        <div className="login-form-container">
-          <h2 className="login-title">{isRegistering ? 'Create an Account' : 'Sign In to Your Account'}</h2>
-          <p className="login-subtitle">
-            {isRegistering ? 'Enter your details to create a new account' : 'Enter your email and password to continue'}
-          </p>
-          
-          {error && <div className="login-error">{error}</div>}
-          
-          <form className="login-form" onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="email">Email Address</label>
-              <input 
-                id="email" 
-                type="email" 
-                placeholder="you@example.com" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input 
-                id="password" 
-                type="password" 
-                placeholder="••••••••" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-            
-            <button type="submit" className="login-submit-btn">
-              {isRegistering ? 'Create Account' : 'Login'}
-            </button>
-          </form>
-          
-          <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '0.9rem' }}>
-            {isRegistering ? (
-              <p style={{ color: '#64748b' }}>
-                Already have an account?{' '}
-                <button 
-                  onClick={() => { setIsRegistering(false); setError(''); }}
-                  style={{ background: 'none', border: 'none', color: '#0f172a', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}
-                >
-                  Sign In
-                </button>
-              </p>
-            ) : (
-              <p style={{ color: '#64748b' }}>
-                Don't have an account?{' '}
-                <button 
-                  onClick={() => { setIsRegistering(true); setError(''); }}
-                  style={{ background: 'none', border: 'none', color: '#0f172a', fontWeight: 'bold', cursor: 'pointer', padding: 0 }}
-                >
-                  Create one
-                </button>
-              </p>
-            )}
-          </div>
-          
-          <div className="login-demo-hint">
-            <p><strong>Admin Access:</strong> admin@brightbuy.com / admin123</p>
-            <p><strong>User Access:</strong> Create a new account to test</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+   } else localStorage.removeItem('currentUserEmail')
+   localStorage.removeItem('role');localStorage.removeItem('mockUsers')
+   window.location.assign('/catalogue.html')
+  } catch {setError(register?'Registration or login failed. Try another email or check your details.':'Sign-in failed. Check your credentials and account type.')}
+  finally{setBusy(false)}
+ }
+ return <main className="login-container"><section className="login-left"><div className="login-branding"><div className="login-logo-icon">b.</div><span className="login-logo-text">BrightBuy</span></div><h1>{register?'Create customer account':'Sign in'}</h1><p>Good finds. Everyday possibilities.</p></section><section className="login-right"><div className="login-form-container">
+  <h2 className="login-title">{register?'Create customer account':'Sign in'}</h2>
+  <form className="login-form" onSubmit={submit}>
+   {register&&<><label>First name<input name="firstName" required maxLength={100}/></label>
+    <label>Last name<input name="lastName" required maxLength={100}/></label></>}
+   <label>Email<input name="email" type="email" required autoComplete="username" maxLength={150}/></label>
+   <label>Password<input name="password" type="password" required minLength={register?8:1} maxLength={72} autoComplete={register?'new-password':'current-password'}/></label>
+   {!register&&<label>Account type<select name="accountType"><option value="CUSTOMER">Customer</option><option value="EMPLOYEE">Employee</option></select></label>}
+   {error&&<p role="alert">{error}</p>}<button disabled={busy}>{busy?'Please wait…':register?'Register and sign in':'Sign in'}</button>
+  </form><button onClick={()=>{setRegister(!register);setError('')}}>{register?'Already registered? Sign in':'Create an account'}</button>
+  <p><a href="/catalogue.html">Browse without signing in</a></p>
+ </div></section></main>
 }

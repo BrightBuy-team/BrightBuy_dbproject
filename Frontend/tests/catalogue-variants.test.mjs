@@ -66,6 +66,6 @@ test('in-stock variants can be added to the cart but never place an order', () =
   assert.match(html, /<button[^>]*>Add to Cart/)
   assert.doesNotMatch(html, /<button[^>]*disabled=""[^>]*>Add to Cart/)
   assert.match(html, /aria-describedby="catalogue-cart-note"/)
-  assert.match(html, /class="catalogue-cart-result[^"]*" role="status"><\/p>/)
+  assert.match(html, /class="catalogue-cart-result[^"]*" role="status" aria-live="polite"><\/p>/)
   assert.doesNotMatch(html, /Buy Now|Processing|Checkout completed|Cart integration is not available/)
 })

@@ -1,10 +1,13 @@
+import { apiBase,apiRequest } from '../catalogue/client'
+import { requestSession } from '../catalogue/session'
+import { formatPrice } from '../catalogue/search'
 import { useState, useEffect } from 'react';
 
 // Define the Variant interface matching our Java Backend
 interface Variant {
   variantId: number;
   productId: number;
-  sku: string;
+  variantName: string;
   stockQuantity: number;
   price: number;
 }
@@ -13,76 +16,34 @@ export default function InventoryApp() {
   const [variants, setVariants] = useState<Variant[]>([]);
   const [lowStockVariants, setLowStockVariants] = useState<Variant[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin] = useState(localStorage.getItem('role') === 'admin');
-
-  // Function to fetch all data from our Java Backend
-  const fetchData = async () => {
-    try {
-      // 1. Fetch all variants
-      const variantsRes = await fetch('http://localhost:8080/api/inventory/variants');
-      const variantsData = await variantsRes.json();
-      setVariants(variantsData);
-
-      // 2. Fetch low stock items (threshold = 10)
-      const lowStockRes = await fetch('http://localhost:8080/api/inventory/low-stock?threshold=10');
-      const lowStockData = await lowStockRes.json();
-      setLowStockVariants(lowStockData);
-
-      setLoading(false);
-    } catch (error) {
-      console.error("Error connecting to backend:", error);
-      setLoading(false);
-    }
-  };
-
-  // Run this once when the page loads
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  // Function to update stock quantity
-  const handleUpdateStock = async (variantId: number, currentStock: number) => {
-    const newStockStr = prompt(`Enter new stock quantity for Variant #${variantId}:`, currentStock.toString());
-    if (newStockStr === null) return; // User cancelled
-
-    const newStock = parseInt(newStockStr, 10);
-    if (isNaN(newStock) || newStock < 0) {
-      alert("Please enter a valid positive number.");
-      return;
-    }
-
-    try {
-      // Send the PUT request to our Java Backend
-      const res = await fetch(`http://localhost:8080/api/inventory/variants/${variantId}/stock?quantity=${newStock}`, {
-        method: 'PUT'
-      });
-
-      if (res.ok) {
-        // Refresh the data to show the new stock and trigger your SQL Audit table!
-        fetchData();
-        alert("Stock updated successfully!");
-      } else {
-        alert("Failed to update stock.");
-      }
-    } catch (error) {
-      console.error("Error updating stock:", error);
-    }
-  };
-
-  if (!isAdmin) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', fontFamily: 'sans-serif', backgroundColor: '#f8fafc', textAlign: 'center', padding: '2rem' }}>
-        <h1 style={{ color: '#ef4444', fontSize: '3rem', marginBottom: '1rem' }}>Access Denied</h1>
-        <p style={{ fontSize: '1.2rem', color: '#64748b', marginBottom: '2rem' }}>You do not have permission to view the warehouse inventory. Admin access is required.</p>
-        <a href="/" style={{ padding: '1rem 2rem', backgroundColor: '#0f172a', color: 'white', textDecoration: 'none', borderRadius: '8px', fontWeight: 'bold' }}>Return to Home</a>
-      </div>
-    );
+  const [error,setError]=useState('')
+  const [busy,setBusy]=useState(false)
+  const [allowed,setAllowed]=useState(false)
+  const base=apiBase('inventory')
+  async function fetchData(){
+    const [all,low]=await Promise.all([apiRequest<Variant[]>(base+'/variants'),apiRequest<Variant[]>(base+'/low-stock?threshold=10')])
+    setVariants(all);setLowStockVariants(low)
   }
-
-  if (loading) {
-    return <div className="loading">Connecting to Backend...</div>;
+  useEffect(()=>{
+    const c=new AbortController()
+    requestSession(apiBase('auth'),c.signal).then(async user=>{
+      if(user?.accountType!=='EMPLOYEE'||!['WarehouseStaff','Admin'].includes(user.role))
+        throw new Error('Sign in with a warehouse staff or admin account.')
+      const [all,low]=await Promise.all([apiRequest<Variant[]>(base+'/variants',{signal:c.signal}),apiRequest<Variant[]>(base+'/low-stock?threshold=10',{signal:c.signal})])
+      if(!c.signal.aborted){setVariants(all);setLowStockVariants(low);setAllowed(true);setLoading(false)}
+    }).catch(e=>{if(!c.signal.aborted){setError((e as Error).message);setLoading(false)}})
+    return ()=>c.abort()
+  },[base])
+  async function handleUpdateStock(variantId:number,currentStock:number){
+    const value=prompt('New stock quantity for variant #'+variantId,currentStock.toString())
+    if(value===null)return
+    if(!/^\\d+$/.test(value.trim())||!Number.isSafeInteger(Number(value))||Number(value)>2147483647){setError('Enter a non-negative whole number within the database range.');return}
+    setBusy(true);setError('')
+    try{await apiRequest(base+'/variants/'+variantId+'/stock?quantity='+Number(value),{method:'PUT'});await fetchData()}
+    catch(e){setError((e as Error).message)}finally{setBusy(false)}
   }
-
+  if(loading)return <main><p role="status">Checking staff session…</p></main>
+  if(!allowed)return <main><h1>Inventory access</h1><p role="alert">{error}</p><a href="/?view=login">Sign in</a></main>
   return (
     <div className="dashboard-container">
       <header className="dashboard-header" style={{ position: 'relative' }}>
@@ -92,6 +53,7 @@ export default function InventoryApp() {
       </header>
 
       <main className="dashboard-content">
+        {error&&<p role="alert">{error}</p>}
         {/* Low Stock Alerts Section */}
         <section className="dashboard-section alerts-section">
           <h2><span className="icon">⚠️</span> Low Stock Alerts</h2>
@@ -108,11 +70,11 @@ export default function InventoryApp() {
               {lowStockVariants.map(variant => (
                 <div key={variant.variantId} className="glass-card alert-card">
                   <div className="card-header">
-                    <h3>SKU: {variant.sku}</h3>
+                    <h3>Variant: {variant.variantName}</h3>
                     <span className="badge critical">Stock: {variant.stockQuantity}</span>
                   </div>
                   <p>Product ID: {variant.productId}</p>
-                  <button className="btn btn-alert" onClick={() => handleUpdateStock(variant.variantId, variant.stockQuantity)}>
+                  <button className="btn btn-alert" disabled={busy} onClick={() => handleUpdateStock(variant.variantId, variant.stockQuantity)}>
                     Restock Now
                   </button>
                 </div>
@@ -129,7 +91,7 @@ export default function InventoryApp() {
               <thead>
                 <tr>
                   <th>Variant ID</th>
-                  <th>SKU</th>
+                  <th>Variant</th>
                   <th>Product ID</th>
                   <th>Price</th>
                   <th>Stock Quantity</th>
@@ -145,16 +107,16 @@ export default function InventoryApp() {
                   variants.map(variant => (
                     <tr key={variant.variantId}>
                       <td>#{variant.variantId}</td>
-                      <td className="sku-cell">{variant.sku}</td>
+                      <td className="sku-cell">{variant.variantName}</td>
                       <td>{variant.productId}</td>
-                      <td>${variant.price.toFixed(2)}</td>
+                      <td>{formatPrice(variant.price)}</td>
                       <td>
                         <span className={`stock-indicator ${variant.stockQuantity < 10 ? 'low' : 'good'}`}>
                           {variant.stockQuantity}
                         </span>
                       </td>
                       <td>
-                        <button className="btn btn-primary" onClick={() => handleUpdateStock(variant.variantId, variant.stockQuantity)}>
+                        <button className="btn btn-primary" disabled={busy} onClick={() => handleUpdateStock(variant.variantId, variant.stockQuantity)}>
                           Update Stock
                         </button>
                       </td>

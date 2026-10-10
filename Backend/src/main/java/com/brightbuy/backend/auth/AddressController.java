@@ -27,7 +27,7 @@ public class AddressController {
         if (user == null || user.id() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
         }
-        return addressRepository.getAddress(user.id());
+        return addressRepository.getAddress(Access.customer(user));
     }
 
     @PutMapping
@@ -35,7 +35,7 @@ public class AddressController {
         if (user == null || user.id() == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
         }
-        addressRepository.updateAddress(user.id(), request.addressLine(), request.cityId());
+        addressRepository.updateAddress(Access.customer(user), request.addressLine(), request.cityId());
     }
 
     public record AddressRequest(
@@ -49,4 +49,3 @@ public class AddressController {
             String cityName 
     ) {}
 }
-

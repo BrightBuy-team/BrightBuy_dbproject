@@ -12,13 +12,13 @@ export default function CatalogueFooter({ email = import.meta.env.VITE_BRIGHTBUY
     </section>
     <section aria-labelledby="footer-delivery-heading">
       <h2 id="footer-delivery-heading">Delivery policy</h2>
-      <p>Standard Delivery is limited to Texas. Store Pickup is also a planned option.</p>
+      <p>Standard Delivery is limited to Texas. Store Pickup is also available.</p>
       <p>Delivery estimates depend on destination and stock availability. Store Pickup does not use city-based estimates.</p>
     </section>
     <section aria-labelledby="footer-payment-heading">
       <h2 id="footer-payment-heading">Payment methods</h2>
-      <p>Cash on Delivery and Card Payment are the planned checkout methods. All prices are in USD.</p>
-      <p className="catalogue-footer-pending">You can add items to your cart, but the cart page and checkout are not available yet; this catalogue cannot accept orders or payments.</p>
+      <p>Cash on Delivery is available. Card Payment remains disabled until the gateway is connected. Prices are shown in USD.</p>
+      <p className="catalogue-footer-pending">You can review items in your cart. Checkout requires a confirmed account session; adding an item does not place an order or take payment.</p>
     </section>
   </footer>
 }

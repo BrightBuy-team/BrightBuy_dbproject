@@ -30,163 +30,34 @@ The reporting module requires these exact names:
 - `product_category.product_id`
 - `product_category.category_id`
 
-## Execution Order
+## Current combined installation — 2026-10-09
 
-The sequence below is for a fresh, disposable development/test instance,
-starting in `Database/Catalogue`. It is **not yet an unattended full-project
-installer**: inventory and checkout DDL have dependencies described below.
-Select `brightbuy` explicitly when executing inventory and checkout scripts,
-which do not contain their own `USE` statement. Use a client that stops on the
-first error; do not use `--force` or blindly continue after a failed script.
-
-1. `00_create_database.sql`
-2. `01_catalogue_tables.sql`
-3. `02_catalogue_indexes.sql`
-4. `03_catalogue_seed_data.sql`
-5. `../Inventory/Inventory_Delivery_DDL.sql` — only after resolving the DDL
-   dependency cycle described below. Do not execute the entire file blindly.
-
-   Inventory creates city/warehouse/variant before delivery, which needs
-   orders. Checkout needs customer/city/variant and also creates delivery.
-   The owners must agree a split installation order and one delivery definition.
-   Catalogue does not create substitute auth or checkout tables.
-
-6. `../Inventory/Inventory_Delivery_sample_data.sql` (currently cities and warehouses only)
-7. `05_variant_integration.sql`
-8. `05b_catalogue_variant_seed.sql` (missing warehouse 3, original variants 1–5,
-   then the additional 43 variants; existing matching prices/stock preserved)
-9. `06_catalogue_procedures.sql`
-10. `04_catalogue_queries.sql`
-11. `07_catalogue_tests.sql`
-12. `08_catalogue_maintenance_procedures.sql`
-13. `09_catalogue_roles.sql` (as an administrator; creates roles, not accounts)
-14. `10_catalogue_explain.sql` (optional, read-only index evidence)
-
-The procedure installer (`06`) runs before the example calls in `04`, despite
-their numeric filenames. It can be reinstalled without changing catalogue data;
-it replaces one view and three routines. Install while application calls are paused.
-
-### Fresh-install blockers to resolve with the owners
-
-- **Inventory owner:** the merged DDL now fixes warehouse casing, generates
-  IDs automatically and enforces nonnegative stock. Historical test results
-  against the old schema do not establish compatibility with these changes.
-- **Auth owner:** the customer and employee schema is now in
-  `../User and Auth/user auth schema.sql`. It needs inventory's `city` table
-  first, and `../Checkout/01_checkout_schema.sql` needs `customer(customer_id)`
-  from it. The team has not yet agreed one combined order covering all modules.
-- **Checkout/inventory owners:** both DDL files define delivery and their
-  dependencies require a split setup order. Inventory's current variant and
-  delivery seed statements are commented out, so orders 101–104 are no longer
-  prerequisites for that seed. `../Checkout/03_checkout_seed_data.sql` repeats the seeded
-  `Electronics` category and `(1,1)` product/category mapping, and assumes IDs
-  rather than resolving the rows it inserts. It is not a compatible combined
-  seed for the catalogue dataset.
-- **Joint setup agreement:** establish compatible customer/order fixtures and
-  their dependencies before testing checkout or delivery. Do not partially run and then rerun the combined seed,
-  create duplicate teammate tables, disable foreign-key checks, or ignore errors.
-
-A failure in the shared seed can leave earlier city, warehouse and variant
-inserts committed. Stop and inspect that test instance with the relevant owner;
-blindly rerunning the entire seed can then fail on duplicate primary keys.
-
-Before step 6, run the optional read-only prerequisite diagnostic from
-`Database/Catalogue` (use connection settings for your disposable instance):
+Run from the project root, on a fresh disposable MySQL 8 instance:
 
 ```sh
-mysql -u root -p < tests/check_setup_prerequisites.sql
+bash Database/install_all.sh --docker YOUR_DISPOSABLE_CONTAINER
 ```
 
-It reports server/session settings, required base tables and checkout columns
-without changing data or creating helper routines. `BLOCK` means stop;
-`REVIEW` means manual verification is still needed. It prints diagnostic rows,
-not SQL errors: a zero client exit status does **not** mean setup is ready.
-Use an account with metadata visibility for all `brightbuy` tables. This check
-does not validate fixture rows, complete schema contracts or seed collisions;
-its order-fixture reminder is a legacy requirement, not a requirement of the
-current commented-out delivery seed. Owners must verify their actual fixtures.
-See [diagnostic checks](tests/README.md#read-only-setup-diagnostic) for details.
+The installer applies all five modules in dependency order and refuses an existing
+populated database. It stops at the first SQL error; never use `--force`.
+Inventory owns city/warehouse/variant; checkout owns the single delivery table.
+The installer keeps all monetary fixtures in USD, matching Azure and the SRS.
+`Integration/03_convert_currency_to_lkr.sql` is a historical opt-in script only;
+do not run it during normal setup or Azure deployment.
+Auth runs after city and before checkout. Catalogue audit/initial-variant routines
+(`11_catalogue_audit.sql`) run before catalogue role grants (`09`).
 
-### Merged inventory integration
+The full setup and the non-destructive existing-database upgrade order are in
+[the integration handoff](../../Docs/catalogue_integration_handoff.md).
+Do not run fresh table/seed installers against Azure or any shared existing DB.
+The older split-DDL dependency cycle has been resolved; prior milestone notes
+below are historical evidence, not the current installation recipe.
 
-The merged inventory now lives in `Database/Inventory/`. The old
-`Inventory & Delivery` path no longer exists. The catalogue bridge handles:
-
-- **Product FK:** keep one `variant.product_id` foreign key with
-  `ON UPDATE CASCADE`, restrictive deletion and non-null product references.
-  `05_variant_integration.sql` upgrades a matching default restrictive FK in
-  one ALTER, reuses an already-correct FK/index, and rejects wrong targets,
-  composite/duplicate FKs or unsafe deletion rules. Run with application writes
-  paused: DDL commits independently and the whole script is not transactional.
-- **Demo fixtures:** `05b` restores missing original variants 1–5 and warehouse
-  3 in the same transaction as the additional variants. It rejects identity
-  collisions and rolls back its inserts; it never overwrites existing matching
-  prices/stock. Products and warehouses 1–2 must already exist. These are
-  development fixtures, not a production inventory import.
-- **Checkout + inventory:** keep one definition of `delivery`, which both modules
-  currently define on that branch combination. Choose one stock-decrement
-  mechanism: `ProcessCheckout` already updates stock before inserting order
-  items, while the incoming `after_order_item_insert` trigger deducts it again.
-- **All owners:** agree the revised schema/seed/logic execution order and rerun
-  full-team integration tests, including audit-trigger side effects. Catalogue's
-  procedure suite now checks rejection of negative stock and filtering of NULL
-  stock without disabling inventory's CHECK.
-
-No teammate SQL is changed by this bridge. It is not a verified whole-project
-installer. See [bridge tests](tests/INVENTORY_BRIDGE.md). The existing 119-check
-record applies only to its documented schema, fixtures and MySQL settings.
-The current catalogue-only setup passed **126 assertions on MySQL 8.0.46**
-with case-sensitive table names on 2026-09-30; see that bridge-test guide for
-the exact image, commands and coverage limits.
-
-### MySQL CLI examples
-
-Use these only after the relevant blockers are resolved, with a fresh disposable
-instance selected by your MySQL connection settings (replace the username as
-needed). Paths containing spaces and `&` must stay quoted.
-
-First, run steps 1–5. The subshell exits on failure without closing your terminal:
-
-```sh
-(
-mysql -u root -p < 00_create_database.sql || exit 1
-for script in 01_catalogue_tables.sql 02_catalogue_indexes.sql \
-    03_catalogue_seed_data.sql "../Inventory/Inventory_Delivery_DDL.sql"; do
-    mysql -u root -p brightbuy < "$script" || exit 1
-done
-)
-```
-
-**Stop here until the owners' schema and order fixtures are ready.** Then run
-steps 6–11; do not run this second block if the first block or prerequisites failed:
-
-```sh
-(
-for script in "../Inventory/Inventory_Delivery_sample_data.sql" \
-    05_variant_integration.sql \
-    05b_catalogue_variant_seed.sql 06_catalogue_procedures.sql \
-    04_catalogue_queries.sql 07_catalogue_tests.sql; do
-    mysql -u root -p brightbuy < "$script" || exit 1
-done
-)
-```
-
-`01` and `02` are one-time setup scripts, not migrations for existing tables.
-Do not drop an existing database to apply them. The inventory DDL and sample
-data are also one-time scripts. Catalogue seed (`03`) and integration (`05`)
-can be rerun after successful setup. The seed reserves category IDs 1–10 and
-product IDs 1–40 for these fixtures; run it against the agreed development data,
-not arbitrary existing catalogue records. It restores products 1–39 to active,
-keeps product 40 inactive and removes the four incorrect mappings from the
-original placeholder seed.
-
-The seed uses a transaction; after any error, roll it back or disconnect before
-continuing. Integration uses DDL, which commits independently: it is not an
-atomic migration. Run it while catalogue/inventory writes are paused. It checks
-all existing variants, reuses a supporting index, rejects incompatible foreign
-keys, sets `product_id` to `NOT NULL`, and creates the agreed foreign key.
-If integration fails, correct the reported issue and rerun `05`; its helper
-procedure is removed on success or replaced on the next run.
+For an existing schema, owners must review invalid NULL/negative variant values,
+duplicate delivery/payment rows, and backup data before running
+`Database/Integration/01_schema_upgrade.sql`. It never repairs or deletes rows.
+DDL is not transactionally reversible; pause application writes and restore a
+backup if needed. Routine/role reinstall instructions are in the handoff.
 
 ## Milestone 2 dataset and upgrade
 
@@ -300,7 +171,15 @@ inventory and auth owners.
 - Inactive products are hidden using `is_active`.
 - Every final product must have at least one category and variant.
 
-## Current Progress
+## Current verification — 2026-10-09
+
+The full fresh installer succeeded on MySQL 8.0.46, including case-sensitive table names.
+32 foundation, 67 read-procedure, 41 maintenance and 8 checkout assertions passed.
+Catalogue maintenance now has a staff API/UI and audit triggers; new products receive
+an initial category and variant in one transaction. Staff uses authenticated employee
+actors, and checkout stock audits use the authenticated customer actor.
+
+## Historical progress checklist
 
 - [x] Database initialization
 - [x] Catalogue tables
@@ -402,7 +281,9 @@ only the inventory portion of the shared seed; checkout/delivery setup remains
 unverified. See [the Docker validation record](tests/MYSQL8_DOCKER.md) for the
 pinned image, exact scope, connection commands and reproducible setup.
 
-## Known External Issues
+## Historical external issue notes (superseded where noted)
+
+Current release dependencies are listed in [the integration handoff](../../Docs/catalogue_integration_handoff.md). Older issues below record previous milestones, not a claim that the current local setup is blocked.
 
 Checked against `main` on 2026-10-08. No teammate file was edited here.
 

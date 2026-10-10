@@ -64,21 +64,30 @@ BEGIN
 
     -- EXISTS avoids duplicate products with multiple category assignments.
     -- Aggregate ONLY matching variants: price and stock must match one row.
-    WITH matches AS (
+    -- Separate FULLTEXT from substring matching so MySQL can use the FULLTEXT
+    -- index. Putting MATCH inside an OR evaluated it for every joined variant.
+    -- UNION retains the same keyword semantics and deduplicates candidate IDs.
+    WITH keyword_products AS (
+        SELECT product_id FROM product WHERE search_keyword IS NULL
+        UNION
+        SELECT product_id FROM product WHERE search_keyword IS NOT NULL
+          AND MATCH(name, description) AGAINST(search_keyword IN NATURAL LANGUAGE MODE) > 0
+        UNION
+        SELECT product_id FROM product WHERE search_keyword IS NOT NULL
+          AND (LOCATE(search_keyword,name)>0
+            OR LOCATE(search_keyword,COALESCE(description,''))>0
+            OR LOCATE(search_keyword,sku)>0)
+    ), matches AS (
         SELECT p.product_id, p.sku, p.name, p.image_url, p.created_at,
                MIN(v.price) AS min_price, MAX(v.price) AS max_price,
                COUNT(*) AS matching_variant_count,
                SUM(v.stock_quantity) AS matching_stock_quantity
         FROM product p
+        JOIN keyword_products k ON k.product_id = p.product_id
         JOIN catalogue_public_variants v ON v.product_id = p.product_id
         WHERE (p_min_price IS NULL OR v.price >= p_min_price)
           AND (p_max_price IS NULL OR v.price <= p_max_price)
           AND (p_in_stock_only = 0 OR v.stock_quantity > 0)
-          AND (search_keyword IS NULL
-               OR MATCH(p.name, p.description) AGAINST(search_keyword IN NATURAL LANGUAGE MODE) > 0
-               OR LOCATE(search_keyword, p.name) > 0
-               OR LOCATE(search_keyword, COALESCE(p.description, '')) > 0
-               OR LOCATE(search_keyword, p.sku) > 0)
           AND (p_category_id IS NULL OR EXISTS (
               SELECT 1 FROM product_category pc
               JOIN category c ON c.category_id = pc.category_id

@@ -1,104 +1,110 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import {
-  CART_STORAGE_KEY, addToCart, cartHref, cartUnitCount, checkoutItems, clearCart, decodeCart, readCart,
-} from '../src/catalogue/cart.ts'
+import { addCatalogueItem, catalogueCartQuantity, decodeCatalogueCart } from '../src/catalogue/cartHandoff.ts'
 
-function storage(initial) {
-  const values = new Map(initial === undefined ? [] : [[CART_STORAGE_KEY, initial]])
-  return {
-    getItem: key => values.get(key) ?? null,
-    setItem: (key, value) => { values.set(key, value) },
-    removeItem: key => { values.delete(key) },
-  }
+const phone = { variantId: 7, quantity: 2, productId: 3, productName: 'Demo phone',
+  variantLabel: 'Phone · Black', price: '199.50', stockQuantity: 5 }
+function bridge(initial = []) {
+  let cart = initial
+  return { read: () => cart, add(item) {
+    const existing = cart.find(line => line.variantId === item.variantId)
+    if (existing) existing.quantity += item.quantity
+    else cart.push({ ...item })
+  } }
 }
-const phone = { variantId: 7, quantity: 2, productId: 3, productName: 'Demo phone', variantLabel: 'Phone · Black', unitPrice: 199.5 }
-const speaker = { variantId: 9, quantity: 1, productId: 4, productName: 'Demo speaker', variantLabel: 'Speaker', unitPrice: 49 }
 
-test('a new cart is empty and adding an item stores one line', () => {
-  const store = storage()
-  assert.deepEqual(readCart(store), [])
-  const result = addToCart(phone, 5, store)
-  assert.equal(result.ok, true)
-  assert.equal(result.lineQuantity, 2)
-  assert.deepEqual(readCart(store), [phone])
-  assert.deepEqual(JSON.parse(store.getItem(CART_STORAGE_KEY)), [phone])
+test('catalogue hands the current display snapshot to the shared cart', () => {
+  const cart = bridge()
+  assert.equal(addCatalogueItem(phone, cart).ok, true)
+  assert.deepEqual(cart.read(), [phone])
+  assert.equal(catalogueCartQuantity(cart), 2)
 })
-test('adding the same variant merges quantity and refreshes the display snapshot', () => {
-  const store = storage()
-  addToCart(phone, 5, store)
-  const result = addToCart({ ...phone, quantity: 3, unitPrice: 189 }, 5, store)
-  assert.equal(result.ok, true)
-  assert.deepEqual(readCart(store), [{ ...phone, quantity: 5, unitPrice: 189 }])
-})
-test('different variants become separate lines and units are totalled', () => {
-  const store = storage()
-  addToCart(phone, 5, store)
-  addToCart(speaker, 1, store)
-  assert.deepEqual(readCart(store).map(line => line.variantId), [7, 9])
-  assert.equal(cartUnitCount(readCart(store)), 3)
-  assert.equal(cartUnitCount([]), 0)
-})
-test('quantity beyond the stock shown is rejected and the cart is unchanged', () => {
-  const store = storage()
-  assert.deepEqual(addToCart({ ...phone, quantity: 6 }, 5, store), { ok: false, message: 'Only 5 units are currently available.' })
-  assert.deepEqual(readCart(store), [])
-  addToCart({ ...phone, quantity: 4 }, 5, store)
-  const result = addToCart({ ...phone, quantity: 2 }, 5, store)
+test('adding an existing variant counts all units already in the cart', () => {
+  const cart = bridge([{ ...phone }])
+  assert.equal(addCatalogueItem({ ...phone, quantity: 3 }, cart).ok, true)
+  assert.equal(catalogueCartQuantity(cart), 5)
+  const result = addCatalogueItem({ ...phone, quantity: 1 }, cart)
   assert.equal(result.ok, false)
-  assert.match(result.message, /already has 4 of this variant\. Only 5 are currently available/)
-  assert.equal(readCart(store)[0].quantity, 4)
-  assert.equal(addToCart(phone, 0, store).ok, false)
+  assert.match(result.message, /already has 5.*Only 5/)
+  assert.equal(catalogueCartQuantity(cart), 5)
 })
-test('invalid items and stock values are rejected', () => {
-  const store = storage()
-  for (const item of [{ ...phone, quantity: 0 }, { ...phone, quantity: 1.5 }, { ...phone, quantity: -1 },
-    { ...phone, variantId: 0 }, { ...phone, variantId: '7' }, { ...phone, productName: ' ' },
-    { ...phone, unitPrice: -1 }, { ...phone, unitPrice: Number.NaN }, null]) {
-    assert.equal(addToCart(item, 5, store).ok, false)
-  }
-  for (const stock of [-1, 1.5, Number.NaN, '5']) assert.equal(addToCart(phone, stock, store).ok, false)
-  assert.deepEqual(readCart(store), [])
+test('different variants remain separate lines with a total unit count', () => {
+  const cart = bridge([{ ...phone }])
+  assert.equal(addCatalogueItem({ ...phone, variantId: 9, quantity: 1 }, cart).ok, true)
+  assert.equal(cart.read().length, 2)
+  assert.equal(catalogueCartQuantity(cart), 3)
 })
-test('corrupted or unexpected stored data is treated as an empty cart', () => {
-  for (const stored of ['', 'not json', '{}', 'null', '[1]', JSON.stringify([{ ...phone, quantity: 0 }]),
-    JSON.stringify([{ ...phone, variantId: '7' }]), JSON.stringify([phone, phone]),
-    JSON.stringify([{ variantId: 7, quantity: 1 }])]) {
-    assert.deepEqual(decodeCart(stored), [], stored)
-    assert.deepEqual(readCart(storage(stored)), [], stored)
-  }
-  assert.deepEqual(decodeCart(null), [])
-  assert.deepEqual(decodeCart(JSON.stringify([{ ...phone, extra: '<script>' }])), [phone])
-})
-test('a full cart refuses further lines but still merges existing ones', () => {
-  const lines = Array.from({ length: 100 }, (_, index) => ({ ...phone, variantId: index + 1 }))
-  const store = storage(JSON.stringify(lines))
-  assert.match(addToCart({ ...phone, variantId: 500 }, 5, store).message, /cart is full/)
-  assert.equal(addToCart({ ...phone, variantId: 1, quantity: 1 }, 5, store).ok, true)
-})
-test('storage failures are reported instead of thrown', () => {
-  const blocked = { getItem() { throw new Error('blocked') }, setItem() { throw new Error('blocked') }, removeItem() { throw new Error('blocked') } }
-  assert.deepEqual(readCart(blocked), [])
-  const result = addToCart(phone, 5, blocked)
+test('an old stock snapshot cannot produce a line exceeding the cart UI maximum', () => {
+  const cart = bridge([{ ...phone, stockQuantity: 2 }])
+  const result = addCatalogueItem({ ...phone, quantity: 1, stockQuantity: 5 }, cart)
   assert.equal(result.ok, false)
-  assert.match(result.message, /blocked saving the cart/)
-  assert.doesNotThrow(() => clearCart(blocked))
+  assert.match(result.message, /stock shown has changed/)
+  assert.equal(catalogueCartQuantity(cart), 2)
 })
-test('clearing removes the stored cart', () => {
-  const store = storage()
-  addToCart(phone, 5, store)
-  clearCart(store)
-  assert.equal(store.getItem(CART_STORAGE_KEY), null)
-  assert.deepEqual(readCart(store), [])
+test('invalid quantities, snapshots and stock do not reach the shared add function', () => {
+  const cart = { read: () => [], add() { assert.fail('invalid item was added') } }
+  for (const change of [{ quantity: 0 }, { quantity: 1.5 }, { quantity: -1 }, { quantity: 6 },
+    { variantId: 0 }, { variantId: '7' }, { productName: ' ' }, { price: '-1' }, { price: 'NaN' },
+    { stockQuantity: -1 }, { stockQuantity: 1.5 }, { stockQuantity: '5' }]) {
+    assert.equal(addCatalogueItem({ ...phone, ...change }, cart).ok, false)
+  }
 })
-test('checkout items carry only variant and quantity', () => {
-  assert.deepEqual(checkoutItems([phone, speaker]), [{ variantId: 7, quantity: 2 }, { variantId: 9, quantity: 1 }])
+test('unexpected or duplicate saved lines are refused without overwriting the cart', () => {
+  for (const saved of [null, {}, [1], [{ ...phone, quantity: 0 }], [{ ...phone, variantId: '7' }],
+    [phone, phone], [{ variantId: 7, quantity: 1 }]]) {
+    assert.equal(decodeCatalogueCart(saved), undefined)
+    const cart = { read: () => saved, add() { assert.fail('corrupt cart was overwritten') } }
+    assert.equal(catalogueCartQuantity(cart), 0)
+    assert.equal(addCatalogueItem(phone, cart).ok, false)
+  }
 })
-test('cart link accepts same-site paths and http addresses only', () => {
-  assert.equal(cartHref(' /cart.html '), '/cart.html')
-  assert.equal(cartHref('https://shop.example.com/cart'), 'https://shop.example.com/cart')
-  for (const value of [undefined, '', '  ', '//evil.example.com', 'javascript:alert(1)', 'cart.html',
-    'https://user:secret@example.com/cart', '/cart page', 'data:text/html,x']) {
-    assert.equal(cartHref(value), undefined, String(value))
+test('only agreed display fields are decoded', () => {
+  assert.deepEqual(decodeCatalogueCart([{ ...phone, extra: '<script>' }]), [phone])
+})
+test('a full cart rejects new lines and still accepts existing variants', () => {
+  const cart = bridge(Array.from({ length: 100 }, (_, index) => ({ ...phone, variantId: index + 1 })))
+  assert.match(addCatalogueItem({ ...phone, variantId: 500 }, cart).message, /cart is full/)
+  assert.equal(addCatalogueItem({ ...phone, variantId: 1, quantity: 1 }, cart).ok, true)
+})
+test('blocked cart reads and writes show a recoverable message', () => {
+  for (const cart of [{ read() { throw new Error('blocked') }, add() {} },
+    { read: () => [], add() { throw new Error('blocked') } }]) {
+    assert.equal(catalogueCartQuantity(cart), 0)
+    const result = addCatalogueItem(phone, cart)
+    assert.equal(result.ok, false)
+    assert.match(result.message, /browser blocked saving/)
+  }
+})
+test('default bridge uses the checkout storage keys and emits its update event without fetching', () => {
+  const originals = Object.fromEntries(['localStorage', 'sessionStorage', 'window', 'fetch'].map(key =>
+    [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
+  const saved = new Map()
+  let email = null
+  const events = []
+  try {
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: () => email } })
+    Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: {
+      getItem: key => saved.get(key) ?? null, setItem: (key, value) => saved.set(key, value),
+    } })
+    Object.defineProperty(globalThis, 'window', { configurable: true, value: { dispatchEvent: event => events.push(event.type) } })
+    Object.defineProperty(globalThis, 'fetch', { configurable: true, value() { assert.fail('Add to Cart must not contact checkout') } })
+    assert.equal(addCatalogueItem(phone).ok, true)
+    assert.deepEqual(JSON.parse(saved.get('brightbuy_cart_usd_v1_guest')), [phone])
+    assert.equal(catalogueCartQuantity(), 2)
+    email = 'customer@example.com'
+    assert.equal(catalogueCartQuantity(), 0)
+    saved.set('brightbuy_cart_customer@example.com', JSON.stringify([{...phone,price:'1.00'}]))
+    saved.set('brightbuy_cart_lkr_v1_customer@example.com', JSON.stringify([{...phone,price:'363726.91'}]))
+    assert.equal(catalogueCartQuantity(), 0, 'unversioned and LKR snapshots must not be reused as USD')
+    assert.equal(addCatalogueItem({ ...phone, quantity: 1 }).ok, true)
+    assert.equal(JSON.parse(saved.get('brightbuy_cart_usd_v1_customer@example.com'))[0].quantity, 1)
+    assert.equal(JSON.parse(saved.get('brightbuy_cart_customer@example.com'))[0].price,'1.00', 'legacy cart retained unchanged')
+    assert.equal(JSON.parse(saved.get('brightbuy_cart_lkr_v1_customer@example.com'))[0].price,'363726.91', 'LKR cart retained unchanged')
+    assert.deepEqual(events, ['cart-updated', 'cart-updated'])
+  } finally {
+    for (const [key, descriptor] of Object.entries(originals)) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor)
+      else delete globalThis[key]
+    }
   }
 })

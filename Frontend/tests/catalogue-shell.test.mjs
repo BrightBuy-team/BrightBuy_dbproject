@@ -20,6 +20,7 @@ after(() => vite.close())
 const { default: CategoryNavigation } = await vite.ssrLoadModule('/src/catalogue/CategoryNavigation.tsx')
 const { default: CatalogueFooter } = await vite.ssrLoadModule('/src/catalogue/CatalogueFooter.tsx')
 const { default: CatalogueHeader } = await vite.ssrLoadModule('/src/catalogue/CatalogueHeader.tsx')
+const { AccountStatusView } = await vite.ssrLoadModule('/src/catalogue/AccountStatus.tsx')
 const categories = [
   { category_id: 1, parent_category_id: null, name: 'Electronics' },
   { category_id: 4, parent_category_id: 1, name: 'Phones' },
@@ -41,10 +42,11 @@ test('header restores the applied keyword with accessible search controls', () =
   assert.match(html, /aria-invalid="false"/)
   assert.doesNotMatch(html, /role="alert"/)
 })
-test('header shows an empty cart count as text until a cart page is configured', () => {
+test('header links to the implemented cart with an accessible unit count', () => {
   const html = renderToStaticMarkup(createElement(CatalogueHeader, { query: defaultSearch, homeHref: '/' }))
-  assert.match(html, /<span class="catalogue-cart" role="status" aria-label="Cart, 0 items">Cart <span aria-hidden="true">\(0\)<\/span><\/span>/)
-  assert.doesNotMatch(html, /<a class="catalogue-cart"/)
+  assert.match(html, /href="\?view=cart" aria-label="Cart, 0 items"/)
+  assert.match(html, /id="cart-count">0/)
+  assert.match(html, /aria-label="Account status"/)
 })
 test('a fresh header escapes keyword text and starts without a stale error', () => {
   const html = renderToStaticMarkup(createElement(CatalogueHeader, {
@@ -87,12 +89,23 @@ test('untrusted category text is escaped', () => {
   assert.match(html, /&lt;script&gt;/)
   assert.doesNotMatch(html, /<script>/)
 })
-test('footer includes SRS delivery/payment information without implying live checkout', () => {
+test('footer includes SRS policy and distinguishes adding items from placing orders', () => {
   const html = footer('')
   for (const text of ['Delivery policy', 'Texas', 'Store Pickup', 'Payment methods',
-    'Cash on Delivery', 'Card Payment', 'USD', 'cannot accept orders or payments']) assert.ok(html.includes(text), text)
+    'Cash on Delivery', 'Card Payment', 'USD', 'Checkout requires a confirmed account session',
+    'adding an item does not place an order']) assert.ok(html.includes(text), text)
   assert.doesNotMatch(html, /mailto:|tel:|Free shipping/)
   assert.match(html, /Contact details will be published when confirmed/)
+})
+
+test('catalogue account status is based on a confirmed session and never assumes mock login', () => {
+  const render = props => renderToStaticMarkup(createElement(AccountStatusView, { loading: false, retry() {}, ...props }))
+  assert.match(render({ data: null }), /Not signed in/)
+  assert.match(render({ error: 'Failed' }), /Account status unavailable/)
+  assert.match(render({ loading: true }), /Checking account/)
+  const html = render({ data: { id: 1, email: 'customer@example.com', role: 'Customer', accountType: 'CUSTOMER' } })
+  assert.match(html, /Signed in as customer@example.com/)
+  assert.doesNotMatch(html, /Logout|admin123|Account pages pending/)
 })
 test('configured contact email is a usable mail link', () => {
   assert.match(footer('help@example.com'), /href="mailto:help@example.com"/)
