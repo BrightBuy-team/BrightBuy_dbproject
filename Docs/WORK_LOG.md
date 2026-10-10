@@ -88,6 +88,23 @@ One pass over the whole project to finish the remaining requirements and tidy th
 the running application, installer refusal and upgrade, backup and restore, and
 least-privilege checks. An upgrade from the previous release was tested separately.
 
+## Alignment with the project brief — 10 Oct
+
+A check against the lecturer's brief found two differences, both now closed.
+
+- **Out of stock at the time of order.** The brief adds 3 days to the delivery estimate for
+  such an order, so it must be possible to place one. Checkout used to refuse it. Now
+  `ProcessCheckout` takes the units in stock, records the rest in the new column
+  `order_item.backordered_quantity`, and applies the 3-day delay. Stock never goes below
+  zero. The shop pages let a customer order an out-of-stock item and say what is back-ordered;
+  the delivery preview takes quantities into account. This replaces SRS rules BR-7 and SAF-3.
+- **One central warehouse.** The sample data used three warehouses. It now has one, new
+  variants go to it automatically, and the upgrade script consolidates an existing database.
+- **Assumptions** are listed in one table in `Database/README.md`.
+
+Verified with `scripts/verify-project.sh`: 200 frontend tests, 145 backend unit tests, 276
+SQL assertions, 127 HTTP checks, and an upgrade from the previous release.
+
 ## Open items
 
 | Item | Why it is open |

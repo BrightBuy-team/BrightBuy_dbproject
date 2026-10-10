@@ -2,6 +2,7 @@ package com.brightbuy.backend.delivery;
 
 import java.sql.Date;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,11 +28,18 @@ public class DeliveryRepository {
 
     /**
      * The estimate shown before ordering, from the database function that owns the rule (BR-8):
-     * the city plus the current stock of the given variants. Empty for an unknown city.
+     * the city, plus three days when a line asks for more than is in stock. Empty for an unknown
+     * city.
+     *
+     * @param quantities the wanted quantity of each variant, in the same order
      */
-    public Optional<LocalDate> previewDate(int cityId, List<Integer> variantIds) {
+    public Optional<LocalDate> previewDate(int cityId, List<Integer> variantIds, List<Integer> quantities) {
+        List<Map<String, Integer>> cart = new ArrayList<>();
+        for (int index = 0; index < variantIds.size(); index++) {
+            cart.add(Map.of("variantId", variantIds.get(index), "quantity", quantities.get(index)));
+        }
         Date date = jdbc.queryForObject("SELECT fn_delivery_preview_date(?, ?)", Date.class,
-                cityId, mapper.writeValueAsString(variantIds));
+                cityId, mapper.writeValueAsString(cart));
         return Optional.ofNullable(date).map(Date::toLocalDate);
     }
 

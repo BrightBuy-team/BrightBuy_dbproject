@@ -7,6 +7,7 @@ import OrderDetails from './OrderDetails'
 import type { Order } from './OrderDetails'
 import { formatPrice } from './search'
 import { requestSession } from './session'
+import { backorderNote } from './variants'
 import type { SessionUser } from './session'
 
 type City = { cityId: number; name: string; isMainCity: boolean }
@@ -30,6 +31,8 @@ export default function CheckoutView({ onBack }: { onBack: () => void }) {
   const submitting = useRef(false)
   const cart = snapshot.items
   const variantIds = cart.map(item => item.variantId).join(',')
+  const quantities = cart.map(item => item.quantity).join(',')
+  const backordered = cart.filter(item => backorderNote(item.quantity, item.stockQuantity))
   const units = cart.reduce((count, item) => count + item.quantity, 0)
 
   useEffect(() => {
@@ -48,17 +51,17 @@ export default function CheckoutView({ onBack }: { onBack: () => void }) {
     return () => controller.abort()
   }, [])
 
-  // The date shown before ordering (UI-8): 5 or 7 days, plus 3 if anything is out of stock.
+  // The date shown before ordering (UI-8): 5 or 7 days, plus 3 if a line asks for more than is in stock.
   useEffect(() => {
     if (mode !== 'delivery' || !cityId || !variantIds) return
     const controller = new AbortController()
     apiRequest<{ estimated_delivery_date: string }>(
-      `${apiBase('delivery')}/preview?${new URLSearchParams({ cityId, variantIds })}`, { signal: controller.signal })
+      `${apiBase('delivery')}/preview?${new URLSearchParams({ cityId, variantIds, quantities })}`, { signal: controller.signal })
       .then(result => setEstimate(new Intl.DateTimeFormat(undefined, { dateStyle: 'full' })
         .format(new Date(`${result.estimated_delivery_date}T00:00:00`))))
       .catch(() => { if (!controller.signal.aborted) setEstimate('') })
     return () => { controller.abort(); setEstimate('') }
-  }, [mode, cityId, variantIds])
+  }, [mode, cityId, variantIds, quantities])
 
   function refusalMessage(failure: unknown): string {
     if (!(failure instanceof ApiError)) return (failure as Error).message
@@ -69,7 +72,6 @@ export default function CheckoutView({ onBack }: { onBack: () => void }) {
       case 'CARD_DECLINED': return 'Your card was declined, so no order was placed. Try another card or choose cash on delivery.'
       case 'INVALID_CARD': return 'The card details were not accepted. Check the number, expiry date and security code.'
       case 'PAYMENT_GATEWAY_UNAVAILABLE': return 'Card payments are unavailable right now. Choose cash on delivery or try again later.'
-      case 'INSUFFICIENT_STOCK': return `There is no longer enough stock${names ? ` for ${names}` : ''}. Nothing was charged. Lower the quantity in your cart and try again.`
       case 'ITEM_UNAVAILABLE': return `${names || 'An item in your cart'} can no longer be ordered. Nothing was charged. Remove it from your cart and try again.`
       case 'AUTHORISED_AMOUNT_MISMATCH': return 'A price changed while you were paying. Nothing was charged. Review your cart and try again.'
       case 'INVALID_DELIVERY_ADDRESS': return 'Choose a city and enter your delivery address.'
@@ -120,6 +122,8 @@ export default function CheckoutView({ onBack }: { onBack: () => void }) {
       : <form className="catalogue-form" onSubmit={checkout}>
         <p>{units} {units === 1 ? 'item' : 'items'} · Estimated total {formatPrice(cart.reduce((sum, item) => sum + Number(item.price) * item.quantity, 0))}.
           Prices and stock are checked again when you confirm.</p>
+        {backordered.length > 0 && <p role="status">Out of stock now: {backordered.map(item => `${item.productName} (${item.variantLabel})`).join(', ')}.
+          You can still order; what is missing is back-ordered and delivery takes 3 days longer.</p>}
         <label>Fulfilment<select value={mode} onChange={event => setMode(event.target.value)}>
           <option value="delivery">Delivery</option><option value="pickup">Store pickup</option></select></label>
         {mode === 'delivery' && <>

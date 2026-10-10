@@ -29,7 +29,7 @@ function adoptGuestCart(user: SessionUser) {
     const merged = mergeCartLines(readStoredCart(key), readStoredCart(guestCartKey))
     sessionStorage.setItem(key, JSON.stringify(merged.items))
     sessionStorage.removeItem(guestCartKey)
-    if (merged.adjusted) sessionStorage.setItem('brightbuy_cart_notice', 'Combined cart quantities were capped to the last known stock. Review before checkout; stock is not reserved.')
+    if (merged.adjusted) sessionStorage.setItem('brightbuy_cart_notice', 'Combined cart quantities were capped at the most one order may hold of an item. Review your cart before checkout.')
     else sessionStorage.removeItem('brightbuy_cart_notice')
   } catch {
     sessionStorage.setItem('brightbuy_cart_notice', 'You are signed in, but your carts could not be combined. Guest items were retained. Review the saved cart before checkout.')

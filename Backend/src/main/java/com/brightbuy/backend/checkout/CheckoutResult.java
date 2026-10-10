@@ -5,7 +5,7 @@ import java.util.List;
 /**
  * @param status                SUCCESS, or the reason the order was refused
  * @param orderId               the new order, on success
- * @param unavailableVariantIds for a stock conflict, the cart lines that cannot be supplied
+ * @param unavailableVariantIds for ITEM_UNAVAILABLE, the cart lines that are no longer sold
  */
 public record CheckoutResult(String status, Integer orderId, List<Integer> unavailableVariantIds) {
     public static CheckoutResult refused(String status) {

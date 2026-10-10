@@ -26,11 +26,15 @@ CREATE TABLE IF NOT EXISTS orders (
 
 -- Order lines keep the unit price paid at purchase time (BR-13). RESTRICT
 -- keeps catalogue maintenance from removing order history (SAF-6, BR-18).
+-- backordered_quantity is the part of the line that was not in stock when
+-- the order was placed: it was not taken from stock and follows later.
 CREATE TABLE IF NOT EXISTS order_item (
     order_id INT,
     variant_id INT,
     quantity INT NOT NULL CHECK (quantity > 0),
     unit_price DECIMAL(10,2) NOT NULL CHECK (unit_price >= 0),
+    backordered_quantity INT NOT NULL DEFAULT 0,
+    CONSTRAINT chk_order_item_backorder CHECK (backordered_quantity BETWEEN 0 AND quantity),
     PRIMARY KEY (order_id, variant_id),
     FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE RESTRICT,
     FOREIGN KEY (variant_id) REFERENCES variant(variant_id) ON DELETE RESTRICT

@@ -22,7 +22,10 @@ public record OrderSummary(
         String cardLastFour,
         List<Line> items) {
 
-    /** The unit price is the price paid at purchase time (BR-13). */
+    /**
+     * The unit price is the price paid at purchase time (BR-13). {@code backorderedQuantity} is
+     * the part of the line that was out of stock when the order was placed and follows later.
+     */
     public record Line(
             String productName,
             String productSku,
@@ -30,6 +33,7 @@ public record OrderSummary(
             String colour,
             String memorySize,
             Integer quantity,
+            Integer backorderedQuantity,
             BigDecimal unitPrice) {
     }
 }

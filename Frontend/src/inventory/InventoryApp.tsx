@@ -86,8 +86,7 @@ export default function InventoryApp() {
     if (editing) {
       void change(`${base}/variants/${editing.variantId}`, 'PUT', details, `Variant #${editing.variantId} updated.`)
     } else {
-      void change(base + '/variants', 'POST', { ...details, productId: Number(text('productId')),
-        warehouseId: text('warehouseId') ? Number(text('warehouseId')) : null, stock: Number(text('stock')) }, 'Variant added.')
+      void change(base + '/variants', 'POST', { ...details, productId: Number(text('productId')), stock: Number(text('stock')) }, 'Variant added.')
         .then(saved => { if (saved) form.reset() })
     }
   }
@@ -104,7 +103,7 @@ export default function InventoryApp() {
       <header className="dashboard-header">
         <a className="dashboard-back" href="/">← Back to Home</a>
         <h1>BrightBuy <span>Warehouse</span></h1>
-        <p>Inventory Management System · <a href="/catalogue.html?view=staff">Products and categories</a> · <button className="btn" onClick={signOut}>Sign out</button></p>
+        <p>Central warehouse inventory · <a href="/catalogue.html?view=staff">Products and categories</a> · <button className="btn" onClick={signOut}>Sign out</button></p>
       </header>
 
       <main className="dashboard-content">
@@ -130,10 +129,7 @@ export default function InventoryApp() {
         <section className="dashboard-section">
           <h2>{editing ? `Edit variant #${editing.variantId}` : 'Add a variant'}</h2>
           <form className="glass-card variant-form" key={editing?.variantId ?? 'new'} onSubmit={saveVariant}>
-            {!editing && <>
-              <label>Product ID<input name="productId" type="number" min={1} required /></label>
-              <label>Warehouse ID (optional)<input name="warehouseId" type="number" min={1} /></label>
-            </>}
+            {!editing && <label>Product ID<input name="productId" type="number" min={1} required /></label>}
             <label>Variant name<input name="variantName" required maxLength={100} defaultValue={editing?.variantName} /></label>
             <label>Colour<input name="colour" maxLength={50} defaultValue={editing?.colour ?? ''} /></label>
             <label>Memory size<input name="memorySize" maxLength={50} defaultValue={editing?.memorySize ?? ''} /></label>
@@ -151,15 +147,14 @@ export default function InventoryApp() {
           <div className="glass-card table-container">
             <table className="inventory-table">
               <thead>
-                <tr><th>Variant</th><th>Product</th><th>SKU</th><th>Warehouse</th><th>Price</th><th>Stock</th><th>Set stock</th><th>Details</th></tr>
+                <tr><th>Variant</th><th>Product</th><th>SKU</th><th>Price</th><th>Stock</th><th>Set stock</th><th>Details</th></tr>
               </thead>
               <tbody>
-                {variants.length === 0 ? <tr><td colSpan={8}>No variants found in the database.</td></tr>
+                {variants.length === 0 ? <tr><td colSpan={7}>No variants found in the database.</td></tr>
                   : variants.map(variant => <tr key={variant.variantId}>
                     <td>#{variant.variantId} {variant.variantName}</td>
                     <td>#{variant.productId} {variant.productName}</td>
                     <td className="sku-cell">{variant.sku}</td>
-                    <td>{variant.warehouseId}</td>
                     <td>{formatPrice(variant.price)}</td>
                     <td><span className={`stock-indicator ${variant.stockQuantity < lowStockThreshold ? 'low' : 'good'}`}>{variant.stockQuantity}</span></td>
                     <td><StockForm variant={variant} busy={busy} label="Save" save={setStock} /></td>

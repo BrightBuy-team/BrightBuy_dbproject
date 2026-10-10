@@ -57,21 +57,25 @@ BEGIN
         'out of stock adds 3 days in either case');
     CALL inventory_test_assert(fn_delivery_days(2147483647, FALSE) = 7, 'a city outside the main-city list counts as another city');
 
-    -- Estimate before ordering. Seed variants: 1 in stock, 3 out of stock.
-    CALL inventory_test_assert(fn_delivery_preview_date(1, JSON_ARRAY(1)) = CURDATE() + INTERVAL 5 DAY,
+    -- Estimate before ordering. Seed variants: 1 has 50 in stock, 3 has none.
+    CALL inventory_test_assert(fn_delivery_preview_date(1, JSON_ARRAY(JSON_OBJECT('variantId', 1, 'quantity', 1))) = CURDATE() + INTERVAL 5 DAY,
         'preview for in-stock items in a main city');
-    CALL inventory_test_assert(fn_delivery_preview_date(1, JSON_ARRAY(1, 3)) = CURDATE() + INTERVAL 8 DAY,
+    CALL inventory_test_assert(fn_delivery_preview_date(1, JSON_ARRAY(JSON_OBJECT('variantId', 1, 'quantity', 1),
+        JSON_OBJECT('variantId', 3, 'quantity', 1))) = CURDATE() + INTERVAL 8 DAY,
         'preview adds the delay when one item is out of stock');
-    CALL inventory_test_assert(fn_delivery_preview_date(3, JSON_ARRAY(3)) = CURDATE() + INTERVAL 10 DAY,
+    CALL inventory_test_assert(fn_delivery_preview_date(1, JSON_ARRAY(JSON_OBJECT('variantId', 1, 'quantity', 50))) = CURDATE() + INTERVAL 5 DAY
+        AND fn_delivery_preview_date(1, JSON_ARRAY(JSON_OBJECT('variantId', 1, 'quantity', 51))) = CURDATE() + INTERVAL 8 DAY,
+        'preview adds the delay only when a line asks for more than is in stock');
+    CALL inventory_test_assert(fn_delivery_preview_date(3, JSON_ARRAY(JSON_OBJECT('variantId', 3, 'quantity', 1))) = CURDATE() + INTERVAL 10 DAY,
         'preview for an out-of-stock item in another city');
     CALL inventory_test_assert(fn_delivery_preview_date(3, NULL) = CURDATE() + INTERVAL 7 DAY,
         'preview without items uses the city only');
-    CALL inventory_test_assert(fn_delivery_preview_date(2147483647, JSON_ARRAY(1)) IS NULL, 'preview is empty for an unknown city');
+    CALL inventory_test_assert(fn_delivery_preview_date(2147483647, JSON_ARRAY(JSON_OBJECT('variantId', 1, 'quantity', 1))) IS NULL, 'preview is empty for an unknown city');
 
     -- Estimate for an existing order (seed order 101 contains variant 1).
-    CALL inventory_test_assert(calculate_delivery_date(1, 101) = CURDATE() + INTERVAL 5 DAY, 'order estimate while its item is in stock');
-    UPDATE variant SET stock_quantity = 0 WHERE variant_id = 1;
-    CALL inventory_test_assert(calculate_delivery_date(1, 101) = CURDATE() + INTERVAL 8 DAY, 'order estimate once its item has run out');
+    CALL inventory_test_assert(calculate_delivery_date(1, 101) = CURDATE() + INTERVAL 5 DAY, 'order estimate when every line was in stock');
+    UPDATE order_item SET backordered_quantity = 1 WHERE order_id = 101 AND variant_id = 1;
+    CALL inventory_test_assert(calculate_delivery_date(1, 101) = CURDATE() + INTERVAL 8 DAY, 'order estimate adds the delay when a line was back-ordered');
 
     -- New variant for an existing product
     CALL sp_inventory_create_variant(1, 1, '  Test Variant - Green 128GB ', ' Green ', '128GB', 499.99, 6, new_variant);
@@ -85,6 +89,9 @@ BEGIN
     CALL inventory_test_assert((SELECT COUNT(*) FROM audit_log WHERE entity_type = 'variant' AND entity_id = new_variant
         AND action = 'INSERT' AND actor = 'test:inventory' AND JSON_EXTRACT(new_values, '$.price') = 499.99) = 1,
         'variant creation is written to the audit log');
+    CALL sp_inventory_create_variant(1, NULL, 'Test Variant - No Warehouse', NULL, NULL, 10.00, 0, @inventory_central);
+    CALL inventory_test_assert((SELECT warehouse_id FROM variant WHERE variant_id = @inventory_central)
+        = (SELECT MIN(warehouse_id) FROM warehouse), 'a variant without a warehouse goes to the central warehouse');
     CALL inventory_test_reject('CALL sp_inventory_create_variant(1, 1, ''  '', NULL, NULL, 10, 1, @inventory_ignored)', '45000', 'blank variant name rejected');
     CALL inventory_test_reject('CALL sp_inventory_create_variant(1, 1, ''Free'', NULL, NULL, 0, 1, @inventory_ignored)', '45000', 'zero price rejected');
     CALL inventory_test_reject('CALL sp_inventory_create_variant(1, 1, ''Negative'', NULL, NULL, 10, -1, @inventory_ignored)', '45000', 'negative opening stock rejected');
@@ -137,3 +144,4 @@ DROP PROCEDURE inventory_test_reject;
 DROP PROCEDURE inventory_test_assert;
 SET @inventory_test_sql = NULL;
 SET @inventory_test_count = NULL;
+SET @inventory_central = NULL;

@@ -114,5 +114,5 @@ fi
 if [[ "$task_mode" == install ]]; then
   echo 'Fresh installation complete: all release checks passed.'
 else
-  echo 'Upgrade complete: no rows were deleted, no seed was run, all release checks passed.'
+  echo 'Upgrade complete: no customer, order, product or stock row was deleted, no seed was run, all release checks passed.'
 fi

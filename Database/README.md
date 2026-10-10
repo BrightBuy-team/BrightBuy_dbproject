@@ -37,7 +37,7 @@ bash Database/install_all.sh --upgrade --docker CONTAINER_NAME
 
 An **upgrade** is for a database that already holds data. It adds missing columns, indexes
 and constraints, replaces the routines and triggers, and runs the release checks. It loads
-no sample data and deletes no rows, and running it twice changes nothing. The shared server
+no sample data, deletes no customer, order, product or stock row, and running it twice changes nothing. The shared server
 is upgraded with `--upgrade --remote`; see [Docs/OPERATIONS.md](../Docs/OPERATIONS.md).
 
 The order within a fresh install is: tables (Catalogue, Inventory, Shared email, Auth,
@@ -82,8 +82,9 @@ removed with one.
 | Price and stock belong to the variant (BR-4) | Columns of `variant`; `product` has neither |
 | Unique SKU per product (BR-5) | Unique index `uq_product_sku` |
 | Stock decremented atomically with the order (BR-6, CON-3, SAF-1) | `ProcessCheckout`: one transaction, `SELECT ... FOR UPDATE` on the variants in a fixed order, full rollback on any failure |
-| No order beyond available stock (BR-7, SAF-3) | `ProcessCheckout` re-reads locked stock and answers `INSUFFICIENT_STOCK` |
-| Delivery estimate 5 or 7 days, plus 3 if out of stock (BR-8) | Function `fn_delivery_days`; used by checkout and by `fn_delivery_preview_date` |
+| Out of stock at the time of order (project brief) | `ProcessCheckout` takes what is in stock, records the rest in `order_item.backordered_quantity`, and adds the 3-day delay. See "Assumptions" for how this replaces SRS BR-7 and SAF-3 |
+| One central warehouse holds all stock (AS-13) | `warehouse` holds one row; a variant created without a warehouse goes to it; a release check blocks a second warehouse |
+| Delivery estimate 5 or 7 days, plus 3 if out of stock (BR-8) | Function `fn_delivery_days`. `ProcessCheckout` passes "out of stock" when any line asks for more than the locked stock; `fn_delivery_preview_date` applies the same test before ordering |
 | An order has at least one item (BR-9) | `sp_checkout_validate_cart` rejects an empty cart; `order_item.quantity > 0` |
 | Stock never below zero (BR-10, CON-4, SAF-2) | `CHECK (stock_quantity >= 0)` on `variant` |
 | Pickup has no delivery estimate (BR-11) | `ProcessCheckout` stores no city and no date for pickup |
@@ -188,31 +189,61 @@ container. Each suite prints one PASS line per assertion and stops at the first 
 
 | Suite | Assertions | Covers |
 |---|---|---|
-| `test_catalogue_foundation.sql` | 31 | Constraints, hierarchy triggers, seed data, variant link |
+| `test_catalogue_foundation.sql` | 32 | Constraints, hierarchy triggers, seed data, variant link, central warehouse |
 | `test_catalogue_procedures.sql` | 67 | Search, filters, sorting, paging, product detail |
 | `test_catalogue_maintenance.sql` | 51 | Product and category maintenance, audit rows |
 | `test_auth.sql` | 31 | Registration, sign-in log, rate limit, roles, password reset |
-| `test_inventory.sql` | 30 | Delivery rule, stock and variant procedures, stock audit, CHECK constraints |
-| `test_checkout.sql` | 44 | Cart validation, quote, cash and card orders, every refusal, rollback |
+| `test_inventory.sql` | 32 | Delivery rule, stock and variant procedures, stock audit, CHECK constraints |
+| `test_checkout.sql` | 53 | Cart validation, quote, cash and card orders, back-orders, every refusal, rollback |
 | `test_shared.sql` | 10 | Email queue, audit log |
 
 `Shared/05_release_checks.sql` is different: it only reads metadata and reports PASS or
 BLOCK for each expected table, routine, trigger, constraint and index. The installer runs
 it after every install and upgrade.
 
+## Assumptions
+
+The project brief asks the team to make assumptions where it gives no detail. These are
+the ones the database is built on.
+
+| Topic | Assumption |
+|---|---|
+| Categories | Two levels: a top-level category and its children. A product belongs to one or more categories. Browsing a top-level category includes its children |
+| Variants | Every product has at least one variant. A product with no real variation has one default variant. Price and stock belong to the variant; the SKU belongs to the product |
+| Warehouse | One central warehouse holds all stock. It is one row in `warehouse`, so its name and address are data |
+| Stock | A cart reserves nothing. Stock is checked and decremented only when the order is confirmed, in the same transaction as the order |
+| Out of stock | An item that is out of stock at the time of order can still be ordered. The units in stock are taken; the rest of the line is back-ordered and recorded in `order_item.backordered_quantity`. Stock never goes below zero. Sending the back-ordered units when stock arrives is warehouse work outside this phase |
+| Order size | The shop pages allow at most 100 units of one item per order, so a typing slip cannot become a huge back-order |
+| Main cities | Houston and Dallas are main cities; Lubbock and Waco are other cities. The list is data (`city.is_main_city`), and delivery is only offered to listed Texas cities |
+| Delivery estimate | 5 days to a main city and 7 to another city, plus 3 days when any line of the order is out of stock at the time of order. Store pickup has no delivery estimate |
+| Delivery cost | No delivery charge in this phase. The order total is the sum of its lines |
+| Payment | Cash on delivery stays *Pending* until delivery. A card is authorised for the exact order total before the order is placed, by a simulated gateway; only its token, reference, card type and last four digits are stored |
+| Money | All prices are in US dollars. No sales tax is applied |
+| Customers | Guests can browse and fill a cart. Only registered, signed-in customers can check out |
+| Order status | An order is *Confirmed* when placed. Later changes (shipped, delivered, cancelled) are outside this phase |
+
 ## Design decisions and known differences from the SRS
+
+- **Out-of-stock orders are accepted as back-orders.** The team's SRS says an order is
+  rejected when a quantity exceeds stock (BR-7, SAF-3). The project brief says to add 3 days
+  "if the item is out of stock at the time of order", which only makes sense if such an order
+  can be placed. The brief takes priority, so `ProcessCheckout` back-orders the shortfall.
+  The safety goal behind SAF-3 still holds: no unit is sold twice and stock is never negative.
 
 - **Variant foreign key uses `ON DELETE RESTRICT`.** A product with variants cannot be
   deleted, which protects order history (SAF-6). Products are retired instead.
 - **`sales_summary` is deliberate denormalisation (DB-1).** It holds daily totals that can
-  always be recomputed from `orders` and `order_item`. Reports add today's orders live.
+  always be recomputed from `orders` and `order_item`, refreshed every night. The five
+  report procedures read the live order tables, so today's orders are always included; the
+  summary is kept as a ready daily table and is not read by them at present.
 - **`orders` repeats `delivery_mode` and `payment_method`,** which also exist on `delivery`
   and `payment`. Checkout writes both in the same transaction; the copies keep the report
   queries to one table.
-- **Three warehouses are seeded although AS-13 describes one.** The schema allows several,
-  and no business rule depends on which warehouse holds a variant.
-- **No delivery charge.** AS-7 leaves the amount open (TBD-2), so the order total is the sum
-  of the lines.
+- **`warehouse` is a table with one row.** The brief describes one central warehouse. Keeping
+  it as a table makes its name and address data, and `variant.warehouse_id` documents where
+  stock is held.
+- **No delivery charge.** The SRS left the amount open (AS-7, TBD-2) and the brief leaves
+  delivery cost to assumption, so the order total is the sum of the lines.
 - **`orders.order_date` is stored in the server's time zone,** while the newer tables use
   UTC (DB-6). The shared server runs in UTC, so the values agree there.
 - **Payment and email are simulated** (SRS 3.3.2 and 3.3.3, TBD-3, TBD-4). The table design

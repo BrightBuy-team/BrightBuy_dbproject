@@ -53,10 +53,10 @@ async function withResponse(response, run) {
   try { await run() } finally { globalThis.fetch = original }
 }
 test('a refused request carries its status and the server\'s JSON answer', async () => {
-  const body = JSON.stringify({ status: 'INSUFFICIENT_STOCK', orderId: null, unavailableVariantIds: [7] })
+  const body = JSON.stringify({ status: 'ITEM_UNAVAILABLE', orderId: null, unavailableVariantIds: [7] })
   await withResponse(new Response(body, { status: 409, headers: { 'content-type': 'application/json' } }), () =>
     assert.rejects(() => apiRequest('https://example.invalid/api/checkout'), failure => failure instanceof ApiError
-      && failure.status === 409 && failure.body.status === 'INSUFFICIENT_STOCK'
+      && failure.status === 409 && failure.body.status === 'ITEM_UNAVAILABLE'
       && failure.body.unavailableVariantIds[0] === 7 && /Stock or records changed/.test(failure.message)))
 })
 test('a declined card is reported with its status', async () => {

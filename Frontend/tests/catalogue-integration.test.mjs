@@ -12,9 +12,12 @@ test('guest and customer lines merge without altering inputs',()=>{
  assert.equal(result.items[0].quantity,3);assert.equal(result.items.length,2)
  assert.equal(saved[0].quantity,1);assert.equal(guest[0].quantity,2);assert.equal(result.adjusted,false)
 })
-test('cart merge caps at the more conservative stock snapshot and announces it',()=>{
+test('cart merge adds quantities, keeps the lower stock snapshot, and caps at the order limit',()=>{
  const result=mergeCartLines([{...line,quantity:3}],[{...line,quantity:2,stockQuantity:2}])
- assert.equal(result.items[0].quantity,2);assert.equal(result.items[0].stockQuantity,2);assert.equal(result.adjusted,true)
+ assert.equal(result.items[0].quantity,5,'more than the stock shown is kept: it is back-ordered at checkout')
+ assert.equal(result.items[0].stockQuantity,2);assert.equal(result.adjusted,false)
+ const capped=mergeCartLines([{...line,quantity:60}],[{...line,quantity:60}])
+ assert.equal(capped.items[0].quantity,100);assert.equal(capped.adjusted,true)
 })
 test('oversized combined cart is rejected, not silently truncated',()=>{
  assert.throws(()=>mergeCartLines(Array.from({length:100},(_,i)=>({...line,variantId:i+1})),[{...line,variantId:101}]))

@@ -22,7 +22,7 @@ public class CheckoutController {
 
     /**
      * Places an order for the signed-in customer (BR-1). The answer always carries a status:
-     * 201 SUCCESS, 409 for a stock or price conflict, 402 when the card is declined, 503 when
+     * 201 SUCCESS, 409 for an item that is no longer sold or a changed price, 402 when the card is declined, 503 when
      * card payments are switched off, 400 for anything invalid in the request.
      */
     @PostMapping
@@ -31,7 +31,7 @@ public class CheckoutController {
         CheckoutResult result = service.checkout(Access.customer(user), request);
         HttpStatus status = switch (result.status()) {
             case "SUCCESS" -> HttpStatus.CREATED;
-            case "INSUFFICIENT_STOCK", "ITEM_UNAVAILABLE", "AUTHORISED_AMOUNT_MISMATCH" -> HttpStatus.CONFLICT;
+            case "ITEM_UNAVAILABLE", "AUTHORISED_AMOUNT_MISMATCH" -> HttpStatus.CONFLICT;
             case "CARD_DECLINED" -> HttpStatus.PAYMENT_REQUIRED;
             case "PAYMENT_GATEWAY_UNAVAILABLE" -> HttpStatus.SERVICE_UNAVAILABLE;
             case "SQL_ERROR" -> HttpStatus.INTERNAL_SERVER_ERROR;

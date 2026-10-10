@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { ProductVariant } from './api'
 import { formatPrice } from './search'
-import { parseLowStockThreshold, quantityError, stockLabel, variantLabel } from './variants'
+import { backorderNote, maxOrderQuantity, parseLowStockThreshold, quantityError, stockLabel, variantLabel } from './variants'
 import { addCatalogueItem } from './cartHandoff'
 
 const configuredThreshold = parseLowStockThreshold(import.meta.env.VITE_CATALOGUE_LOW_STOCK_THRESHOLD)
@@ -17,7 +17,8 @@ export default function VariantSelection({ variants, productId, productName, low
   const [feedback, setFeedback] = useState<{ ok: boolean; message: string }>()
   const selected = variants.find(variant => variant.variant_id === selectedId) ?? variants[0]
   if (!selected) return <p role="status">No variants are available.</p>
-  const error = quantityError(quantity, selected.stock_quantity)
+  const error = quantityError(quantity)
+  const backorder = error ? undefined : backorderNote(Number(quantity), selected.stock_quantity)
   const label = stockLabel(selected.stock_quantity, lowStockThreshold)
 
   return <div className="catalogue-variant-selection">
@@ -36,22 +37,22 @@ export default function VariantSelection({ variants, productId, productName, low
     <div aria-live="polite" aria-atomic="true">
       <p className={`catalogue-detail-stock ${selected.stock_quantity === 0 ? 'unavailable' : label === 'Low Stock' ? 'low' : ''}`}>{label}</p>
       <p className="catalogue-detail-price">{formatPrice(selected.price)}</p>
-      <p className="catalogue-fine-print">{selected.stock_quantity} units available for this variant. Stock is confirmed again at checkout.</p>
+      <p className="catalogue-fine-print">{selected.stock_quantity} units in stock for this variant. Stock is checked again at checkout.</p>
     </div>
     <label htmlFor="catalogue-quantity">Quantity</label>
     <input id="catalogue-quantity" type="number" inputMode="numeric" min="1"
-      max={Math.max(1, selected.stock_quantity)} step="1" value={quantity}
-      disabled={selected.stock_quantity === 0} aria-invalid={selected.stock_quantity > 0 && !!error}
+      max={maxOrderQuantity} step="1" value={quantity} aria-invalid={!!error}
       aria-describedby={error ? 'catalogue-quantity-error' : undefined}
       onChange={event => {
         setQuantity(event.target.value)
         setFeedback(undefined)
       }} />
     {error && <p id="catalogue-quantity-error" className="catalogue-field-error" role="alert">{error}</p>}
-    
+    {backorder && <p className="catalogue-fine-print" role="status">{backorder}</p>}
+
     <p id="catalogue-cart-note" className="catalogue-fine-print">Your cart is kept for this browser session. Stock is not reserved until checkout.</p>
     <button type="button" className="catalogue-primary" aria-describedby="catalogue-cart-note"
-      disabled={selected.stock_quantity === 0 || !!error}
+      disabled={!!error}
       onClick={() => {
         setFeedback(addCatalogueItem({
           productId,
