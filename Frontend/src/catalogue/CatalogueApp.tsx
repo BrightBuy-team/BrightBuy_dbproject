@@ -20,6 +20,7 @@ import CartView from './CartView'
 import CheckoutView from './CheckoutView'
 import OrderHistoryView from './OrderHistoryView'
 import CatalogueStaffView from './CatalogueStaffView'
+import AdminView from './AdminView'
 
 function ErrorNotice({ message, retry }: { message: string; retry: () => void }) {
   return <div className="catalogue-notice" role="alert"><h3>Something needs attention</h3><p>{message}</p><button onClick={retry}>Try again</button></div>
@@ -100,24 +101,18 @@ function Results({ query, title, home, reset }: { query: Search; title: string; 
   </section>
 }
 
-function CatalogueStorefront() {
+export default function CatalogueApp() {
   const location = useSearchLocation()
   const categories = useCatalogue('/categories', decodeCategories)
   let query = defaultSearch
   let linkError: string
   let productId: number | null = null
-  let viewParam = null
+  // ?view= opens an account or staff page; everything else is the catalogue search.
+  const urlParams = new URLSearchParams(location)
+  const view = urlParams.get('view')
+  urlParams.delete('view')
   try {
-    let routeLocation = location;
-    // Extract view param first and remove it from location
-    const urlParams = new URLSearchParams(routeLocation);
-    if (urlParams.get('view')) {
-      viewParam = urlParams.get('view');
-      urlParams.delete('view');
-      routeLocation = '?' + urlParams.toString();
-    }
-
-    const route = parseCatalogueRoute(routeLocation)
+    const route = parseCatalogueRoute(`?${urlParams}`)
     query = route.query
     productId = route.productId
     linkError = route.error
@@ -143,20 +138,14 @@ function CatalogueStorefront() {
     <CategoryNavigation categories={categories.data} loading={categories.loading} error={categories.error}
       retry={categories.retry} currentCategoryId={!productId && !linkError ? query.categoryId : undefined} />
     <main id="catalogue-content" tabIndex={-1}>
-      {viewParam === 'staff' ? <CatalogueStaffView /> : viewParam === 'orders' ? <OrderHistoryView /> : viewParam === 'reports' ? <ManagementReports /> : viewParam === 'cart' ? (
-        <CartView 
-          onCheckout={() => window.location.assign('?view=checkout')}
-          onContinueShopping={() => window.location.assign(catalogueHref(query))}
-        />
-      ) : viewParam === 'checkout' ? (
-        <CheckoutView 
-          onBack={() => window.location.assign('?view=cart')}
-          onComplete={() => {
-            alert('Order placed successfully!');
-            window.location.assign(catalogueHref(query));
-          }} 
-        />
-      ) : (
+      {view === 'staff' ? <CatalogueStaffView />
+        : view === 'admin' ? <AdminView />
+        : view === 'orders' ? <OrderHistoryView />
+        : view === 'reports' ? <ManagementReports />
+        : view === 'cart' ? <CartView onCheckout={() => window.location.assign('?view=checkout')}
+          onContinueShopping={() => window.location.assign(catalogueHref(query))} />
+        : view === 'checkout' ? <CheckoutView onBack={() => window.location.assign('?view=cart')} />
+        : (
         <>
           {home && <section className="catalogue-hero" aria-labelledby="catalogue-heading">
             <div><p className="catalogue-section-label">WELCOME TO BRIGHTBUY</p><h1 id="catalogue-heading">Good finds.<br /><em>Everyday possibilities.</em></h1><p>Explore the collection. Find the details that make it yours.</p><a href="#results-heading">Explore products <span aria-hidden="true">↘</span></a></div>
@@ -178,10 +167,4 @@ function CatalogueStorefront() {
     </main>
     <CatalogueFooter />
   </div>
-}
-
-export default function CatalogueApp() {
-  return window.location.pathname === '/management-reports'
-    ? <ManagementReports />
-    : <CatalogueStorefront />
 }

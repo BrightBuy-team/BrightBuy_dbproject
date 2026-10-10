@@ -93,8 +93,8 @@ test('footer includes SRS policy and distinguishes adding items from placing ord
   const html = footer('')
   for (const text of ['Delivery policy', 'Texas', 'Store Pickup', 'Payment methods',
     'Cash on Delivery', 'Card Payment', 'USD', 'Checkout requires a confirmed account session',
-    'adding an item does not place an order']) assert.ok(html.includes(text), text)
-  assert.doesNotMatch(html, /mailto:|tel:|Free shipping/)
+    'adding an item to the cart does not place an order', 'no real card is charged']) assert.ok(html.includes(text), text)
+  assert.doesNotMatch(html, /mailto:|tel:|Free shipping|remains disabled/)
   assert.match(html, /Contact details will be published when confirmed/)
 })
 

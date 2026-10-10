@@ -1,5 +1,7 @@
 package com.brightbuy.backend.auth;
 
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Locale;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -12,6 +14,7 @@ public class AuthService {
 
     private final AuthRepository repository;
     private final PasswordEncoder passwordEncoder;
+    private final SecureRandom random = new SecureRandom();
 
     public AuthService(AuthRepository repository, PasswordEncoder passwordEncoder) {
         this.repository = repository;
@@ -36,9 +39,10 @@ public class AuthService {
         }
     }
 
-    public Integer createEmployee(CreateEmployeeRequest request) {
+    /** {@code actor} is who is creating the account; it is written to the audit log. */
+    public Integer createEmployee(String actor, CreateEmployeeRequest request) {
         try {
-            return repository.createEmployee(request.firstName().trim(), request.lastName().trim(),
+            return repository.createEmployee(actor, request.firstName().trim(), request.lastName().trim(),
                     normalizeEmail(request.email()), passwordEncoder.encode(request.password()), request.contactNo(),
                     request.role());
         } catch (DataAccessException exception) {
@@ -58,6 +62,16 @@ public class AuthService {
             throw new AuthException(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_UNAVAILABLE",
                     "Employee permissions are temporarily unavailable.");
         }
+    }
+
+    /** True when the employee holds at least one of the roles and the account is active. */
+    public boolean employeeHasAnyRole(Integer employeeId, EmployeeRole... roles) {
+        for (EmployeeRole role : roles) {
+            if (employeeHasRole(employeeId, role)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public AuthenticatedUser login(LoginRequest request) {
@@ -85,6 +99,36 @@ public class AuthService {
         } catch (DataAccessException exception) {
             throw new AuthException(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_UNAVAILABLE",
                     "Sign-in is temporarily unavailable.");
+        }
+    }
+
+    /**
+     * Starts a password reset. The answer is the same whether or not the account exists, so an
+     * email address cannot be probed. The one-time code is emailed; only its hash is stored.
+     */
+    public void requestPasswordReset(String email, AccountType accountType) {
+        byte[] bytes = new byte[32];
+        random.nextBytes(bytes);
+        String code = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        try {
+            repository.requestPasswordReset(normalizeEmail(email), accountType, code);
+        } catch (DataAccessException exception) {
+            throw new AuthException(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_UNAVAILABLE",
+                    "Password reset is temporarily unavailable.");
+        }
+    }
+
+    public void confirmPasswordReset(String code, String newPassword) {
+        String status;
+        try {
+            status = repository.confirmPasswordReset(code.trim(), passwordEncoder.encode(newPassword));
+        } catch (DataAccessException exception) {
+            throw new AuthException(HttpStatus.SERVICE_UNAVAILABLE, "AUTH_UNAVAILABLE",
+                    "Password reset is temporarily unavailable.");
+        }
+        if (!"SUCCESS".equals(status)) {
+            throw new AuthException(HttpStatus.BAD_REQUEST, "INVALID_RESET_CODE",
+                    "This reset code is invalid or has expired.");
         }
     }
 
@@ -119,7 +163,7 @@ public class AuthService {
 
     public record CreateEmployeeRequest(String firstName, String lastName, String email, String password,
             String contactNo, EmployeeRole role) {
-        }
+    }
 
     public record LoginRequest(String email, String password, AccountType accountType) {
     }

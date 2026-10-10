@@ -1,16 +1,15 @@
 package com.brightbuy.backend.auth;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
+/** A signed-in customer's own default delivery address (BR-16). */
 @Validated
 @RestController
 @RequestMapping("/api/addresses/me")
@@ -24,17 +23,12 @@ public class AddressController {
 
     @GetMapping
     public AddressResponse getMyAddress(@AuthenticationPrincipal AuthenticatedUser user) {
-        if (user == null || user.id() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
-        }
         return addressRepository.getAddress(Access.customer(user));
     }
 
     @PutMapping
-    public void updateMyAddress(@AuthenticationPrincipal AuthenticatedUser user, @Valid @RequestBody AddressRequest request) {
-        if (user == null || user.id() == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Not authenticated");
-        }
+    public void updateMyAddress(@AuthenticationPrincipal AuthenticatedUser user,
+            @Valid @RequestBody AddressRequest request) {
         addressRepository.updateAddress(Access.customer(user), request.addressLine(), request.cityId());
     }
 

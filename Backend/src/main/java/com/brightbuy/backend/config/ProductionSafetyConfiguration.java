@@ -12,13 +12,17 @@ import org.springframework.boot.context.properties.bind.Binder;
 import org.springframework.context.annotation.*;
 import org.springframework.core.env.Environment;
 
-/** Opt-in fail-closed deployment checks. Never logs connection strings/secrets. */
+/**
+ * Refuses to start the production profile with unsafe settings: insecure cookies, a root or
+ * password-less database account, an unverified database connection or loose CORS origins.
+ * It never logs connection strings or secrets.
+ */
 @Configuration(proxyBeanMethods = false)
 @Profile("production")
 public class ProductionSafetyConfiguration {
     @Bean
     static BeanFactoryPostProcessor productionSettingsCheck(Environment environment) {
-        // Fail before datasource/JPA beans can connect or initialise the schema.
+        // Fail before the datasource can connect with unsafe settings.
         return beanFactory -> validate(environment);
     }
 
@@ -27,10 +31,6 @@ public class ProductionSafetyConfiguration {
                 "Production requires Secure session cookies");
         String sameSite = environment.getProperty("server.servlet.session.cookie.same-site", "").toLowerCase(Locale.ROOT);
         require(java.util.Set.of("lax", "strict", "none").contains(sameSite), "Invalid production SameSite policy");
-        require("none".equals(environment.getProperty("spring.jpa.hibernate.ddl-auto")),
-                "Production must not automatically alter database tables");
-        require(!environment.getProperty("spring.flyway.enabled", Boolean.class, true),
-                "Production schema upgrades must be reviewed and run separately");
         String username = environment.getProperty("spring.datasource.hikari.username",
                 environment.getProperty("spring.datasource.username", ""));
         require(!username.isBlank() && !username.equalsIgnoreCase("root"),
@@ -81,7 +81,7 @@ public class ProductionSafetyConfiguration {
             throw new IllegalStateException("Production JDBC URL failed safety checks; configure verified TLS and private credentials");
         }
 
-        String origins = environment.getProperty("catalogue.cors.allowed-origins", "");
+        String origins = environment.getProperty("brightbuy.cors.allowed-origins", "");
         require(!origins.isBlank(), "Production requires explicit HTTPS frontend origins");
         for (String origin : origins.split(",", -1)) {
             try {

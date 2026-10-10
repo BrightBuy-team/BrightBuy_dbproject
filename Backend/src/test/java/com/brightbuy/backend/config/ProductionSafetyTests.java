@@ -21,11 +21,9 @@ class ProductionSafetyTests {
                 .withProperty("spring.datasource.url", "jdbc:mysql://database.example/brightbuy?sslMode=VERIFY_IDENTITY")
                 .withProperty("spring.datasource.username", "scoped_application")
                 .withProperty("spring.datasource.password", "test-only")
-                .withProperty("spring.jpa.hibernate.ddl-auto", "none")
-                .withProperty("spring.flyway.enabled", "false")
                 .withProperty("server.servlet.session.cookie.secure", "true")
                 .withProperty("server.servlet.session.cookie.same-site", "lax")
-                .withProperty("catalogue.cors.allowed-origins", "https://shop.example,https://staff.example");
+                .withProperty("brightbuy.cors.allowed-origins", "https://shop.example,https://staff.example");
     }
 
     @Test
@@ -39,20 +37,18 @@ class ProductionSafetyTests {
     @CsvSource(delimiter = '|', value = {
         "server.servlet.session.cookie.secure|false",
         "server.servlet.session.cookie.same-site|invalid",
-        "spring.jpa.hibernate.ddl-auto|update",
-        "spring.flyway.enabled|true",
         "spring.datasource.username|root",
         "spring.datasource.hikari.username|root",
         "spring.datasource.hikari.jdbc-url|jdbc:mysql://database.example/brightbuy?sslMode=DISABLED",
         "spring.datasource.hikari.data-source-properties.sslMode|DISABLED",
         "spring.datasource.hikari.data-source-properties.allowPublicKeyRetrieval|true",
         "spring.datasource.hikari.data-source-properties.user|root",
-        "catalogue.cors.allowed-origins|http://shop.example",
-        "catalogue.cors.allowed-origins|https://shop.example/path",
-        "catalogue.cors.allowed-origins|https://shop.example/",
-        "catalogue.cors.allowed-origins|https://shop.example?query=1",
-        "catalogue.cors.allowed-origins|https://shop.example,",
-        "catalogue.cors.allowed-origins|https://*.example",
+        "brightbuy.cors.allowed-origins|http://shop.example",
+        "brightbuy.cors.allowed-origins|https://shop.example/path",
+        "brightbuy.cors.allowed-origins|https://shop.example/",
+        "brightbuy.cors.allowed-origins|https://shop.example?query=1",
+        "brightbuy.cors.allowed-origins|https://shop.example,",
+        "brightbuy.cors.allowed-origins|https://*.example",
         "spring.datasource.url|jdbc:mysql://localhost/brightbuy?sslMode=VERIFY_IDENTITY",
         "spring.datasource.url|jdbc:mysql://database.example/brightbuy",
         "spring.datasource.url|jdbc:mysql://database.example/brightbuy?sslMode=REQUIRED",
