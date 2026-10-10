@@ -61,8 +61,12 @@ public class AuthSecurityConfiguration {
     }
 
     @Bean
-    CookieCsrfTokenRepository csrfTokenRepository() {
-        return CookieCsrfTokenRepository.withHttpOnlyFalse();
+    CookieCsrfTokenRepository csrfTokenRepository(
+            @Value("${server.servlet.session.cookie.secure:false}") boolean secure,
+            @Value("${server.servlet.session.cookie.same-site:lax}") String sameSite) {
+        var repository = CookieCsrfTokenRepository.withHttpOnlyFalse();
+        repository.setCookieCustomizer(cookie -> cookie.secure(secure).sameSite(sameSite));
+        return repository;
     }
 
     @Bean
