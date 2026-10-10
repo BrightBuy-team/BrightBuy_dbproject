@@ -8,11 +8,13 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import com.brightbuy.backend.config.ActorJdbc;
 import java.util.List;
 import java.util.Locale;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 @Validated
 @RestController
@@ -54,16 +57,18 @@ public class AuthController {
         return new RegisterResponse(customerId, request.email().trim().toLowerCase(Locale.ROOT));
     }
 
+    /** Administrators create warehouse, management and administrator accounts. */
     @PostMapping("/employees")
-    public ResponseEntity<EmployeeResponse> createEmployee(
-            @org.springframework.security.core.annotation.AuthenticationPrincipal AuthenticatedUser user,
+    public ResponseEntity<EmployeeResponse> createEmployee(@AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody CreateEmployeeRequest request) {
-        if (!authService.employeeHasRole(Access.employee(user), EmployeeRole.ADMIN)) {
-            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.FORBIDDEN);
+        int adminId = Access.employee(user);
+        // Checked in the database on every call, so a disabled administrator loses this at once.
+        if (!authService.employeeHasRole(adminId, EmployeeRole.ADMIN)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         }
-        Integer employeeId = authService.createEmployee(new AuthService.CreateEmployeeRequest(
-                request.firstName(), request.lastName(), request.email(), request.password(), request.contactNo(),
-                request.role()));
+        Integer employeeId = authService.createEmployee(ActorJdbc.employee(adminId),
+                new AuthService.CreateEmployeeRequest(request.firstName(), request.lastName(), request.email(),
+                        request.password(), request.contactNo(), request.role()));
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new EmployeeResponse(employeeId, request.email().trim().toLowerCase(Locale.ROOT),
                         request.role().databaseValue()));
@@ -87,12 +92,30 @@ public class AuthController {
     }
 
     @GetMapping("/me")
-    public AuthResponse me(@org.springframework.security.core.annotation.AuthenticationPrincipal AuthenticatedUser user) {
+    public AuthResponse me(@AuthenticationPrincipal AuthenticatedUser user) {
         return new AuthResponse(user);
     }
 
+    /**
+     * Password recovery, step 1. Always answers 202 with the same body, whether or not the
+     * account exists. A one-time code is emailed to a known address.
+     */
+    @PostMapping("/password-reset/request")
+    public ResponseEntity<MessageResponse> requestPasswordReset(@Valid @RequestBody ResetRequest request) {
+        authService.requestPasswordReset(request.email(), request.accountType());
+        return ResponseEntity.accepted().body(new MessageResponse(
+                "If that account exists, a reset code has been sent to its email address."));
+    }
+
+    /** Password recovery, step 2: the emailed code plus the new password. */
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<Void> confirmPasswordReset(@Valid @RequestBody ResetConfirmation request) {
+        authService.confirmPasswordReset(request.code(), request.newPassword());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/logout")
-    public org.springframework.http.ResponseEntity<Void> logout(HttpServletRequest request,
+    public ResponseEntity<Void> logout(HttpServletRequest request,
             HttpServletResponse response) {
         SecurityContextHolder.clearContext();
         HttpSession session = request.getSession(false);
@@ -100,7 +123,7 @@ public class AuthController {
             session.invalidate();
         }
         csrfTokenRepository.saveToken(null, request, response);
-        return org.springframework.http.ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+        return ResponseEntity.noContent().build();
     }
 
     public record RegisterRequest(@NotBlank @Size(max = 100) String firstName,
@@ -117,7 +140,17 @@ public class AuthController {
             @NotBlank @Size(max = 100) String lastName, @NotBlank @Email @Size(max = 150) String email,
             @NotBlank @Size(min = 8, max = 72) String password, @Size(max = 20) String contactNo,
             @NotNull EmployeeRole role) {
-        }
+    }
+
+    public record ResetRequest(@NotBlank @Email @Size(max = 150) String email, @NotNull AccountType accountType) {
+    }
+
+    public record ResetConfirmation(@NotBlank @Size(min = 32, max = 128) String code,
+            @NotBlank @Size(min = 8, max = 72) String newPassword) {
+    }
+
+    public record MessageResponse(String message) {
+    }
 
     public record RegisterResponse(Integer customerId, String email) {
     }

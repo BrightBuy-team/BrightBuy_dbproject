@@ -11,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import com.brightbuy.backend.config.SecurityConfiguration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -18,7 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import tools.jackson.databind.json.JsonMapper;
 
 @WebMvcTest(CatalogueController.class)
-@Import(CatalogueSecurityConfiguration.class)
+@Import(SecurityConfiguration.class)
 class CatalogueWebTests {
     @Autowired MockMvc mvc;
     @Autowired JsonMapper mapper;

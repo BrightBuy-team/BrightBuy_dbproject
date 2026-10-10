@@ -1,19 +1,17 @@
 # macOS
 .DS_Store
-**/.DS_Store
 
-# Backend build output
+# Build output and downloaded packages
 Backend/target/
-
-# Frontend generated files
 Frontend/node_modules/
 Frontend/dist/
+Frontend/.npm-cache/
 
-# Local secrets
+# Private settings. Only the .env.example templates are committed.
 .env
-.env.local
-*.env
+.env.*
+!.env.example
 Backend/src/main/resources/application-local.properties
-Docs/Group 14 SRS document.pdf
-Backend/src/main/resources/application-catalogue.properties
 
+# Kept outside the repository
+Docs/Group 14 SRS document.pdf

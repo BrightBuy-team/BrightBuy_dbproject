@@ -25,7 +25,7 @@ test('all shared frontend and build imports are declared direct dependencies', (
         || (ts.isIdentifier(node.expression) && node.expression.text === 'require'))) specifier = node.arguments[0]
       if (specifier && ts.isStringLiteral(specifier)) {
         const name = specifier.text
-        if (!name.startsWith('.') && !name.startsWith('@/') && !isBuiltin(name)) {
+        if (!name.startsWith('.') && !isBuiltin(name)) {
           const packageName = name.startsWith('@') ? name.split('/').slice(0, 2).join('/') : name.split('/')[0]
           if (!declared.has(packageName)) missing.add(packageName)
         }

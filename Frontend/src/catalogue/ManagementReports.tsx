@@ -1,6 +1,7 @@
-import { formatPrice } from './search'
-import { apiBase } from './client'
 import { useState } from 'react'
+import { ApiError, apiBase, apiRequest } from './client'
+import { downloadCsv, toCsv } from './csv'
+import { formatPrice } from './search'
 
 type ReportKey = 'quarterly-sales' | 'top-selling-products' | 'category-order-counts' | 'delivery-estimates' | 'customer-order-summary'
 type ReportRow = Record<string, unknown>
@@ -28,8 +29,12 @@ function isRecord(value: unknown): value is ReportRow {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function customerName(row: ReportRow) {
+  return [row.firstName, row.lastName].filter(part => typeof part === 'string' && part).join(' ')
+}
+
 function display(value: unknown, column: Column, row: ReportRow) {
-  if (column.key === 'customer') return [row.firstName, row.lastName].filter(part => typeof part === 'string' && part).join(' ') || '—'
+  if (column.key === 'customer') return customerName(row) || '—'
   if (value === null || value === undefined || value === '') return '—'
   if (column.kind === 'money' && (typeof value === 'number' || typeof value === 'string')) {
     const amount = Number(value)
@@ -42,10 +47,15 @@ function display(value: unknown, column: Column, row: ReportRow) {
   return String(value)
 }
 
-function apiMessage(response: Response) {
-  if (response.status === 401 || response.status === 403) return 'Your session does not have access to reporting. Sign in with an authorized management account and try again.'
-  if (response.status === 404) return 'The reporting API was not found. Check that the backend is running and its report routes are available.'
-  return 'The report could not be loaded. Check the backend and database, then try again.'
+function failureMessage(failure: unknown) {
+  if (failure instanceof ApiError) {
+    return failure.status === 401 || failure.status === 403
+      ? 'Reports need a management account. Sign in with one and try again.'
+      : 'The report could not be loaded. Try again.'
+  }
+  if (failure instanceof Error && failure.name === 'TimeoutError') return 'The report took too long to respond. Try again.'
+  return failure instanceof TypeError ? 'Cannot reach the reporting service. Check that the backend is running.'
+    : failure instanceof Error ? failure.message : 'The report could not be loaded.'
 }
 
 export default function ManagementReports() {
@@ -59,6 +69,7 @@ export default function ManagementReports() {
   const [rows, setRows] = useState<ReportRow[] | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [ran, setRan] = useState(today)
   const report = reports.find(item => item.key === active)!
 
   async function loadReport() {
@@ -93,43 +104,33 @@ export default function ManagementReports() {
     setError('')
     setRows(null)
     try {
-      const base = apiBase('reports')
-      const response = await fetch(`${base.replace(/\/$/, '')}/${active}?${params}`, {
-        headers: { Accept: 'application/json' },
-        credentials: 'include',
-        signal: AbortSignal.timeout(15000),
-      })
-      if (!response.ok) throw new Error(apiMessage(response))
-      if (!response.headers.get('content-type')?.includes('application/json')) throw new Error('The reporting API returned an unexpected response.')
-      const data: unknown = await response.json()
-      if (!Array.isArray(data) || !data.every(isRecord)) throw new Error('The reporting API returned an unexpected report format.')
+      const data: unknown = await apiRequest(`${apiBase('reports')}/${active}?${params}`)
+      if (!Array.isArray(data) || !data.every(isRecord)) throw new Error('The reporting service returned an unexpected answer.')
       setRows(data)
+      setRan(new Date())
     } catch (failure) {
-      setError(failure instanceof Error && failure.name === 'TimeoutError'
-        ? 'The report took too long to respond. Try again.'
-        : failure instanceof TypeError
-          ? 'Cannot reach the reporting API. Check that the backend is running.'
-          : failure instanceof Error ? failure.message : 'The report could not be loaded.')
+      setError(failureMessage(failure))
     } finally {
       setLoading(false)
     }
   }
 
-  return <div className="catalogue-app management-app">
-    <div className="catalogue-topline">BrightBuy · Management workspace</div>
-    <header className="catalogue-header management-header">
-      <a className="catalogue-brand" href="/"><span className="catalogue-brand-mark">b.</span>BrightBuy</a>
-      <span className="catalogue-header-note">Management reports</span>
-      <a className="management-back-link" href="/">Back to storefront</a>
-    </header>
-    <main className="management-main">
+  // Export (UI-12): the rows on screen, with unformatted numbers and dates so a spreadsheet can use them.
+  function exportCsv() {
+    if (!rows) return
+    const csv = toCsv(report.columns.map(column => column.label),
+      rows.map(row => report.columns.map(column => column.key === 'customer' ? customerName(row) : row[column.key])))
+    downloadCsv(`brightbuy-${active}-${ran.toISOString().slice(0, 10)}.csv`, csv)
+  }
+
+  return <div className="management-app">
       <div className="management-intro">
         <p className="catalogue-section-label">BUSINESS OVERVIEW</p>
         <h1>Management reports</h1>
         <p>Review sales, products, orders, deliveries, and customer payment activity.</p>
       </div>
       <section className="management-panel" aria-label="Report controls">
-        <p>Reports use your signed-in management account. No employee ID is accepted from the browser.</p>
+        <p>Reports need a management account.</p>
         <div className="management-tabs" role="tablist" aria-label="Choose a report">
           {reports.map(item => <button key={item.key} type="button" role="tab" aria-selected={active === item.key}
             className={active === item.key ? 'active' : ''} onClick={() => { setActive(item.key); setRows(null); setError('') }}>{item.label}</button>)}
@@ -147,6 +148,7 @@ export default function ManagementReports() {
         {error && <div className="management-error" role="alert">{error}</div>}
         {loading && <p className="management-status" role="status">Loading {report.title.toLowerCase()}…</p>}
         {rows && rows.length === 0 && <div className="management-empty" role="status">No results for this report.</div>}
+        {rows && rows.length > 0 && <button type="button" onClick={exportCsv}>Export CSV</button>}
         {rows && rows.length > 0 && <div className="management-table-wrap"><table className="management-table">
           <thead><tr>{report.columns.map(column => <th key={column.key} scope="col">{column.label}</th>)}</tr></thead>
           <tbody>{rows.map((row, index) => <tr key={String(row.productId ?? row.orderId ?? row.customerId ?? row.categoryId ?? row.quarter ?? index)}>
@@ -154,7 +156,6 @@ export default function ManagementReports() {
           </tr>)}</tbody>
         </table></div>}
       </section>
-      <p className="management-note">Report access is recorded by the reporting API. The employee ID is included with each request.</p>
-    </main>
+      <p className="management-note">Each report you run is recorded with your account.</p>
   </div>
 }
