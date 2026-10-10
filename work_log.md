@@ -184,3 +184,28 @@ Updated: 2026-10-09. Status reflects this local checkout, not unmerged teammate 
 - New USD cart keys isolate older LKR/unversioned snapshots without deleting them.
 - Kept the previously converted local DB/audits intact and switched the preview
   to a separate fresh USD database. Other integration/security changes remain.
+
+# Combined verification and release safeguards — 2026-10-10
+
+- Added one-command disposable project verification and GitHub integrated CI:
+  frontend tests/build/lint, backend package/tests, fresh all-module SQL, 148 SQL
+  assertions, six read-only HTTP/MySQL tests and 73 authenticated integration checks.
+- Added an opt-in production profile validating verified MySQL TLS, private scoped
+  credentials, HTTPS CORS, Secure/SameSite cookies and no automatic schema upgrades.
+  XSRF cookie creation/deletion now follows the session cookie policy.
+- Coalesced overlapping identical searches without caching completed stock/prices;
+  configurable default four-connection pool removes two-CPU MySQL contention.
+  10,041-product smoke: 200 identical searches p95 55 ms, 200 distinct searches
+  p95 1,930 ms; both 200/200 successes. Strict local budgets passed, not production
+  capacity certification. Full suite: frontend 190; backend 115+6 live DB tests.
+- Backend deployment now waits for successful integrated push verification on main
+  and deploys the verified commit-SHA image through the production environment.
+- Removed unused numeric frontend dependencies and pruned the lockfile without
+  unrelated retained package versions. Clean-install checking exposed six missing
+  UI imports; declared and locked them explicitly with dependency regression tests.
+  Added npm test and a root run guide.
+- Fixed two reported transitive build-tool DoS advisories with compatible targeted
+  updates (brace-expansion 5.0.12, source-map-js 1.2.2); online npm audit found zero
+  known vulnerabilities afterwards.
+- Added read-only DB release metadata checks and a shared-owner release checklist:
+  Docs/release_readiness.md. Azure, real payments and other user containers untouched.

@@ -1,5 +1,8 @@
 # Catalogue and shared integration handoff — 2026-10-09
 
+Latest follow-up: [release readiness, verified search tuning and CI/CD changes](release_readiness.md)
+supersedes the old search-burst measurements and adds production setup safeguards.
+
 Hi team — I completed the remaining catalogue integration and the shared changes
 needed for the real account/cart/COD flow. These changes are local and uncommitted;
 nothing was deployed to Azure and no real payment was made.

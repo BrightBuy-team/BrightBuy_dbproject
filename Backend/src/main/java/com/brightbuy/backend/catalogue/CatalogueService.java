@@ -10,13 +10,17 @@ import tools.jackson.databind.json.JsonMapper;
 public class CatalogueService {
     private final CatalogueRepository repository;
     private final JsonMapper mapper;
+    private final InFlightSearches searches = new InFlightSearches();
 
     public CatalogueService(CatalogueRepository repository, JsonMapper mapper) {
         this.repository = repository;
         this.mapper = mapper;
     }
 
-    public JsonNode search(CatalogueSearch search) { return response(repository.search(search)); }
+    // Each caller gets its own parsed tree; no stock/price snapshot survives a query.
+    public JsonNode search(CatalogueSearch search) {
+        return response(searches.execute(search, () -> repository.search(search)));
+    }
     public JsonNode categories() { return response(repository.categories()); }
     public JsonNode product(int id) { return response(repository.product(id)); }
 
