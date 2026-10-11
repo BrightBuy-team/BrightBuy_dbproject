@@ -16,11 +16,11 @@ To place an order you need an account. Your cart is kept when you register or si
 
 ## Customers
 
-**Register.** Choose *Sign in*, then *Create an account*. Enter your name, email and a
+**Register.** Choose *Sign in*, stay on the *Customer* tab, then *Create an account*. Enter your name, email and a
 password of at least 8 characters. Phone, delivery address and city are optional and can
 be entered at checkout instead.
 
-**Sign in.** Enter your email and password and leave the account type on *Customer*.
+**Sign in.** Choose the *Customer* tab on the sign-in page and enter your email and password.
 After five wrong passwords within 15 minutes, sign-in for that email pauses for a while.
 
 **Forgot your password.** Choose *Forgot your password?*, enter your email, and you are
@@ -46,38 +46,63 @@ You can order up to 100 units of one item in one order.
 **Your orders.** *My orders* lists every order with its items, the price paid, the
 delivery estimate and status, and the payment status.
 
-**Delivery estimate of an order.** The *Delivery* page shows the estimate recorded for
-one of your order numbers.
+**Delivery address.** *Delivery address* (under *My orders* and in the page footer) holds
+the address each checkout starts from. You can still change it for a single order.
+
+**Delivery estimate of an order.** *Track delivery* shows the estimate recorded for one of
+your order numbers.
+
+## The staff console
+
+Employees sign in on the *Employee* tab of the sign-in page and administrators on the
+*Admin* tab. Both open the staff console (`/console.html`). The menu on the left shows only
+the sections your role may use. A customer account cannot open the console, and each tab
+only admits its own kind of account.
+
+| Section | Warehouse staff | Management | Administrator |
+|---|---|---|---|
+| Dashboard | Stock overview | Sales overview | Stock overview |
+| Inventory | yes | | yes |
+| Products | yes | | yes |
+| Categories | yes | | yes |
+| Reports | | yes | |
+| Staff accounts | | | yes |
 
 ## Warehouse staff
 
-Sign in with the account type *Employee*. You land on the warehouse page (`/inventory.html`).
+**Dashboard** shows the number of products and variants, units in stock, stock value, and
+what is low or out of stock.
 
-- **Low stock alerts** lists every variant with fewer than 10 units. Type the counted
-  quantity and choose *Restock*.
-- **Full inventory** lists every variant with its product, SKU, price and stock. Type a
-  quantity and choose *Save* to set the stock. Every change is recorded with your account,
-  the time, and the quantity before and after.
-- **Add a variant** creates a new version of an existing product: enter the product ID,
-  a name, colour, memory size, price and opening stock. All stock is held in the one
-  central warehouse, so there is no warehouse to choose.
-- **Edit** next to a variant changes its name, colour, memory size or price.
+**Inventory**
 
-Products and categories are maintained under *Catalogue staff* in the shop header:
+- Filter by *All variants*, *Low stock* (fewer than 10 units) or *Out of stock*, or search
+  by product, variant or SKU.
+- To set the stock, type the counted quantity in the row and choose *Save*. Every change is
+  recorded with your account, the time, and the quantity before and after.
+- *Add variant* creates a new version of an existing product: enter the product ID, a name,
+  colour, memory size, price and opening stock. All stock is held in the one central
+  warehouse, so there is no warehouse to choose.
+- The pencil next to a variant changes its name, colour, memory size or price.
 
-- **Create product** needs a SKU, a name, a first category, and the price and stock of
-  its first variant. All of them are saved together or not at all.
-- **Edit** changes a product's SKU, name, description or image address.
-- **Retire** hides a product from customers. Products are never deleted, because old
-  orders refer to them. **Restore** brings a retired product back.
-- **Categories** can be created and edited. A category is either a top-level category
-  or a child of one; deeper levels are not allowed.
-- **Product category membership** puts a product in another category or takes it out.
-  A product always keeps at least one category.
+**Products**
+
+- *New product* needs a SKU, a name, a first category, and the price and stock of its
+  first variant. All of them are saved together or not at all.
+- *Edit* changes a product's SKU, name, description or image address. In the same panel
+  you can add the product to another category or remove it from one. A product always
+  keeps at least one category.
+- *Retire* hides a product from customers. Products are never deleted, because old orders
+  refer to them. *Restore* brings a retired product back.
+
+**Categories** can be created and edited. A category is either a top-level category or a
+child of one; deeper levels are not allowed.
 
 ## Management
 
-Sign in with the account type *Employee*. You land on *Reports*.
+**Dashboard** shows this year's revenue and orders, customers with orders, upcoming
+deliveries, revenue by quarter, the top products and orders by category.
+
+**Reports** holds the five reports:
 
 | Report | Shows | Options |
 |---|---|---|
@@ -93,11 +118,10 @@ your account. Cancelled orders are left out of the totals.
 
 ## Administrators
 
-Sign in with the account type *Employee*. You land on *Admin*.
-
-**Create an employee.** Enter the person's name and email, a temporary password of at
-least 8 characters, and the role: warehouse staff, management or admin. Give them the
-email and password; they sign in with the account type *Employee*.
+**Staff accounts.** Enter the person's name and email, a temporary password of at least
+8 characters, and the role: warehouse staff, management or administrator. Give them the
+email and password. Warehouse staff and management sign in on the *Employee* tab,
+administrators on the *Admin* tab.
 
 Administrators can also do everything warehouse staff can. Reports are for management
 accounts only.

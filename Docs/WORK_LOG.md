@@ -105,6 +105,35 @@ A check against the lecturer's brief found two differences, both now closed.
 Verified with `scripts/verify-project.sh`: 200 frontend tests, 145 backend unit tests, 276
 SQL assertions, 127 HTTP checks, and an upgrade from the previous release.
 
+## Interface redesign — 11 Oct
+
+The pages were redesigned from a Stitch reference (white cards, sidebar dashboards) in an
+orange-and-yellow theme, with Framer Motion for transitions. No database or backend change.
+
+- **First page**: the earlier cloud intro is back above the new sign-in doors: a full-screen
+  hero ("Elevate Your Shopping Experience") and "Good finds. Everyday possibilities." rising
+  in on scroll. The two cloud photographs are the original green files, tinted to sunset
+  orange and gold in CSS; the sign-in page uses the same tint and keeps its layout.
+- Success notices stay green and errors red, as SRS 3.1.1 asks; orange and yellow are brand
+  colours only.
+
+- **Design system** in `Frontend/src/ui`: colour and type tokens, buttons, cards, forms,
+  tables, chips, the logo, and shared motion helpers that respect "reduce motion".
+- **Shop**: new header, home with hero and category tiles, catalogue with filter panel,
+  product page, cart, single-page checkout with delivery and payment choices, order
+  confirmation, order history, and a saved-address page.
+- **Staff console** (`/console.html`): one sidebar layout whose sections depend on the role.
+  Warehouse staff and administrators get a stock dashboard, inventory, products and
+  categories; management gets a sales dashboard and the five reports; administrators also
+  get staff accounts. It replaces the separate inventory page and the staff views that were
+  inside the shop.
+- **Sign-in**: the existing design is kept, with three doors (customer, employee, admin).
+  Each door only admits its own kind of account.
+- **Landing page** with the three doors, and a redesigned delivery lookup.
+
+Verified with `scripts/verify-project.sh` and by walking every page in a browser against a
+local backend.
+
 ## Open items
 
 | Item | Why it is open |
@@ -113,4 +142,3 @@ SQL assertions, 127 HTTP checks, and an upgrade from the previous release.
 | Delivery charge | The amount is not decided (TBD-2); orders are charged for their items only |
 | Sales tax | Out of scope for this phase (TBD-9) |
 | Order status changes after purchase (shipped, delivered, cancelled) | No screen or procedure yet; orders stay *Confirmed* |
-| Page design | Functional but plain; styling was left for later |

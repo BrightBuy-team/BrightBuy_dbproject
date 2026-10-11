@@ -1,7 +1,9 @@
 import { useState } from 'react'
-import { ApiError, apiBase, apiRequest } from './client'
-import { downloadCsv, toCsv } from './csv'
-import { formatPrice } from './search'
+import { Download, Play } from 'lucide-react'
+import { ApiError, apiBase, apiRequest } from '../catalogue/client'
+import { downloadCsv, toCsv } from '../catalogue/csv'
+import { formatPrice } from '../catalogue/search'
+import { Feedback, PageHeader } from './parts'
 
 type ReportKey = 'quarterly-sales' | 'top-selling-products' | 'category-order-counts' | 'delivery-estimates' | 'customer-order-summary'
 type ReportRow = Record<string, unknown>
@@ -58,7 +60,7 @@ function failureMessage(failure: unknown) {
     : failure instanceof Error ? failure.message : 'The report could not be loaded.'
 }
 
-export default function ManagementReports() {
+export default function ReportsSection() {
   const today = new Date()
   const todayText = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
   const [active, setActive] = useState<ReportKey>('quarterly-sales')
@@ -123,39 +125,37 @@ export default function ManagementReports() {
     downloadCsv(`brightbuy-${active}-${ran.toISOString().slice(0, 10)}.csv`, csv)
   }
 
-  return <div className="management-app">
-      <div className="management-intro">
-        <p className="catalogue-section-label">BUSINESS OVERVIEW</p>
-        <h1>Management reports</h1>
-        <p>Review sales, products, orders, deliveries, and customer payment activity.</p>
+  return <div className="console-page">
+    <PageHeader eyebrow="Management" title="Reports"
+      text="The five management reports. They read the live order tables, so today's orders are included. Each run is recorded with your account." />
+    <div className="console-tabs" role="tablist" aria-label="Choose a report">
+      {reports.map(item => <button key={item.key} type="button" role="tab" aria-selected={active === item.key}
+        className={active === item.key ? 'active' : ''} onClick={() => { setActive(item.key); setRows(null); setError('') }}>{item.label}</button>)}
+    </div>
+    <section className="bb-card bb-card-pad console-report" aria-label="Report controls">
+      <div className="console-card-head">
+        <div><h2 className="bb-card-title">{report.title}</h2><p className="bb-card-sub">{report.description}</p></div>
+        <div className="console-report-controls">
+          {active === 'quarterly-sales' && <label className="bb-field">Year<input type="number" min="2000" max="2100" value={year} onChange={event => setYear(event.target.value)} /></label>}
+          {active === 'top-selling-products' && <>
+            <label className="bb-field">From<input type="date" value={startDate} onChange={event => setStartDate(event.target.value)} /></label>
+            <label className="bb-field">To<input type="date" value={endDate} onChange={event => setEndDate(event.target.value)} /></label>
+            <label className="bb-field">Top<input type="number" min="1" max="100" value={topN} onChange={event => setTopN(event.target.value)} /></label>
+          </>}
+          <button className="bb-btn bb-btn-primary" type="button" onClick={loadReport} disabled={loading}><Play aria-hidden="true" />{loading ? 'Loading report…' : 'Run report'}</button>
+          {rows && rows.length > 0 && <button className="bb-btn" type="button" onClick={exportCsv}><Download aria-hidden="true" />Export CSV</button>}
+        </div>
       </div>
-      <section className="management-panel" aria-label="Report controls">
-        <p>Reports need a management account.</p>
-        <div className="management-tabs" role="tablist" aria-label="Choose a report">
-          {reports.map(item => <button key={item.key} type="button" role="tab" aria-selected={active === item.key}
-            className={active === item.key ? 'active' : ''} onClick={() => { setActive(item.key); setRows(null); setError('') }}>{item.label}</button>)}
-        </div>
-        <div className="management-report-heading">
-          <div><h2>{report.title}</h2><p>{report.description}</p></div>
-          {active === 'quarterly-sales' && <label>Year<input type="number" min="2000" max="2100" value={year} onChange={event => setYear(event.target.value)} /></label>}
-          {active === 'top-selling-products' && <div className="management-filters">
-            <label>From<input type="date" value={startDate} onChange={event => setStartDate(event.target.value)} /></label>
-            <label>To<input type="date" value={endDate} onChange={event => setEndDate(event.target.value)} /></label>
-            <label>Top<input type="number" min="1" max="100" value={topN} onChange={event => setTopN(event.target.value)} /></label>
-          </div>}
-        </div>
-        <button className="management-run" type="button" onClick={loadReport} disabled={loading}>{loading ? 'Loading report…' : 'Run report'}</button>
-        {error && <div className="management-error" role="alert">{error}</div>}
-        {loading && <p className="management-status" role="status">Loading {report.title.toLowerCase()}…</p>}
-        {rows && rows.length === 0 && <div className="management-empty" role="status">No results for this report.</div>}
-        {rows && rows.length > 0 && <button type="button" onClick={exportCsv}>Export CSV</button>}
-        {rows && rows.length > 0 && <div className="management-table-wrap"><table className="management-table">
-          <thead><tr>{report.columns.map(column => <th key={column.key} scope="col">{column.label}</th>)}</tr></thead>
-          <tbody>{rows.map((row, index) => <tr key={String(row.productId ?? row.orderId ?? row.customerId ?? row.categoryId ?? row.quarter ?? index)}>
-            {report.columns.map(column => <td key={column.key}>{display(row[column.key], column, row)}</td>)}
-          </tr>)}</tbody>
-        </table></div>}
-      </section>
-      <p className="management-note">Each report you run is recorded with your account.</p>
+      <Feedback error={error} />
+      {loading && <><p className="bb-visually-hidden" role="status">Loading {report.title.toLowerCase()}…</p><div className="bb-skeleton console-table-skeleton" aria-hidden="true" /></>}
+      {!rows && !loading && !error && <p className="bb-muted console-empty-note">Choose the options and run the report.</p>}
+      {rows && rows.length === 0 && <p className="bb-notice" role="status">No results for this report.</p>}
+      {rows && rows.length > 0 && <div className="bb-table-wrap"><table className="bb-table">
+        <thead><tr>{report.columns.map(column => <th key={column.key} scope="col">{column.label}</th>)}</tr></thead>
+        <tbody>{rows.map((row, index) => <tr key={String(row.productId ?? row.orderId ?? row.customerId ?? row.categoryId ?? row.quarter ?? index)}>
+          {report.columns.map(column => <td key={column.key} className={column.kind === 'money' ? 'bb-num' : undefined}>{display(row[column.key], column, row)}</td>)}
+        </tr>)}</tbody>
+      </table></div>}
+    </section>
   </div>
 }
