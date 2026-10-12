@@ -40,6 +40,7 @@ DROP TRIGGER IF EXISTS audit_variant_insert;
 DROP TRIGGER IF EXISTS audit_variant_update;
 DROP TRIGGER IF EXISTS audit_employee_insert;
 DROP TRIGGER IF EXISTS audit_employee_update;
+DROP TRIGGER IF EXISTS audit_delivery_update;
 
 DELIMITER //
 
@@ -135,5 +136,17 @@ CREATE TRIGGER audit_employee_update AFTER UPDATE ON employee FOR EACH ROW
             JSON_OBJECT('email', OLD.email, 'role', OLD.role, 'is_active', OLD.is_active),
             JSON_OBJECT('email', NEW.email, 'role', NEW.role, 'is_active', NEW.is_active,
                         'password_changed', NOT (OLD.password_hash <=> NEW.password_hash)))//
+
+CREATE TRIGGER audit_delivery_update AFTER UPDATE ON delivery FOR EACH ROW
+    INSERT INTO audit_log (entity_type, entity_id, action, actor, old_values, new_values)
+    VALUES ('delivery', NEW.delivery_id, 'UPDATE', COALESCE(@brightbuy_actor, USER()),
+            JSON_OBJECT('delivery_status', OLD.delivery_status,
+                        'assigned_employee_id', OLD.assigned_employee_id,
+                        'delivered_by_employee_id', OLD.delivered_by_employee_id,
+                        'delivered_at', OLD.delivered_at),
+            JSON_OBJECT('delivery_status', NEW.delivery_status,
+                        'assigned_employee_id', NEW.assigned_employee_id,
+                        'delivered_by_employee_id', NEW.delivered_by_employee_id,
+                        'delivered_at', NEW.delivered_at))//
 
 DELIMITER ;

@@ -16,7 +16,7 @@ type City = { cityId: number; name: string }
 // Three doors: customers, employees (warehouse staff and management) and administrators.
 const portals: { id: Portal; label: string; title: string; accountType: 'CUSTOMER' | 'EMPLOYEE'; note: string }[] = [
   { id: 'customer', label: 'Customer', title: 'Customer sign-in', accountType: 'CUSTOMER', note: 'Shop, check out and follow your orders.' },
-  { id: 'employee', label: 'Employee', title: 'Employee sign-in', accountType: 'EMPLOYEE', note: 'Warehouse staff and management. Accounts are created by an administrator.' },
+  { id: 'employee', label: 'Employee', title: 'Employee sign-in', accountType: 'EMPLOYEE', note: 'Warehouse staff, delivery drivers and management. Accounts are created by an administrator.' },
   { id: 'admin', label: 'Admin', title: 'Administrator sign-in', accountType: 'EMPLOYEE', note: 'Staff accounts, catalogue and stock.' },
 ]
 
@@ -176,7 +176,7 @@ export default function LoginPage() {
             <label>Reset code from the email<input name="code" required minLength={32} maxLength={128} autoComplete="one-time-code" /></label>
             {newPassword}
           </>}
-          {error && <p role="alert">{error}</p>}
+          {error && <p className="login-error" role="alert">{error}</p>}
           <button disabled={busy}>{busy ? 'Please wait…' : { login: 'Sign in', register: 'Register and sign in', forgot: 'Send reset code', reset: 'Change password' }[view]}</button>
         </motion.form>
       </AnimatePresence>

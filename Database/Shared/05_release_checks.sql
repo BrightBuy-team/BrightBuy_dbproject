@@ -48,6 +48,8 @@ WITH required AS (
     UNION ALL SELECT 'sp_password_reset_confirm' UNION ALL SELECT 'fn_recent_failures'
     UNION ALL SELECT 'fn_employee_has_role' UNION ALL SELECT 'sp_checkout_validate_cart'
     UNION ALL SELECT 'sp_checkout_quote' UNION ALL SELECT 'ProcessCheckout'
+    UNION ALL SELECT 'sp_delivery_active_drivers' UNION ALL SELECT 'sp_delivery_assign'
+    UNION ALL SELECT 'sp_delivery_mark_delivered'
     UNION ALL SELECT 'sp_populate_sales_summary' UNION ALL SELECT 'get_quarterly_sales_report'
     UNION ALL SELECT 'get_top_selling_products' UNION ALL SELECT 'get_category_order_counts'
     UNION ALL SELECT 'get_upcoming_delivery_estimates' UNION ALL SELECT 'get_customer_order_summary'

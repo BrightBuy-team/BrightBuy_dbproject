@@ -1,7 +1,7 @@
 # BrightBuy database
 
-MySQL 8.0, InnoDB, `utf8mb4`. Everything is plain SQL: 19 tables, 1 view, 32 stored
-procedures, 5 functions, 18 triggers and 2 roles. No ORM and no migration tool creates
+MySQL 8.0, InnoDB, `utf8mb4`. Everything is plain SQL: 19 tables, 1 view, 35 stored
+procedures, 5 functions, 19 triggers and 2 roles. No ORM and no migration tool creates
 or changes anything. Column details are in [DATA_DICTIONARY.md](DATA_DICTIONARY.md).
 
 ## Folders
@@ -64,6 +64,7 @@ erDiagram
     orders ||--|| payment : "paid by"
     variant ||--o{ sales_summary : "summarised in"
     employee ||--o{ report_access_log : runs
+    employee ||--o{ delivery : "assigned driver / delivery actor"
     customer ||--o{ password_reset_token : requests
     employee ||--o{ password_reset_token : requests
 ```
@@ -91,6 +92,8 @@ removed with one.
 | Card authorised before confirmation (BR-12, AS-8) | The backend authorises the exact amount from `sp_checkout_quote`; `ProcessCheckout` refuses a card order without a token or with a different amount (`AUTHORISED_AMOUNT_MISMATCH`) |
 | Price at time of purchase (BR-13) | `order_item.unit_price`, copied from the locked variant row |
 | Only warehouse staff maintain the catalogue and stock (BR-14) | Backend role check per request, re-read from the database by `fn_employee_has_role` |
+| Drivers see only their assigned pending deliveries and can complete only those | Backend role checks plus `sp_delivery_mark_delivered`, which locks and verifies assignment and pending status |
+| Warehouse staff and administrators assign pending deliveries to active drivers | Backend role checks plus `sp_delivery_assign`; assignments and completions are recorded in `audit_log` |
 | Reports are for management and read-only (BR-15) | Backend role check; report procedures only read, and log each run in `report_access_log` |
 | Customers see only their own data (BR-16, SEC-6) | Every customer query is filtered by the signed-in customer ID from the session |
 | Order history survives catalogue maintenance (BR-18, SAF-6) | `ON DELETE RESTRICT` from `order_item` to `variant` and from `variant` to `product`; products are retired with `is_active`, never deleted |

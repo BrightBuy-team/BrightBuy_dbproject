@@ -49,9 +49,17 @@ CREATE TABLE IF NOT EXISTS delivery (
     delivery_mode VARCHAR(50),
     est_delivery_date DATE,
     delivery_status VARCHAR(50),
+    assigned_employee_id INT,
+    delivered_by_employee_id INT,
+    delivered_at DATETIME,
     FOREIGN KEY (city_id) REFERENCES city(city_id),
     FOREIGN KEY (order_id) REFERENCES orders(order_id),
-    INDEX idx_delivery_status_date (delivery_status, est_delivery_date)
+    CONSTRAINT fk_delivery_assigned_employee
+        FOREIGN KEY (assigned_employee_id) REFERENCES employee(employee_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_delivery_delivered_by_employee
+        FOREIGN KEY (delivered_by_employee_id) REFERENCES employee(employee_id) ON DELETE RESTRICT,
+    INDEX idx_delivery_status_date (delivery_status, est_delivery_date),
+    INDEX idx_delivery_assigned_status (assigned_employee_id, delivery_status)
 ) ENGINE=InnoDB;
 
 -- One payment record per order. Cash on delivery stays Pending until paid.

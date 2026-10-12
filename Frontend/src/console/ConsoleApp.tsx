@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react'
 import type { ReactNode } from 'react'
-import { BarChart3, Boxes, FolderTree, LayoutDashboard, LogOut, PackageSearch, ShieldCheck, Store, Users } from 'lucide-react'
+import { BarChart3, Boxes, FolderTree, LayoutDashboard, LogOut, PackageSearch, ShieldCheck, Store, Truck, Users } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { useSession, useSignOut } from '../catalogue/useSession'
 import Logo from '../ui/Logo'
@@ -13,11 +13,13 @@ import ProductsSection from './ProductsSection'
 import CategoriesSection from './CategoriesSection'
 import ReportsSection from './ReportsSection'
 import StaffSection from './StaffSection'
+import DeliverySection from './DeliverySection'
 
 const icons: Record<SectionId, ReactNode> = {
   overview: <LayoutDashboard aria-hidden="true" />, inventory: <Boxes aria-hidden="true" />,
   products: <PackageSearch aria-hidden="true" />, categories: <FolderTree aria-hidden="true" />,
   reports: <BarChart3 aria-hidden="true" />, staff: <Users aria-hidden="true" />,
+  deliveries: <Truck aria-hidden="true" />,
 }
 
 function subscribe(callback: () => void) {
@@ -94,7 +96,8 @@ export default function ConsoleApp() {
             : section === 'products' ? <ProductsSection />
             : section === 'categories' ? <CategoriesSection />
             : section === 'reports' ? <ReportsSection />
-            : <StaffSection />}
+            : section === 'staff' ? <StaffSection />
+            : <DeliverySection role={role} />}
         </ViewTransition>
       </main>
     </div>

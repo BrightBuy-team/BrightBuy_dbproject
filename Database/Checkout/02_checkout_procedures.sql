@@ -2,7 +2,7 @@
 -- BrightBuy | Cart & Checkout | 02 Procedures
 -- Module owner: Adeesha W.G.I.
 -- Run after Checkout/01, Inventory/02 (fn_delivery_days) and Shared/01.
--- Safe to reinstall: replaces three routines, changes no rows.
+-- Safe to reinstall: replaces five routines, changes no rows.
 --
 -- Order placement is one stored procedure and one transaction (CON-3,
 -- SRS 3.3.1): stock is locked, validated and decremented together with the
@@ -20,6 +20,9 @@ USE brightbuy;
 
 DROP PROCEDURE IF EXISTS sp_checkout_validate_cart;
 DROP PROCEDURE IF EXISTS sp_checkout_quote;
+DROP PROCEDURE IF EXISTS sp_delivery_active_drivers;
+DROP PROCEDURE IF EXISTS sp_delivery_assign;
+DROP PROCEDURE IF EXISTS sp_delivery_mark_delivered;
 DROP PROCEDURE IF EXISTS ProcessCheckout;
 DROP PROCEDURE IF EXISTS ProcessCheckoutV2; -- former name
 
@@ -282,6 +285,99 @@ checkout: BEGIN
                       'Pay cash on delivery.')),
             p_order_id);
     END;
+END //
+
+CREATE PROCEDURE sp_delivery_active_drivers()
+BEGIN
+    SELECT employee_id, CONCAT(first_name, ' ', last_name) AS name
+      FROM employee
+     WHERE role = 'DeliveryDriver' AND is_active = TRUE
+     ORDER BY first_name, last_name, employee_id;
+END //
+
+CREATE PROCEDURE sp_delivery_assign(IN p_delivery_id INT, IN p_employee_id INT)
+assign_delivery: BEGIN
+    DECLARE v_status VARCHAR(50);
+    DECLARE v_mode VARCHAR(50);
+    DECLARE v_order_status VARCHAR(50);
+    DECLARE v_driver_active BOOLEAN DEFAULT FALSE;
+    DECLARE v_found BOOLEAN DEFAULT TRUE;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_found = FALSE;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+    SELECT d.delivery_status, d.delivery_mode, o.order_status
+      INTO v_status, v_mode, v_order_status
+      FROM delivery d JOIN orders o ON o.order_id = d.order_id
+     WHERE d.delivery_id = p_delivery_id FOR UPDATE;
+    IF NOT v_found THEN
+        SIGNAL SQLSTATE '45004' SET MESSAGE_TEXT = 'Delivery not found';
+    END IF;
+    IF NOT (v_status <=> 'Pending') OR NOT (v_mode <=> 'delivery')
+       OR (v_order_status <=> 'Cancelled') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only pending deliveries can be assigned';
+    END IF;
+    IF p_employee_id IS NOT NULL THEN
+        SET v_found = TRUE;
+        SELECT is_active INTO v_driver_active
+          FROM employee
+         WHERE employee_id = p_employee_id AND role = 'DeliveryDriver'
+         FOR UPDATE;
+        IF NOT v_found OR NOT v_driver_active THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'An active delivery driver is required';
+        END IF;
+    END IF;
+
+    UPDATE delivery SET assigned_employee_id = p_employee_id WHERE delivery_id = p_delivery_id;
+    COMMIT;
+END //
+
+CREATE PROCEDURE sp_delivery_mark_delivered(IN p_delivery_id INT, IN p_employee_id INT)
+mark_delivery: BEGIN
+    DECLARE v_status VARCHAR(50);
+    DECLARE v_assigned_employee_id INT;
+    DECLARE v_mode VARCHAR(50);
+    DECLARE v_order_status VARCHAR(50);
+    DECLARE v_driver_active BOOLEAN DEFAULT FALSE;
+    DECLARE v_found BOOLEAN DEFAULT TRUE;
+
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_found = FALSE;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+    SELECT d.delivery_status, d.assigned_employee_id, d.delivery_mode, o.order_status
+      INTO v_status, v_assigned_employee_id, v_mode, v_order_status
+      FROM delivery d JOIN orders o ON o.order_id = d.order_id
+     WHERE d.delivery_id = p_delivery_id FOR UPDATE;
+    IF NOT v_found THEN
+        SIGNAL SQLSTATE '45004' SET MESSAGE_TEXT = 'Delivery not found';
+    END IF;
+    IF NOT (v_status <=> 'Pending') OR NOT (v_assigned_employee_id <=> p_employee_id)
+       OR NOT (v_mode <=> 'delivery') OR (v_order_status <=> 'Cancelled') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Delivery is not assigned to this driver and pending';
+    END IF;
+    SET v_found = TRUE;
+    SELECT is_active INTO v_driver_active
+      FROM employee
+     WHERE employee_id = p_employee_id AND role = 'DeliveryDriver'
+     FOR UPDATE;
+    IF NOT v_found OR NOT v_driver_active THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'An active delivery driver is required';
+    END IF;
+
+    UPDATE delivery
+       SET delivery_status = 'Delivered', delivered_by_employee_id = p_employee_id, delivered_at = NOW()
+     WHERE delivery_id = p_delivery_id;
+    COMMIT;
 END //
 
 DELIMITER ;

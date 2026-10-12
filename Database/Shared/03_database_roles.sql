@@ -9,8 +9,8 @@
 --   brightbuy_application       the backend service account
 --   brightbuy_catalogue_reader  read-only catalogue access (browsing, tests)
 --
--- The five user classes (guest, customer, warehouse staff, management,
--- administrator) are enforced by the backend for every request (SEC-5); the
+-- The six user classes (guest, customer, warehouse staff, delivery driver,
+-- management, administrator) are enforced by the backend for every request (SEC-5); the
 -- database limits what the backend account itself may do.
 -- =========================================================
 USE brightbuy;

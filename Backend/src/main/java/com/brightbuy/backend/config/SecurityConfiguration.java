@@ -30,7 +30,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
  *
  * <p>Sign-in creates a server-side session (HTTP-only cookie). Requests that change data must
  * also send the token from {@code GET /api/auth/csrf} in the {@code X-XSRF-TOKEN} header.
- * Roles come from the signed-in account: CUSTOMER, WAREHOUSESTAFF, MANAGEMENT or ADMIN.
+ * Roles come from the signed-in account: CUSTOMER, WAREHOUSESTAFF, MANAGEMENT, DELIVERYDRIVER or ADMIN.
  * Controllers re-check employee roles in the database so a disabled account loses access at once.
  */
 @Configuration(proxyBeanMethods = false)
@@ -58,6 +58,8 @@ public class SecurityConfiguration {
                         .requestMatchers("/api/reports/**").hasRole("MANAGEMENT")
                         .requestMatchers("/api/inventory/**", "/api/catalogue/staff/**")
                         .hasAnyRole("WAREHOUSESTAFF", "ADMIN")
+                        .requestMatchers("/api/delivery/staff/**")
+                        .hasAnyRole("DELIVERYDRIVER", "WAREHOUSESTAFF", "ADMIN")
                         .requestMatchers("/api/delivery/estimate").authenticated()
                         .anyRequest().denyAll())
                 .build();
