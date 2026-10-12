@@ -242,3 +242,137 @@ body {
   font-size: 0.8rem;
   color: #64748b;
 }
+
+body {
+  display: block;
+  align-items: initial;
+  justify-content: initial;
+  background: #fffaf0;
+  background-image: radial-gradient(ellipse at 12% 12%, #f6c25a35, transparent 32%),
+    radial-gradient(ellipse at 92% 88%, #e8892d20, transparent 34%);
+  color: #30241b;
+}
+.delivery-page {
+  min-height: 100vh;
+  color: #30241b;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+.delivery-site-header {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 14px clamp(20px, 7vw, 110px);
+  border-bottom: 1px solid #eee2cd;
+  background: #fffefa;
+}
+.delivery-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: #30241b;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -.8px;
+  line-height: 1;
+  text-decoration: none;
+}
+.delivery-brand-mark {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding-bottom: 3px;
+  border-radius: 10px 10px 10px 3px;
+  background: linear-gradient(145deg, #ff9b08, #d63d0b);
+  box-shadow: 0 5px 12px #d66b1830;
+  color: white;
+  font-size: 27px;
+}
+.delivery-brand > span:last-child { display: grid; gap: 4px; }
+.delivery-brand small { color: #9d471a; font-size: 8px; letter-spacing: 2px; }
+.delivery-site-header nav { display: flex; align-items: center; gap: clamp(12px, 2.5vw, 30px); }
+.delivery-site-header nav a {
+  color: #534337;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.delivery-site-header nav a:hover, .delivery-site-header nav a[aria-current="page"] { color: #b84916; }
+.delivery-site-header nav .delivery-sign-in {
+  padding: 9px 14px;
+  border: 1px solid #d64d12;
+  border-radius: 7px;
+  background: linear-gradient(120deg, #ef7908, #ce400d);
+  color: white;
+}
+.delivery-container { min-height: calc(100vh - 76px); padding: 45px 20px; align-items: flex-start; }
+.glass-panel, .delivery-card {
+  border: 1px solid #eee0c5;
+  border-radius: 18px;
+  background: #fffefa;
+  box-shadow: 0 18px 50px #70400d18;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.delivery-card { max-width: 560px; padding: clamp(22px, 5vw, 42px); }
+.delivery-header { position: relative; margin-bottom: 28px; padding-top: 34px; }
+.delivery-back {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: #a84612;
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.delivery-back:hover { text-decoration: underline; text-underline-offset: 3px; }
+.icon-wrapper { border-color: #f1d6a6; background: #fff2d7; color: #c34d15; }
+.delivery-header h1 {
+  background: none;
+  color: #30241b;
+  font-size: clamp(1.8rem, 5vw, 2.2rem);
+  letter-spacing: -1px;
+  -webkit-text-fill-color: currentColor;
+}
+.delivery-header p { color: #78695d; }
+.error-message {
+  border: 1px solid #f0c9bc;
+  border-left: 4px solid #c84b13;
+  background: #fff4ef;
+  color: #923a22;
+}
+.delivery-form { gap: 18px; }
+.form-group { gap: 7px; }
+.form-group label { color: #504237; font-weight: 650; }
+.form-group input, .form-group select {
+  padding: 11px 13px;
+  border: 1px solid #e6d9c5;
+  border-radius: 8px;
+  background: #fffdf9;
+  color: #30241b;
+}
+.form-group input:focus, .form-group select:focus { border-color: #d37527; box-shadow: 0 0 0 3px #f3ca8d70; }
+.form-group select option { background: white; color: #30241b; }
+.form-group small { color: #78695d; line-height: 1.5; }
+.btn-calculate {
+  border-radius: 8px;
+  background: linear-gradient(120deg, #ef7908, #ce400d);
+  box-shadow: 0 5px 14px #c84b1330;
+}
+.btn-calculate:hover:not(:disabled) { background: linear-gradient(120deg, #dc6506, #b9360b); box-shadow: 0 7px 18px #c84b1338; }
+.result-card { border-color: #cfe4d4; background: #f3faf2; }
+.result-card h3 { color: #78695d; }
+.date-display { color: #327454; }
+.success-note { color: #687769; }
+.loading-screen { color: #b84916; }
+
+@media (max-width: 640px) {
+  .delivery-site-header { align-items: flex-start; flex-direction: column; gap: 13px; padding: 14px 18px; }
+  .delivery-site-header nav { width: 100%; flex-wrap: wrap; gap: 10px 18px; }
+  .delivery-site-header nav a { font-size: 12px; }
+  .delivery-container { min-height: calc(100vh - 120px); padding: 24px 14px; }
+  .delivery-card { border-radius: 14px; }
+}

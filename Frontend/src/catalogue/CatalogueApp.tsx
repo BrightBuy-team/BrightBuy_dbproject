@@ -148,8 +148,22 @@ export default function CatalogueApp() {
         : (
         <>
           {home && <section className="catalogue-hero" aria-labelledby="catalogue-heading">
-            <div><p className="catalogue-section-label">WELCOME TO BRIGHTBUY</p><h1 id="catalogue-heading">Good finds.<br /><em>Everyday possibilities.</em></h1><p>Explore the collection. Find the details that make it yours.</p><a href="#results-heading">Explore products <span aria-hidden="true">↘</span></a></div>
-            <div className="catalogue-hero-art" aria-hidden="true"><div className="catalogue-art-orbit" /><div className="catalogue-art-box"><PackageIcon /></div><span className="catalogue-art-caption">YOUR NEXT FIND</span><span className="catalogue-art-spark">✳</span></div>
+            <div className="catalogue-hero-decoration" aria-hidden="true"><span /><span /><span /></div>
+            <div className="catalogue-hero-copy">
+              <p className="catalogue-hero-badge"><span aria-hidden="true" /> Consumer electronics and toys, across Texas</p>
+              <h1 id="catalogue-heading">Good finds.<br /><em>Everyday possibilities.</em></h1>
+              <p className="catalogue-hero-description">Phones, laptops, audio, smart devices and toys from one central warehouse. Delivered to your door or ready for store pickup.</p>
+              <div className="catalogue-hero-actions">
+                <a className="catalogue-hero-primary" href="#results-heading">Start shopping <span aria-hidden="true">→</span></a>
+                <a className="catalogue-hero-secondary" href="?view=orders">Track my orders</a>
+              </div>
+            </div>
+            <div className="catalogue-hero-benefits" aria-label="Shopping benefits">
+              <div><span className="catalogue-benefit-icon" aria-hidden="true">↗</span><span>Main Texas cities in 5 days, other cities in 7.</span></div>
+              <div><span className="catalogue-benefit-icon" aria-hidden="true">▧</span><span>Order online and collect at the store.</span></div>
+              <div><span className="catalogue-benefit-icon" aria-hidden="true">▣</span><span>Pay on delivery, or by card at checkout.</span></div>
+              <div><span className="catalogue-benefit-icon" aria-hidden="true">◷</span><span>Back-ordered items arrive 3 days later.</span></div>
+            </div>
           </section>}
           {home && <HomeHighlights categories={categories} />}
           <div className="catalogue-breadcrumb"><a href={window.location.pathname}>Home</a><span aria-hidden="true">/</span><span>{productId ? 'Product details' : title}</span></div>
