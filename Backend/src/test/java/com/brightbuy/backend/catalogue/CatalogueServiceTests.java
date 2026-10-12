@@ -18,6 +18,18 @@ class CatalogueServiceTests {
         assertThat(service.categories().get("items").get(0).get("category_id").asInt()).isEqualTo(1);
     }
 
+    @Test
+    void laterSearchReadsFreshPricesAndReturnsAnIndependentTree() {
+        var search = new CatalogueSearch(null, null, null, null, false, "name_asc", 1, 12);
+        when(repository.search(search)).thenReturn("{\"items\":[{\"price\":10}]}", "{\"items\":[{\"price\":20}]}");
+        var first = service.search(search);
+        var second = service.search(search);
+        assertThat(first.get("items").get(0).get("price").asInt()).isEqualTo(10);
+        assertThat(second.get("items").get(0).get("price").asInt()).isEqualTo(20);
+        assertThat(first).isNotSameAs(second);
+        verify(repository, times(2)).search(search);
+    }
+
     @ParameterizedTest
     @NullSource
     @ValueSource(strings = {"", "null", "[]", "not JSON", "\"string\""})

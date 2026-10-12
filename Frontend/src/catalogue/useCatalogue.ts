@@ -1,7 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { CatalogueHttpError, requestCatalogue, requestProductDetail } from './api'
-import { decodeCart, readCartText, subscribeCart } from './cart'
-import type { CartLine } from './cart'
 import type { Search } from './search'
 import { searchParams } from './search'
 import { browseTitle } from './browsePresentation'
@@ -43,13 +41,6 @@ function subscribe(callback: () => void) {
 }
 export function useSearchLocation() {
   return useSyncExternalStore(subscribe, () => window.location.search, () => '')
-}
-
-// The stored text is the snapshot, so React only re-renders when it changes.
-function cartSnapshot() { return readCartText() }
-export function useCart(): CartLine[] {
-  const stored = useSyncExternalStore(subscribeCart, cartSnapshot, () => null)
-  return useMemo(() => decodeCart(stored), [stored])
 }
 
 export function useBrowseNavigation(query: Search, title: string, home: boolean) {

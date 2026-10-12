@@ -33,4 +33,4 @@ jobs:
       working-directory: ./Backend
       run: |
         chmod +x mvnw
-        ./mvnw clean test
+        ./mvnw -Dspring.profiles.active=test clean test

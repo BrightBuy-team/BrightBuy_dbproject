@@ -1,0 +1,191 @@
+import { useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { customerCartKey, guestCartKey, readStoredCart } from './catalogue/cart'
+import { mergeCartLines } from './catalogue/cartMerge'
+import { ApiError, apiBase, apiRequest } from './catalogue/client'
+import type { SessionUser } from './catalogue/session'
+import { landingPage, portalOf } from './console/roles'
+import type { Portal } from './console/roles'
+import './index.css'
+import './LoginPage.css'
+
+type View = 'login' | 'register' | 'forgot' | 'reset'
+type City = { cityId: number; name: string }
+
+// Three doors: customers, employees (warehouse staff and management) and administrators.
+const portals: { id: Portal; label: string; title: string; accountType: 'CUSTOMER' | 'EMPLOYEE'; note: string }[] = [
+  { id: 'customer', label: 'Customer', title: 'Customer sign-in', accountType: 'CUSTOMER', note: 'Shop, check out and follow your orders.' },
+  { id: 'employee', label: 'Employee', title: 'Employee sign-in', accountType: 'EMPLOYEE', note: 'Warehouse staff, delivery drivers and management. Accounts are created by an administrator.' },
+  { id: 'admin', label: 'Admin', title: 'Administrator sign-in', accountType: 'EMPLOYEE', note: 'Staff accounts, catalogue and stock.' },
+]
+
+const wrongDoor: Record<Portal, string> = {
+  customer: 'That is a customer account. Use the Customer sign-in.',
+  employee: 'That is an employee account. Use the Employee sign-in.',
+  admin: 'That is an administrator account. Use the Admin sign-in.',
+}
+
+function initialPortal(): Portal {
+  const role = new URLSearchParams(window.location.search).get('role')
+  return portals.some(portal => portal.id === role) ? role as Portal : 'customer'
+}
+
+/** The account API's own messages are written for customers; anything else gets the fallback. */
+function accountMessage(failure: unknown, fallback: string): string {
+  if (failure instanceof Error && !(failure instanceof ApiError) && failure.name === 'WrongDoor') return failure.message
+  const body = failure instanceof ApiError ? failure.body : null
+  return body && typeof body === 'object' && 'message' in body && typeof body.message === 'string' ? body.message : fallback
+}
+
+/** After sign-in the guest cart joins the customer's saved cart (AS-11). */
+function adoptGuestCart(user: SessionUser) {
+  if (user.accountType !== 'CUSTOMER') { localStorage.removeItem('currentUserEmail'); return }
+  // The email only names the browser's cart storage; it is never used as authorisation.
+  const key = customerCartKey(user.email)
+  localStorage.setItem('currentUserEmail', user.email)
+  try {
+    const merged = mergeCartLines(readStoredCart(key), readStoredCart(guestCartKey))
+    sessionStorage.setItem(key, JSON.stringify(merged.items))
+    sessionStorage.removeItem(guestCartKey)
+    if (merged.adjusted) sessionStorage.setItem('brightbuy_cart_notice', 'Combined cart quantities were capped at the most one order may hold of an item. Review your cart before checkout.')
+    else sessionStorage.removeItem('brightbuy_cart_notice')
+  } catch {
+    sessionStorage.setItem('brightbuy_cart_notice', 'You are signed in, but your carts could not be combined. Guest items were retained. Review the saved cart before checkout.')
+  }
+}
+
+export default function LoginPage() {
+  const [portal, setPortal] = useState<Portal>(initialPortal)
+  const [view, setView] = useState<View>('login')
+  const [cities, setCities] = useState<City[]>([])
+  const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
+  const [busy, setBusy] = useState(false)
+  const auth = apiBase('auth')
+  const door = portals.find(item => item.id === portal)!
+  const titles: Record<View, string> = {
+    login: door.title, register: 'Create customer account', forgot: 'Reset your password', reset: 'Choose a new password',
+  }
+
+  useEffect(() => {
+    if (view !== 'register' || cities.length) return
+    let current = true
+    apiRequest<City[]>(apiBase('delivery') + '/cities').then(list => { if (current) setCities(list) }).catch(() => {})
+    return () => { current = false }
+  }, [view, cities.length])
+
+  function show(next: View, message = '') { setView(next); setError(''); setNotice(message) }
+
+  function choose(next: Portal) {
+    setPortal(next); show('login')
+    window.history.replaceState(null, '', `/?view=login&role=${next}`)
+  }
+
+  async function signIn(email: string, password: string) {
+    const { user } = await apiRequest<{ user: SessionUser }>(auth + '/login', { method: 'POST',
+      body: JSON.stringify({ email, password, accountType: door.accountType }) })
+    // Each door admits only its own kind of account. A wrong door ends the session it just started.
+    const actual = portalOf(user)
+    if (actual !== portal) {
+      await apiRequest(auth + '/logout', { method: 'POST' }).catch(() => {})
+      const failure = new Error(wrongDoor[actual]); failure.name = 'WrongDoor'
+      throw failure
+    }
+    adoptGuestCart(user)
+    window.location.assign(landingPage(user))
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const field = (name: string) => String(data.get(name) ?? '').trim()
+    const password = String(data.get('password') ?? '')
+    if ((view === 'register' || view === 'reset') && password !== String(data.get('confirmPassword') ?? '')) {
+      setError('The two passwords do not match.'); return
+    }
+    setBusy(true); setError(''); setNotice('')
+    try {
+      if (view === 'login') {
+        await signIn(field('email'), password)
+      } else if (view === 'register') {
+        await apiRequest(auth + '/register', { method: 'POST', body: JSON.stringify({
+          firstName: field('firstName'), lastName: field('lastName'), email: field('email'), password,
+          phone: field('phone') || null, addressLine: field('addressLine') || null,
+          cityId: field('cityId') ? Number(field('cityId')) : null,
+        }) })
+        await signIn(field('email'), password)
+      } else if (view === 'forgot') {
+        const answer = await apiRequest<{ message: string }>(auth + '/password-reset/request', { method: 'POST',
+          body: JSON.stringify({ email: field('email'), accountType: door.accountType }) })
+        show('reset', answer.message)
+      } else {
+        await apiRequest(auth + '/password-reset/confirm', { method: 'POST',
+          body: JSON.stringify({ code: field('code'), newPassword: password }) })
+        show('login', 'Your password has been changed. Sign in with the new password.')
+      }
+    } catch (failure) {
+      setError(accountMessage(failure, {
+        login: 'Sign-in failed. Check your email and password.',
+        register: 'Registration failed. Try another email or check your details.',
+        forgot: 'The reset request could not be sent. Try again later.',
+        reset: 'That code is invalid or has expired. Request a new one.',
+      }[view]))
+    } finally { setBusy(false) }
+  }
+
+  const newPassword = <>
+    <label>{view === 'reset' ? 'New password' : 'Password'} (8 or more characters)
+      <input name="password" type="password" required minLength={8} maxLength={72} autoComplete="new-password" /></label>
+    <label>Confirm password<input name="confirmPassword" type="password" required minLength={8} maxLength={72} autoComplete="new-password" /></label>
+  </>
+
+  return <main className="login-container">
+    <section className="login-left">
+      <a className="login-branding" href="/"><div className="login-logo-icon">b.</div><span className="login-logo-text">BrightBuy</span></a>
+      <h1>{titles[view]}</h1><p>{view === 'login' ? door.note : 'Good finds. Everyday possibilities.'}</p>
+    </section>
+    <section className="login-right"><div className="login-form-container">
+      <div className="login-portals" role="tablist" aria-label="Who is signing in">
+        {portals.map(item => <button key={item.id} type="button" role="tab" aria-selected={item.id === portal}
+          className={item.id === portal ? 'active' : ''} onClick={() => choose(item.id)}>
+          {item.id === portal && <motion.span layoutId="login-portal" className="login-portal-pill" transition={{ type: 'spring', stiffness: 420, damping: 34 }} />}
+          <span>{item.label}</span>
+        </button>)}
+      </div>
+      <h2 className="login-title">{titles[view]}</h2>
+      {notice && <p role="status">{notice}</p>}
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.form className="login-form" key={`${portal}:${view}`} onSubmit={submit}
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+          {view === 'register' && <>
+            <label>First name<input name="firstName" required maxLength={100} autoComplete="given-name" /></label>
+            <label>Last name<input name="lastName" required maxLength={100} autoComplete="family-name" /></label>
+          </>}
+          {view !== 'reset' && <label>Email<input name="email" type="email" required autoComplete="username" maxLength={150} /></label>}
+          {view === 'login' && <label>Password<input name="password" type="password" required maxLength={72} autoComplete="current-password" /></label>}
+          {view === 'register' && <>
+            {newPassword}
+            <label>Phone (optional)<input name="phone" type="tel" maxLength={20} autoComplete="tel" /></label>
+            <label>Delivery address (optional)<input name="addressLine" maxLength={255} autoComplete="street-address" /></label>
+            <label>City (optional)<select name="cityId"><option value="">Choose city</option>
+              {cities.map(city => <option key={city.cityId} value={city.cityId}>{city.name}</option>)}</select></label>
+          </>}
+          {view === 'forgot' && <p>We will email a one-time code that is valid for 30 minutes.</p>}
+          {view === 'reset' && <>
+            <label>Reset code from the email<input name="code" required minLength={32} maxLength={128} autoComplete="one-time-code" /></label>
+            {newPassword}
+          </>}
+          {error && <p className="login-error" role="alert">{error}</p>}
+          <button disabled={busy}>{busy ? 'Please wait…' : { login: 'Sign in', register: 'Register and sign in', forgot: 'Send reset code', reset: 'Change password' }[view]}</button>
+        </motion.form>
+      </AnimatePresence>
+      {view === 'login' ? <>
+        {portal === 'customer' && <button onClick={() => show('register')}>Create an account</button>}
+        <button onClick={() => show('forgot')}>Forgot your password?</button>
+      </> : <button onClick={() => show('login')}>Back to sign in</button>}
+      {view === 'forgot' && <button onClick={() => show('reset')}>I already have a code</button>}
+      <p><a href="/catalogue.html">Browse without signing in</a></p>
+    </div></section>
+  </main>
+}

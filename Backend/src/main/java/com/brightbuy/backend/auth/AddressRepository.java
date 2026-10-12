@@ -33,8 +33,13 @@ public class AddressRepository {
     }
 
     public void updateAddress(Integer customerId, String addressLine, Integer cityId) {
+        if (jdbcTemplate.queryForObject("SELECT COUNT(*) FROM city WHERE city_id=?", Integer.class, cityId) != 1) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.BAD_REQUEST, "Unknown city");
+        }
         String sql = "UPDATE customer SET address_line = ?, city_id = ? WHERE customer_id = ?";
-        jdbcTemplate.update(sql, addressLine, cityId, customerId);
+        if (jdbcTemplate.update(sql, addressLine, cityId, customerId) != 1) {
+            throw new org.springframework.web.server.ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND);
+        }
     }
 }
 

@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+/** Calls the report procedures in Database/Reporting; each returns one result set. */
 @Repository
 public class ReportRepository {
     private final SimpleJdbcCall quarterlySalesCall;

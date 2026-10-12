@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
+import { readFileSync } from 'node:fs'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { createServer } from 'vite'
@@ -29,6 +30,7 @@ const vite = await createServer({ server: { middlewareMode: true, hmr: false, ws
 after(() => vite.close())
 const { HomeHighlightsView } = await vite.ssrLoadModule('/src/catalogue/HomeHighlights.tsx')
 const { default: ProductCard } = await vite.ssrLoadModule('/src/catalogue/ProductCard.tsx')
+const { CatalogueHero } = await vite.ssrLoadModule('/src/catalogue/CatalogueApp.tsx')
 const roots = [
   { category_id: 1, parent_category_id: null, name: 'Electronics', product_count: 8 },
   { category_id: 4, parent_category_id: 1, name: 'Mobile phones', product_count: 5 },
@@ -40,6 +42,31 @@ const state = data => ({ data, loading: false, retry() {} })
 const render = (props = {}) => renderToStaticMarkup(createElement(HomeHighlightsView, {
   categories: state(roots), featured: state({ items: [product] }), ...props,
 }))
+
+test('hero presents a laptop, toy phone and headset as non-interactive product photos', () => {
+  const html = renderToStaticMarkup(createElement(CatalogueHero))
+  const art = html.match(/<div class="catalogue-hero-art"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? ''
+  for (const [photo, alt] of [
+    ['/products/air-laptop-user.png', 'BrightBuy Air Laptop'],
+    ['/products/iphone-15-pro-user.png', 'Apple iPhone 15 Pro'],
+    ['/products/gaming-headset-user.png', 'Over-ear gaming headset with microphone'],
+    ['/products/toy-robot-user.png', 'Toy robot'],
+  ]) {
+    assert.ok(art.includes(`src="${photo}"`), photo)
+    assert.ok(art.includes(`alt="${alt}"`), alt)
+  }
+  assert.match(art, /class="hero-product hero-laptop"/)
+  assert.match(art, /class="hero-product hero-phone"/)
+  assert.match(art, /class="hero-product hero-headset"/)
+  assert.match(art, /class="hero-product hero-toy"/)
+  assert.doesNotMatch(art, /<(?:a|button)\b/)
+
+  const styles = readFileSync(new URL('../src/catalogue/catalogue.css', import.meta.url), 'utf8')
+  const frameStyles = styles.match(/\.catalogue-hero-art \.hero-product \{([^}]*)\}/)?.[1] ?? ''
+  assert.match(frameStyles, /border:\s*3px solid var\(--bb-primary-soft\)/)
+  assert.match(frameStyles, /background:\s*#fff/)
+  assert.match(frameStyles, /padding:\s*0/)
+})
 
 test('home shows only top-level category links with counts', () => {
   const html = render()

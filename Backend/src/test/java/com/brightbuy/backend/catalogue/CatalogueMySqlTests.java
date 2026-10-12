@@ -12,13 +12,14 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.test.context.ActiveProfiles;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Opt-in HTTP/MySQL tests; requires isolated catalogue fixtures and a read-only account. */
+/**
+ * Opt-in HTTP tests against a real MySQL database with the standard fixtures, connected as a
+ * read-only catalogue account. scripts/verify-project.sh sets them up and runs them.
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-@ActiveProfiles("catalogue")
 @EnabledIfEnvironmentVariable(named = "BRIGHTBUY_RUN_DB_TESTS", matches = "true")
 class CatalogueMySqlTests {
     @LocalServerPort int port;

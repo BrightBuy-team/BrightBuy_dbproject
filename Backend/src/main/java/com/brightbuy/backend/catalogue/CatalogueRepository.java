@@ -15,7 +15,7 @@ public class CatalogueRepository {
     private final int queryTimeout;
 
     public CatalogueRepository(DataSource dataSource,
-            @Value("${catalogue.query-timeout-seconds:5}") int queryTimeout) {
+            @Value("${brightbuy.query-timeout-seconds:5}") int queryTimeout) {
         if (queryTimeout < 1 || queryTimeout > 60) throw new IllegalArgumentException("Catalogue query timeout must be 1..60 seconds");
         this.dataSource = dataSource;
         this.queryTimeout = queryTimeout;
