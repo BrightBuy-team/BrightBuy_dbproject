@@ -14,7 +14,8 @@ USE brightbuy;
 INSERT INTO employee (first_name, last_name, email, password_hash, contact_no, role) VALUES
 ('Nimal',  'Perera',  'admin@brightbuy.com',     '$2b$10$PLACEHOLDER_HASH_ADMIN_xxxxxxxxxxxxxxxxxxxxxxxxxxxxx', '555-0101', 'Admin'),
 ('Kamal',  'Silva',   'warehouse@brightbuy.com', '$2b$10$PLACEHOLDER_HASH_WAREHOUSE_xxxxxxxxxxxxxxxxxxxxxxxxxx', '555-0102', 'WarehouseStaff'),
-('Sunil',  'Fernando','manager@brightbuy.com',   '$2b$10$PLACEHOLDER_HASH_MANAGER_xxxxxxxxxxxxxxxxxxxxxxxxxxx', '555-0103', 'Management')
+('Sunil',  'Fernando','manager@brightbuy.com',   '$2b$10$PLACEHOLDER_HASH_MANAGER_xxxxxxxxxxxxxxxxxxxxxxxxxxx', '555-0103', 'Management'),
+('Ruwan',  'Kumara',  'driver@brightbuy.com',    '$2b$10$PLACEHOLDER_HASH_DRIVER_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', '555-0104', 'DeliveryDriver')
 AS new
 ON DUPLICATE KEY UPDATE first_name = new.first_name;
 

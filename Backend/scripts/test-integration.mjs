@@ -60,7 +60,7 @@ assert.equal((await probe.json()).sku, 'TEST-PROBE-' + tag, 'The API is connecte
 
 const email = `integration-${tag}@example.invalid`
 const password = 'DisposableFixtureOnly2026'
-const guest = client(), customer = client(), staff = client(), manager = client(), admin = client()
+const guest = client(), customer = client(), staff = client(), manager = client(), admin = client(), driver = client()
 
 // ---- Public pages and customer accounts -------------------------------------------------
 expectStatus(await guest.request('/api/catalogue/products'), 200, 'anonymous catalogue browsing')
@@ -101,12 +101,16 @@ expectStatus(await customer.request('/api/auth/employees', 'POST', employee('ADM
 const staffAccount = await admin.request('/api/auth/employees', 'POST', employee('WAREHOUSE_STAFF', 'Staff'))
 expectStatus(staffAccount, 201, 'administrator creates a warehouse account')
 expectStatus(await admin.request('/api/auth/employees', 'POST', employee('MANAGEMENT', 'Manager')), 201, 'administrator creates a management account')
+const driverAccount = await admin.request('/api/auth/employees', 'POST', employee('DELIVERY_DRIVER', 'Driver'))
+expectStatus(driverAccount, 201, 'administrator creates a delivery driver account')
+const driverId = driverAccount.body.employeeId
 const staffId = staffAccount.body.employeeId
 check(count(`SELECT COUNT(*) FROM audit_log WHERE entity_type='employee' AND entity_id=${staffId} AND action='INSERT' AND actor='employee:${adminId}'`) === 1,
   'employee creation is audited with the administrator')
 check(count(`SELECT COUNT(*) FROM audit_log WHERE entity_type='employee' AND (old_values LIKE '%$2%' OR new_values LIKE '%$2%')`) === 0,
   'the audit log holds no password hashes')
 expectStatus(await staff.login(`staff-${tag}@example.invalid`, password, 'EMPLOYEE'), 200, 'warehouse staff login')
+expectStatus(await driver.login(`driver-${tag}@example.invalid`, password, 'EMPLOYEE'), 200, 'delivery driver login')
 expectStatus(await staff.request('/api/auth/employees', 'POST', employee('WAREHOUSE_STAFF', 'Second')), 403, 'warehouse staff cannot create employees')
 expectStatus(await staff.request('/api/orders'), 403, 'employee cannot read customer orders')
 expectStatus(await staff.request('/api/addresses/me'), 403, 'employee cannot read customer addresses')
@@ -196,6 +200,22 @@ check(sql('SELECT address_line FROM delivery WHERE order_id=' + orderId) === '10
 check(sql('SELECT payment_status FROM payment WHERE order_id=' + orderId) === 'Pending', 'cash on delivery leaves the payment pending')
 check(sql(`SELECT changed_by FROM variant_audit WHERE variant_id=${variantId} ORDER BY audit_id DESC LIMIT 1`) === 'customer:' + customerId, 'checkout stock change is audited with the customer')
 check(count(`SELECT COUNT(*) FROM email_outbox WHERE recipient='${email}' AND category='order_confirmation' AND related_id=${orderId}`) === 1, 'order confirmation email queued')
+
+// ---- Delivery driver: assignment by staff and completion by driver ---------------------
+const deliveryId = count('SELECT delivery_id FROM delivery WHERE order_id=' + orderId)
+expectStatus(await customer.request('/api/delivery/staff/assigned'), 403, 'customer denied delivery staff endpoint')
+expectStatus(await driver.request('/api/delivery/staff/queue'), 403, 'driver cannot read global queue')
+expectStatus(await driver.request(`/api/delivery/staff/${deliveryId}/assignment`, 'PUT', { employeeId: driverId }), 403, 'driver cannot assign deliveries')
+const driversList = await staff.request('/api/delivery/staff/drivers')
+check(driversList.status === 200 && driversList.body.some(d => d.employeeId === driverId), 'staff sees active driver in drivers list')
+expectStatus(await staff.request(`/api/delivery/staff/${deliveryId}/assignment`, 'PUT', { employeeId: driverId }), 204, 'warehouse staff assigns delivery')
+check(count(`SELECT COUNT(*) FROM delivery WHERE delivery_id=${deliveryId} AND assigned_employee_id=${driverId}`) === 1, 'delivery is assigned to driver in DB')
+const assigned = await driver.request('/api/delivery/staff/assigned')
+check(assigned.status === 200 && assigned.body.some(d => d.deliveryId === deliveryId), 'driver sees their assigned delivery')
+expectStatus(await staff.request(`/api/delivery/staff/${deliveryId}/delivered`, 'POST'), 403, 'staff cannot mark delivery as delivered')
+expectStatus(await driver.request(`/api/delivery/staff/${deliveryId}/delivered`, 'POST'), 204, 'driver marks delivery as delivered')
+check(count(`SELECT COUNT(*) FROM delivery WHERE delivery_id=${deliveryId} AND delivery_status='Delivered' AND delivered_by_employee_id=${driverId} AND delivered_at IS NOT NULL`) === 1,
+  'delivery is marked Delivered with driver ID and timestamp in DB')
 
 const paid = await customer.request('/api/checkout', 'POST', { ...checkout, paymentMethod: 'card', card })
 expectStatus(paid, 201, 'card order placed with a test card')
@@ -304,8 +324,9 @@ expectStatus(await client().login(email, newPassword, 'CUSTOMER'), 200, 'the new
 for (let attempt = 0; attempt < 30 && count("SELECT COUNT(*) FROM email_outbox WHERE status='Pending'") > 0; attempt++) await new Promise(resolve => setTimeout(resolve, 500))
 check(count("SELECT COUNT(*) FROM email_outbox WHERE status='Pending'") === 0 && count("SELECT COUNT(*) FROM email_outbox WHERE status='Sent' AND sent_at IS NOT NULL") > 20,
   'queued emails are handed to the email service')
-sql('UPDATE employee SET is_active=FALSE WHERE employee_id IN (' + staffId + ',' + adminId + ')')
+sql('UPDATE employee SET is_active=FALSE WHERE employee_id IN (' + staffId + ',' + adminId + ',' + driverId + ')')
 expectStatus(await staff.request('/api/catalogue/staff/products'), 403, 'a disabled employee\'s open session loses staff access')
+expectStatus(await driver.request('/api/delivery/staff/assigned'), 403, 'a disabled driver\'s open session loses delivery access')
 expectStatus(await admin.request('/api/auth/employees', 'POST', employee('ADMIN', 'Late')), 403, 'a disabled administrator\'s open session cannot create employees')
 expectStatus(await customer.request('/api/auth/logout', 'POST'), 204, 'sign-out')
 expectStatus(await customer.request('/api/auth/me'), 401, 'sign-out ends the session')

@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import org.springframework.dao.DataAccessException;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,9 +32,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
@@ -49,11 +53,14 @@ public class CatalogueStaffController {
     private final JdbcTemplate jdbc;
     private final ActorJdbc actorJdbc;
     private final AuthService auth;
+    private final ObjectProvider<ProductImageStorage> imageStorage;
 
-    public CatalogueStaffController(JdbcTemplate jdbc, ActorJdbc actorJdbc, AuthService auth) {
+    public CatalogueStaffController(JdbcTemplate jdbc, ActorJdbc actorJdbc, AuthService auth,
+            ObjectProvider<ProductImageStorage> imageStorage) {
         this.jdbc = jdbc;
         this.actorJdbc = actorJdbc;
         this.auth = auth;
+        this.imageStorage = imageStorage;
     }
 
     /** All products, including retired ones, 100 per page. */
@@ -104,6 +111,30 @@ public class CatalogueStaffController {
                 product.description(), product.imageUrl(), product.categoryId(), product.warehouseId(),
                 product.price(), product.stock()));
         return Map.of("productId", productId);
+    }
+
+    @PostMapping(value = "/product-images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, String> uploadProductImage(@AuthenticationPrincipal AuthenticatedUser user,
+            @RequestPart("file") MultipartFile file) {
+        staff(user);
+        ProductImageValidator.ValidatedImage image = ProductImageValidator.validate(file);
+        ProductImageStorage storage = imageStorage.getIfAvailable();
+        if (storage == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Product image storage is not configured.");
+        }
+        try {
+            String imageUrl = storage.upload(image.bytes(), image.extension(), image.contentType());
+            if (imageUrl.length() > 500) {
+                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "The configured image address is too long for the product catalogue.");
+            }
+            return Map.of("imageUrl", imageUrl);
+        } catch (ProductImageStorage.ProductImageStorageException exception) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Product image storage is unavailable.", exception);
+        }
     }
 
     @PutMapping("/products/{productId}")

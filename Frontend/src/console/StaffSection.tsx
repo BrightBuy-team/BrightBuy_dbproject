@@ -10,6 +10,7 @@ type Employee = { employeeId: number; email: string; role: string }
 
 const roleNotes = [
   { value: 'WAREHOUSE_STAFF', title: 'Warehouse staff', text: 'Stock, variants, products and categories.' },
+  { value: 'DELIVERY_DRIVER', title: 'Delivery driver', text: 'See assigned pending deliveries and mark them delivered.' },
   { value: 'MANAGEMENT', title: 'Management', text: 'The five sales reports. Read only.' },
   { value: 'ADMIN', title: 'Administrator', text: 'Everything warehouse staff can do, plus staff accounts.' },
 ]

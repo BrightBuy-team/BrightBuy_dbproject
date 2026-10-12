@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS customer (
     INDEX idx_customer_city (city_id)
 ) ENGINE=InnoDB;
 
--- Warehouse staff, management and administrators (SEC-5).
+-- Warehouse staff, management, delivery drivers and administrators (SEC-5).
 CREATE TABLE IF NOT EXISTS employee (
     employee_id   INT AUTO_INCREMENT PRIMARY KEY,
     first_name    VARCHAR(100) NOT NULL,
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS employee (
     role          VARCHAR(30) NOT NULL,
     is_active     BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT uq_employee_email UNIQUE (email),
-    CONSTRAINT chk_employee_role CHECK (role IN ('WarehouseStaff','Management','Admin')),
+    CONSTRAINT chk_employee_role CHECK (role IN ('WarehouseStaff','Management','DeliveryDriver','Admin')),
     INDEX idx_employee_role (role)
 ) ENGINE=InnoDB;
 

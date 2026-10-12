@@ -119,7 +119,7 @@ A registered customer and the default delivery address. Unique `email`; CHECK on
 
 ### employee
 
-A staff account. The role decides what it may do (BR-14, BR-15). Unique `email`; CHECK role is WarehouseStaff, Management or Admin; accounts are disabled with `is_active`.
+A staff account. The role decides what it may do (BR-14, BR-15). Unique `email`; CHECK role is WarehouseStaff, Management, DeliveryDriver or Admin; accounts are disabled with `is_active`.
 
 | Column | Type | Required | Key | Default | Meaning |
 |---|---|---|---|---|---|
@@ -129,7 +129,7 @@ A staff account. The role decides what it may do (BR-14, BR-15). Unique `email`;
 | `email` | varchar(150) | yes | UQ |  | Sign-in name, unique |
 | `password_hash` | varchar(255) | yes |  |  | BCrypt hash of the password (SEC-1) |
 | `contact_no` | varchar(20) | no |  |  | Optional contact number |
-| `role` | varchar(30) | yes |  |  | WarehouseStaff, Management or Admin |
+| `role` | varchar(30) | yes |  |  | WarehouseStaff, Management, DeliveryDriver or Admin |
 | `is_active` | tinyint(1) | yes |  | 1 | 0 disables the account immediately, including open sessions |
 
 ### login_attempts
@@ -200,7 +200,10 @@ How and where an order is delivered, with the estimate made at purchase time. On
 | `address_line` | varchar(255) | no |  |  | Delivery address as given at purchase time |
 | `delivery_mode` | varchar(50) | no |  |  | 'delivery' or 'pickup' |
 | `est_delivery_date` | date | no |  |  | Date estimated when the order was placed (BR-8); empty for pickup |
-| `delivery_status` | varchar(50) | no |  |  | Pending when the order is placed; Cancelled if it is cancelled |
+| `delivery_status` | varchar(50) | no |  |  | Pending when the order is placed; Delivered when completed |
+| `assigned_employee_id` | int | no | FK employee |  | Driver assigned to deliver this order |
+| `delivered_by_employee_id` | int | no | FK employee |  | Driver who marked this order delivered |
+| `delivered_at` | datetime | no |  |  | Time the driver marked the delivery complete |
 
 ### payment
 

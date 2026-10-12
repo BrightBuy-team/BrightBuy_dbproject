@@ -42,7 +42,7 @@ function messageFor(status: number): string {
 export async function apiRequest<T>(url: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers)
   headers.set('Accept', 'application/json')
-  if (init.body) headers.set('Content-Type', 'application/json')
+  if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json')
   if (init.method && !['GET', 'HEAD'].includes(init.method.toUpperCase())) {
     const tokenResponse = await fetch(apiBase('auth') + '/csrf', { credentials: 'include', signal: AbortSignal.timeout(10000) })
     if (!tokenResponse.ok) throw new Error('Could not verify this request. Try signing in again.')

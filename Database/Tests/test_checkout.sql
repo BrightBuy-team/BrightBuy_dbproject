@@ -50,6 +50,7 @@ BEGIN
     DELETE o FROM orders o JOIN customer c ON c.customer_id = o.customer_id
         WHERE c.email = 'checkout-test@example.invalid';
     DELETE FROM customer WHERE email = 'checkout-test@example.invalid';
+    DELETE FROM employee WHERE email = 'checkout-driver@example.invalid';
     DELETE a FROM variant_audit a JOIN variant v ON v.variant_id = a.variant_id
         JOIN product p ON p.product_id = v.product_id WHERE p.sku LIKE 'TEST-CHECKOUT-%';
     DELETE v FROM variant v JOIN product p ON p.product_id = v.product_id WHERE p.sku LIKE 'TEST-CHECKOUT-%';
@@ -70,6 +71,8 @@ BEGIN
     DECLARE status_text VARCHAR(255);
     DECLARE quoted DECIMAL(10,2);
     DECLARE order_cod INT;
+    DECLARE delivery_cod INT;
+    DECLARE driver_id INT;
     DECLARE order_card INT;
     DECLARE order_last INT;
     DECLARE order_none INT;
@@ -174,6 +177,28 @@ BEGIN
         AND category = 'order_confirmation' AND related_id = order_cod AND status = 'Pending') = 1,
         'order confirmation is queued after the commit');
 
+    -- Delivery assignment and driver delivery marking
+    SELECT delivery_id INTO delivery_cod FROM delivery WHERE order_id = order_cod;
+    CALL sp_create_employee('Test', 'Driver', 'checkout-driver@example.invalid',
+        '$2b$12$checkout-driver-hash-000000000000000000000000000000000000', '555-0999', 'DeliveryDriver', driver_id);
+    CALL checkout_test_assert(EXISTS (SELECT 1 FROM employee WHERE employee_id = driver_id AND role = 'DeliveryDriver'),
+        'test delivery driver employee created');
+    CALL checkout_test_reject(CONCAT('CALL sp_delivery_assign(', delivery_cod, ', 2147483647)'), '45000',
+        'assigning to non-existent driver rejected');
+    CALL sp_delivery_assign(delivery_cod, driver_id);
+    CALL checkout_test_assert((SELECT assigned_employee_id FROM delivery WHERE delivery_id = delivery_cod) = driver_id,
+        'delivery assigned to the driver');
+    CALL checkout_test_reject(CONCAT('CALL sp_delivery_mark_delivered(', delivery_cod, ', 2147483647)'), '45000',
+        'marking delivered by a different driver rejected');
+    CALL sp_delivery_mark_delivered(delivery_cod, driver_id);
+    CALL checkout_test_assert(EXISTS (SELECT 1 FROM delivery WHERE delivery_id = delivery_cod
+        AND delivery_status = 'Delivered' AND delivered_by_employee_id = driver_id AND delivered_at IS NOT NULL),
+        'delivery marked delivered by driver with timestamp and employee recorded');
+    CALL checkout_test_reject(CONCAT('CALL sp_delivery_assign(', delivery_cod, ', ', driver_id, ')'), '45000',
+        'assigning an already delivered order rejected');
+    CALL checkout_test_reject(CONCAT('CALL sp_delivery_mark_delivered(', delivery_cod, ', ', driver_id, ')'), '45000',
+        'marking an already delivered order rejected');
+
     -- Card payment, store pickup
     SET cart = JSON_ARRAY(JSON_OBJECT('variantId', variant_a, 'quantity', 3));
     CALL sp_checkout_quote(cart, status_text, quoted);
@@ -262,7 +287,8 @@ BEGIN
     CALL checkout_test_cleanup();
     SET @brightbuy_actor = NULL;
     CALL checkout_test_assert((SELECT COUNT(*) FROM orders) = orders_before
-        AND (SELECT COUNT(*) FROM product WHERE sku LIKE 'TEST-CHECKOUT-%') = 0, 'cleanup removed the test orders and products');
+        AND (SELECT COUNT(*) FROM product WHERE sku LIKE 'TEST-CHECKOUT-%') = 0
+        AND (SELECT COUNT(*) FROM employee WHERE email = 'checkout-driver@example.invalid') = 0, 'cleanup removed the test orders, products and driver');
     SELECT CONCAT('PASS: all ', @checkout_test_count, ' checkout assertions') AS result;
 END$$
 

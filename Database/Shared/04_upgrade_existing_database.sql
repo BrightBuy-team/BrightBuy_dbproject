@@ -21,6 +21,7 @@ DROP PROCEDURE IF EXISTS brightbuy_upgrade_run;
 DROP PROCEDURE IF EXISTS brightbuy_upgrade_add_column;
 DROP PROCEDURE IF EXISTS brightbuy_upgrade_add_index;
 DROP PROCEDURE IF EXISTS brightbuy_upgrade_add_check;
+DROP PROCEDURE IF EXISTS brightbuy_upgrade_add_foreign_key;
 DROP PROCEDURE IF EXISTS brightbuy_upgrade_existing_database;
 
 DELIMITER $$
@@ -56,6 +57,17 @@ BEGIN
 END$$
 
 CREATE PROCEDURE brightbuy_upgrade_add_check(IN p_table VARCHAR(64), IN p_constraint VARCHAR(64), IN p_definition TEXT)
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables
+               WHERE table_schema = DATABASE() AND table_name = p_table)
+       AND NOT EXISTS (SELECT 1 FROM information_schema.table_constraints
+                       WHERE constraint_schema = DATABASE() AND table_name = p_table
+                         AND constraint_name = p_constraint) THEN
+        CALL brightbuy_upgrade_run(CONCAT('ALTER TABLE `', p_table, '` ADD CONSTRAINT `', p_constraint, '` ', p_definition));
+    END IF;
+END$$
+
+CREATE PROCEDURE brightbuy_upgrade_add_foreign_key(IN p_table VARCHAR(64), IN p_constraint VARCHAR(64), IN p_definition TEXT)
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables
                WHERE table_schema = DATABASE() AND table_name = p_table)
@@ -153,6 +165,15 @@ BEGIN
 
     -- ---- 5. Delivery: purchase-time address, one row per order ----
     CALL brightbuy_upgrade_add_column('delivery', 'address_line', 'VARCHAR(255) NULL AFTER city_id');
+    CALL brightbuy_upgrade_add_column('delivery', 'assigned_employee_id', 'INT NULL');
+    CALL brightbuy_upgrade_add_column('delivery', 'delivered_by_employee_id', 'INT NULL');
+    CALL brightbuy_upgrade_add_column('delivery', 'delivered_at', 'DATETIME NULL');
+    CALL brightbuy_upgrade_add_foreign_key('delivery', 'fk_delivery_assigned_employee',
+        'FOREIGN KEY (assigned_employee_id) REFERENCES employee(employee_id) ON DELETE RESTRICT');
+    CALL brightbuy_upgrade_add_foreign_key('delivery', 'fk_delivery_delivered_by_employee',
+        'FOREIGN KEY (delivered_by_employee_id) REFERENCES employee(employee_id) ON DELETE RESTRICT');
+    CALL brightbuy_upgrade_add_index('delivery', 'idx_delivery_assigned_status',
+        'INDEX idx_delivery_assigned_status (assigned_employee_id, delivery_status)');
     IF has_delivery THEN
         ALTER TABLE delivery MODIFY order_id INT NOT NULL;
         IF NOT EXISTS (SELECT 1 FROM information_schema.statistics
@@ -186,7 +207,16 @@ BEGIN
                 AND card_last_four IS NULL AND card_type IS NULL))');
     CALL brightbuy_upgrade_add_index('payment', 'idx_payment_status', 'INDEX idx_payment_status (payment_status)');
 
-    -- ---- 7. Audit log: the catalogue-only table became the shared one ----
+    -- ---- 7. Employee roles: allow individually assigned delivery drivers ----
+    IF EXISTS (SELECT 1 FROM information_schema.table_constraints
+               WHERE constraint_schema = DATABASE() AND table_name = 'employee'
+                 AND constraint_name = 'chk_employee_role') THEN
+        ALTER TABLE employee DROP CHECK chk_employee_role;
+    END IF;
+    CALL brightbuy_upgrade_add_check('employee', 'chk_employee_role',
+        'CHECK (role IN (''WarehouseStaff'',''Management'',''DeliveryDriver'',''Admin''))');
+
+    -- ---- 8. Audit log: the catalogue-only table became the shared one ----
     IF EXISTS (SELECT 1 FROM information_schema.tables
                WHERE table_schema = DATABASE() AND table_name = 'catalogue_audit')
        AND NOT EXISTS (SELECT 1 FROM information_schema.tables
@@ -209,6 +239,7 @@ DROP PROCEDURE IF EXISTS apply_variant_product_integration;
 
 DROP PROCEDURE brightbuy_upgrade_existing_database;
 DROP PROCEDURE brightbuy_upgrade_add_check;
+DROP PROCEDURE brightbuy_upgrade_add_foreign_key;
 DROP PROCEDURE brightbuy_upgrade_add_index;
 DROP PROCEDURE brightbuy_upgrade_add_column;
 DROP PROCEDURE brightbuy_upgrade_run;

@@ -113,6 +113,10 @@ now holding nothing, are removed. It loads no sample data, changes no price or q
 deletes no customer, order, product or stock row. It was tested by installing the previous
 release, placing an order, upgrading, and running every test suite on the result.
 
+The delivery-driver feature requires this upgrade before the updated backend is used: it
+adds the `DeliveryDriver` employee role, delivery assignment/audit columns and the delivery
+assignment/completion procedures. Follow the same backup and remote-upgrade steps above.
+
 ## Backup and restore (SAF-4, SAF-5)
 
 **Backup** with `mysqldump`, including routines and triggers:

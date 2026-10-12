@@ -57,6 +57,23 @@ test('write client sends session cookies and a freshly fetched CSRF token',async
   assert.equal(calls[1].init.headers.get('X-XSRF-TOKEN'),'fresh-token')
  }finally{globalThis.fetch=original}
 })
+test('multipart writes retain the browser-generated boundary content type',async()=>{
+ const original=globalThis.fetch,calls=[]
+ globalThis.fetch=async(url,init)=>{
+  calls.push({url,init})
+  return new Response(calls.length===1?'{"token":"fresh-token"}':'{"imageUrl":"https://images.example.invalid/photo.png"}',
+   {status:calls.length===1?200:201,headers:{'content-type':'application/json'}})
+ }
+ const body=new FormData()
+ body.append('file',new Blob(['image bytes'],{type:'image/png'}),'photo.png')
+ try{
+  const result=await apiRequest('https://example.invalid/api/catalogue/staff/product-images',{method:'POST',body})
+  assert.equal(calls.length,2)
+  assert.equal(calls[1].init.body,body)
+  assert.equal(calls[1].init.headers.has('Content-Type'),false)
+  assert.equal(result.imageUrl,'https://images.example.invalid/photo.png')
+ }finally{globalThis.fetch=original}
+})
 test('failed CSRF fetch never sends the mutation',async()=>{
  const original=globalThis.fetch;let calls=0
  globalThis.fetch=async()=>{calls++;return new Response('',{status:503})}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Pencil, Plus, Search, X } from 'lucide-react'
-import { apiRequest, catalogueBase } from '../catalogue/client'
+import { ApiError, apiRequest, catalogueBase } from '../catalogue/client'
 import type { StaffCategory } from './CategoriesSection'
 import { Drawer, Feedback, PageHeader } from './parts'
 
@@ -56,14 +56,41 @@ export default function ProductsSection() {
     finally { setBusy(false) }
   }
 
-  function saveProduct(event: FormEvent<HTMLFormElement>) {
+  async function saveProduct(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const text = (name: string) => String(data.get(name) ?? '').trim()
-    const details = { sku: text('sku'), name: text('name'), description: text('description') || null, imageUrl: text('imageUrl') || null }
-    if (editing) void write(`${base}/products/${editing.product_id}`, 'PUT', details, `“${details.name}” updated.`)
-    else void write(base + '/products', 'POST', { ...details, categoryId: Number(text('categoryId')), price: Number(text('price')), stock: Number(text('stock')) },
-      `“${details.name}” created with its first category and default variant.`)
+    const details = { sku: text('sku'), name: text('name'), description: text('description') || null }
+    const file = data.get('imageFile')
+    setBusy(true); setError(''); setNotice('')
+    try {
+      let imageUrl = text('imageUrl') || null
+      if (file instanceof File && file.size > 0) {
+        const upload = new FormData()
+        upload.append('file', file)
+        const result = await apiRequest<{ imageUrl: string }>(`${base}/product-images`, { method: 'POST', body: upload })
+        imageUrl = result.imageUrl
+      }
+      const product = { ...details, imageUrl }
+      if (editing) {
+        await apiRequest(`${base}/products/${editing.product_id}`, { method: 'PUT', body: JSON.stringify(product) })
+      } else {
+        await apiRequest(base + '/products', {
+          method: 'POST',
+          body: JSON.stringify({ ...product, categoryId: Number(text('categoryId')), price: Number(text('price')), stock: Number(text('stock')) }),
+        })
+      }
+      const [list, all] = await load()
+      setProducts(list); setCategories(all)
+      setNotice(editing ? `“${details.name}” updated.` : `“${details.name}” created with its first category and default variant.`)
+      setEditing(null); setAdding(false)
+    } catch (failure) {
+      setError(file instanceof File && file.size > 0 && failure instanceof ApiError && failure.status === 503
+        ? 'Product image storage is unavailable. Configure Azure Blob Storage on the backend or enter an image address instead.'
+        : (failure as Error).message)
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function setCategory(categoryId: number, add: boolean) {
@@ -120,7 +147,9 @@ export default function ProductsSection() {
           <label className="bb-field">Name<input name="name" required maxLength={150} defaultValue={editing?.name} /></label>
         </div>
         <label className="bb-field">Description<textarea name="description" defaultValue={editing?.description ?? ''} /></label>
-        <label className="bb-field">Image address<input name="imageUrl" maxLength={500} placeholder="https://…" defaultValue={editing?.image_url ?? ''} /></label>
+        <label className="bb-field">Product image<input name="imageFile" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" /></label>
+        <p className="bb-hint">Upload a PNG or JPEG up to 5 MB. Azure image storage must be configured. If selected, the uploaded image replaces the image address below.</p>
+        <label className="bb-field">Image address (optional)<input name="imageUrl" maxLength={500} placeholder="https://…" defaultValue={editing?.image_url ?? ''} /></label>
         {!editing && <>
           <label className="bb-field">First category<select name="categoryId" required defaultValue="">
             <option value="">Choose a category</option>
