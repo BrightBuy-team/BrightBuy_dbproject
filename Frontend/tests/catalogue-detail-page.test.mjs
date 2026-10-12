@@ -26,7 +26,7 @@ test('loading state is announced and marks the detail region busy', () => {
 })
 test('loaded detail shows product details and the selected variant price', () => {
   const html = render({ data })
-  for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', 'USD', '100.00', 'In Stock', 'Image coming soon']) assert.ok(html.includes(text), text)
+  for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', 'USD', '100.00', 'In Stock', 'Illustration of Demo phone', 'Mobile']) assert.ok(html.includes(text), text)
   assert.match(html, /categoryId=4/)
   assert.match(html, /<select id="catalogue-variant"/)
   assert.match(html, /<button[^>]*>Add to Cart/)
@@ -71,8 +71,17 @@ test('back links retain original browse filters on success and failure', () => {
 test('API text is escaped and unsafe image schemes get a fallback', () => {
   const html = render({ data: { ...data, name: '<script>alert(1)</script>', image_url: 'javascript:alert(1)' } })
   assert.match(html, /&lt;script&gt;/)
-  assert.match(html, /Image coming soon/)
+  assert.match(html, /Illustration of &lt;script&gt;alert\(1\)&lt;\/script&gt;/)
   assert.doesNotMatch(html, /<script|javascript:/)
+})
+
+test('products without photos get artwork matched to their item type', () => {
+  const laptop = render({ data: { ...data, name: 'BrightBuy Pro Laptop' } })
+  const boat = render({ data: { ...data, name: 'BrightBuy RC Boat' } })
+  assert.match(laptop, /aria-label="Illustration of BrightBuy Pro Laptop"/)
+  assert.match(laptop, /Computing/)
+  assert.match(boat, /aria-label="Illustration of BrightBuy RC Boat"/)
+  assert.match(boat, /Remote control/)
 })
 test('valid images include meaningful alternative text', () => {
   const html = render({ data: { ...data, image_url: '/phone.png' } })
