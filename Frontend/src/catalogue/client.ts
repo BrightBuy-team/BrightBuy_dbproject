@@ -1,6 +1,7 @@
 import { authApiBase } from './session'
 
-export const catalogueBase = import.meta.env.VITE_CATALOGUE_API_URL || 'http://localhost:8080/api/catalogue'
+export const catalogueBase = import.meta.env.VITE_CATALOGUE_API_URL
+  || (import.meta.env.DEV ? '/api/catalogue' : 'https://brightbuy-2026.azurewebsites.net/api/catalogue')
 
 /** The base address of one backend module, such as 'checkout' or 'inventory'. */
 export function apiBase(module: string): string {

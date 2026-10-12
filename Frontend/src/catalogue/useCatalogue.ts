@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { CatalogueHttpError, requestCatalogue, requestProductDetail } from './api'
+import { catalogueBase } from './client'
 import type { Search } from './search'
 import { searchParams } from './search'
 import { browseTitle } from './browsePresentation'
 
-const apiBase = import.meta.env.VITE_CATALOGUE_API_URL || 'http://localhost:8080/api/catalogue'
-
 export function useCatalogue<T>(path: string, decode: (value: unknown) => T) {
-  const load = useCallback((signal: AbortSignal) => requestCatalogue(apiBase, path, decode, signal), [path, decode])
+  const load = useCallback((signal: AbortSignal) => requestCatalogue(catalogueBase, path, decode, signal), [path, decode])
   return useRequest(path, load)
 }
 
 export function useProductDetail(productId: number) {
-  const load = useCallback((signal: AbortSignal) => requestProductDetail(apiBase, productId, signal), [productId])
+  const load = useCallback((signal: AbortSignal) => requestProductDetail(catalogueBase, productId, signal), [productId])
   return useRequest(`product:${productId}`, load)
 }
 

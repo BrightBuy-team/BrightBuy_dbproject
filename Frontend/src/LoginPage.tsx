@@ -114,8 +114,13 @@ export default function LoginPage() {
 
   return <main className="login-container">
     <section className="login-left">
+      <img className="login-image" src="/thick-green-clouds.jpg" alt="" aria-hidden="true" />
       <div className="login-branding"><div className="login-logo-icon">b.</div><span className="login-logo-text">BrightBuy</span></div>
-      <h1>{titles[view]}</h1><p>Good finds. Everyday possibilities.</p>
+      <div className="login-copy">
+        <p className="login-eyebrow">Welcome to BrightBuy</p>
+        <h1>{titles[view]}</h1>
+        <p>Good finds. Everyday possibilities.</p>
+      </div>
     </section>
     <section className="login-right"><div className="login-form-container">
       <h2 className="login-title">{titles[view]}</h2>

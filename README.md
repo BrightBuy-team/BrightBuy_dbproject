@@ -69,6 +69,10 @@ npm ci
 npm run dev
 ```
 
+By default, Vite proxies API requests to the deployed Azure backend. To use the local backend
+from step 2 instead, set `VITE_CATALOGUE_API_URL=http://localhost:8080/api/catalogue` in
+`Frontend/.env.local`.
+
 Open <http://localhost:5173>. The pages are `/` (home and sign-in), `/catalogue.html`
 (shop, cart, checkout, orders, staff catalogue, reports, admin), `/inventory.html`
 (warehouse) and `/delivery.html` (delivery estimate of an order).

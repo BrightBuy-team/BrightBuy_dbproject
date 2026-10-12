@@ -12,6 +12,15 @@ test('account API follows the catalogue deployment or an explicit override', () 
   }
 })
 
+test('relative account API uses the current UI origin', t => {
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: { location: { origin: 'http://localhost:5173' } },
+  })
+  t.after(() => delete globalThis.window)
+  assert.equal(authApiBase('/api/catalogue'), 'http://localhost:5173/api/auth')
+})
+
 const user = { id: 1, email: 'customer@example.com', accountType: 'CUSTOMER', role: 'Customer' }
 test('session reads use cookies without sending passwords or making mutations', async t => {
   t.mock.method(globalThis, 'fetch', async (url, options) => {

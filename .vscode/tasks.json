@@ -1,0 +1,21 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "BrightBuy UI: Vite dev server",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"--prefix",
+				"Frontend",
+				"run",
+				"dev",
+				"--",
+				"--host",
+				"127.0.0.1"
+			],
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

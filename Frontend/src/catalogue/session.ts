@@ -8,7 +8,8 @@ export type SessionUser = {
 // Derive auth from the same deployment as catalogue; never silently send cookies
 // to a separate hardcoded deployment. Explicit overrides support agreed gateways.
 export function authApiBase(catalogueBase: string, override?: string): string {
-  const url = new URL(override?.trim() || catalogueBase)
+  const pageOrigin = typeof window === 'undefined' ? undefined : window.location.origin
+  const url = new URL(override?.trim() || catalogueBase, pageOrigin)
   if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash) {
     throw new Error('Invalid account API configuration.')
   }

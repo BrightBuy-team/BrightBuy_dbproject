@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { authApiBase, requestSession } from './session'
 import { useRequest } from './useCatalogue'
-import { apiBase, apiRequest } from './client'
+import { apiBase, apiRequest, catalogueBase } from './client'
 import type { SessionUser } from './session'
 
 export function AccountStatusView({ data, loading, error, retry, logout, signingOut }: {
@@ -22,7 +22,7 @@ export default function AccountStatus() {
   const [signingOut,setSigningOut]=useState(false)
   const [logoutError,setLogoutError]=useState('')
   const load = useCallback(async (signal: AbortSignal) => requestSession(authApiBase(
-    import.meta.env.VITE_CATALOGUE_API_URL || 'http://localhost:8080/api/catalogue',
+    catalogueBase,
     import.meta.env.VITE_AUTH_API_URL,
   ), signal), [])
   const { data, loading, error, retry } = useRequest('account', load)

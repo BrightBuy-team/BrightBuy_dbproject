@@ -21,6 +21,11 @@ All settings are environment variables; nothing private is in the repository.
 | `SPRING_PROFILES_ACTIVE` | Set to `production` on a public server | none |
 
 The frontend needs one build-time setting, `VITE_CATALOGUE_API_URL` (see `Frontend/.env.example`).
+The local Vite server proxies `/api` to `https://brightbuy-2026.azurewebsites.net` by default,
+so local UI development uses the Azure backend without weakening its production CORS or cookie
+settings. Set `VITE_CATALOGUE_API_URL=http://localhost:8080/api/catalogue` to use a local backend.
+For a separately hosted frontend, build with the Azure backend's full catalogue API URL; the
+backend must allow the frontend's exact HTTPS origin and use `SameSite=None` if it is cross-site.
 
 ### The production profile
 
