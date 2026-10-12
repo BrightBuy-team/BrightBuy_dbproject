@@ -11,14 +11,14 @@ class SalesSummaryJobTests {
     @Test
     void refreshUsesExistingProcedureAndSevenDayWindow() {
         JdbcTemplate jdbcTemplate = mock(JdbcTemplate.class);
-        new SalesSummaryJob(jdbcTemplate).updateYesterdaySummary();
+        new SalesSummaryJob(jdbcTemplate).updateLastSevenDaysSummary();
         verify(jdbcTemplate).update("CALL sp_populate_sales_summary(?)", 7);
         verifyNoMoreInteractions(jdbcTemplate);
     }
 
     @Test
     void dailyScheduleIsUnchanged() throws Exception {
-        var schedule = SalesSummaryJob.class.getMethod("updateYesterdaySummary")
+        var schedule = SalesSummaryJob.class.getMethod("updateLastSevenDaysSummary")
                 .getAnnotation(Scheduled.class);
         assertThat(schedule.cron()).isEqualTo("0 5 0 * * *");
     }
