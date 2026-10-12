@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ArrowRight, ChevronLeft, ChevronRight, CreditCard, Headphones, Laptop, PackageCheck, Clock3, SlidersHorizontal, Smartphone, Truck, Watch } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, CreditCard, PackageCheck, Clock3, SlidersHorizontal, Truck } from 'lucide-react'
 import { motion } from 'framer-motion'
 import { decodeCategories, decodeProducts } from './api'
 import type { Category } from './api'
@@ -10,7 +10,7 @@ import { navigate, useBrowseNavigation, useCatalogue, useSearchLocation } from '
 import { resultSummary } from './browsePresentation'
 import { catalogueHref, parseCatalogueRoute } from './routes'
 import ProductDetailPage from './ProductDetailPage'
-import { PackageIcon } from './ProductImage'
+import ProductImage, { PackageIcon } from './ProductImage'
 import ProductCard from './ProductCard'
 import HomeHighlights from './HomeHighlights'
 import { isCatalogueHome } from './home'
@@ -106,8 +106,8 @@ function Results({ query, title, home, reset }: { query: Search; title: string; 
   </section>
 }
 
-function Hero() {
-  const float = (delay: number) => ({ animate: { y: [0, -8, 0] }, transition: { duration: 5, repeat: Infinity, ease: 'easeInOut' as const, delay } })
+export function CatalogueHero() {
+  const float = (delay: number) => ({ animate: { y: [0, -7, 0] }, transition: { duration: 5, repeat: Infinity, ease: 'easeInOut' as const, delay } })
   return <section className="catalogue-hero" aria-labelledby="catalogue-heading">
     <motion.div className="catalogue-hero-copy" initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}>
       <p className="bb-chip">Electronics and toys, delivered across Texas</p>
@@ -123,11 +123,19 @@ function Hero() {
         <div><dt>+3 days</dt><dd>If an item is back-ordered</dd></div>
       </dl>
     </motion.div>
-    <div className="catalogue-hero-art" aria-hidden="true">
-      <motion.span className="tile one" {...float(0)}><Laptop /></motion.span>
-      <motion.span className="tile two" {...float(0.8)}><Smartphone /></motion.span>
-      <motion.span className="tile three" {...float(1.6)}><Headphones /></motion.span>
-      <motion.span className="tile four" {...float(2.4)}><Watch /></motion.span>
+    <div className="catalogue-hero-art" role="group" aria-label="Featured product photos">
+      <motion.figure className="hero-product hero-laptop" {...float(0)}>
+        <ProductImage src={null} name="BrightBuy Air Laptop" />
+      </motion.figure>
+      <motion.figure className="hero-product hero-phone" {...float(0.8)}>
+        <ProductImage src={null} name="Apple iPhone 15 Pro" />
+      </motion.figure>
+      <motion.figure className="hero-product hero-headset" {...float(1.6)}>
+        <ProductImage src={null} name="BrightBuy Gaming Headset" />
+      </motion.figure>
+      <motion.figure className="hero-product hero-toy" {...float(2.4)}>
+        <ProductImage src={null} name="BrightBuy Toy Robot" />
+      </motion.figure>
     </div>
   </section>
 }
@@ -193,7 +201,7 @@ export default function CatalogueApp() {
             onContinueShopping={() => window.location.assign(catalogueHref(query))} />
           : view === 'checkout' ? <CheckoutView onBack={() => window.location.assign('?view=cart')} />
           : <>
-            {home && <Hero />}
+            {home && <CatalogueHero />}
             {home && <Promises />}
             {home && <Reveal><HomeHighlights categories={categories} /></Reveal>}
             <div className="catalogue-breadcrumb"><a href={window.location.pathname}>Home</a><span aria-hidden="true">/</span><span>{productId ? 'Product details' : title}</span></div>

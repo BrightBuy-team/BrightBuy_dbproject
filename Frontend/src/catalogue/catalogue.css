@@ -48,13 +48,13 @@
 .catalogue-hero-facts { display: flex; flex-wrap: wrap; gap: 28px; margin: 0; padding-top: 22px; border-top: 1px solid var(--bb-line-strong); }
 .catalogue-hero-facts dt { font-family: var(--bb-font-display); font-size: 22px; font-weight: 800; color: var(--bb-primary); }
 .catalogue-hero-facts dd { margin: 2px 0 0; font-size: 12.5px; color: var(--bb-muted); }
-.catalogue-hero-art { position: relative; min-height: 300px; }
-.catalogue-hero-art .tile { position: absolute; display: grid; place-items: center; border-radius: 22px; background: #fff; border: 1px solid var(--bb-line-strong); box-shadow: var(--bb-shadow-2); color: var(--bb-primary-mid); }
-.catalogue-hero-art .tile svg { width: 46%; height: 46%; stroke-width: 1.4; }
-.catalogue-hero-art .one { width: 190px; height: 150px; left: 6%; top: 8%; background: linear-gradient(135deg, #fff, var(--bb-tint)); }
-.catalogue-hero-art .two { width: 120px; height: 160px; right: 8%; top: 0; }
-.catalogue-hero-art .three { width: 140px; height: 140px; right: 20%; bottom: 2%; background: var(--bb-gradient-sun); color: var(--bb-on-sun); border-color: transparent; }
-.catalogue-hero-art .four { width: 104px; height: 104px; left: 16%; bottom: 6%; }
+.catalogue-hero-art { position: relative; min-height: 350px; }
+.catalogue-hero-art .hero-product { position: absolute; display: grid; place-items: center; margin: 0; padding: 0; border: 3px solid var(--bb-primary-soft); border-radius: 20px; background: #fff; box-shadow: var(--bb-shadow-2); overflow: hidden; }
+.catalogue-hero-art .hero-product img { display: block; width: 100%; height: 100%; min-width: 0; min-height: 0; object-fit: contain; mix-blend-mode: multiply; }
+.catalogue-hero-art .hero-laptop { z-index: 1; left: 0; top: 8%; width: 64%; height: 57%; }
+.catalogue-hero-art .hero-phone { z-index: 2; right: 1%; top: 0; width: 32%; height: 53%; }
+.catalogue-hero-art .hero-headset { z-index: 3; right: 9%; bottom: 0; width: 50%; height: 49%; }
+.catalogue-hero-art .hero-toy { z-index: 4; left: 3%; bottom: 0; width: 30%; height: 35%; }
 
 .catalogue-promises { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 22px 0 8px; }
 .catalogue-promises .bb-card { display: flex; gap: 12px; padding: 16px; align-items: flex-start; height: 100%; }
@@ -122,10 +122,27 @@
 /* Product card */
 .catalogue-card { position: relative; display: flex; flex-direction: column; height: 100%; padding: 12px; border-radius: var(--bb-radius-lg); border: 1px solid var(--bb-line); background: #fff; box-shadow: var(--bb-shadow-1); transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease; }
 .catalogue-card:hover { transform: translateY(-4px); box-shadow: var(--bb-shadow-2); border-color: var(--bb-line-strong); }
-.catalogue-product-image { position: relative; aspect-ratio: 5 / 4; border-radius: 12px; overflow: hidden; background: linear-gradient(145deg, var(--bb-wash) 0%, var(--bb-tint-strong) 100%); }
-.catalogue-product-image img { width: 100%; height: 100%; object-fit: cover; }
-.catalogue-image-placeholder { width: 100%; height: 100%; display: grid; place-content: center; justify-items: center; gap: 8px; color: var(--bb-accent); font-size: 12px; font-weight: 600; }
-.catalogue-image-placeholder svg { width: 56px; height: 56px; stroke: currentColor; stroke-width: 2.4; stroke-linejoin: round; opacity: 0.75; }
+.catalogue-product-image { position: relative; aspect-ratio: 5 / 4; border: 2px solid var(--bb-highlight); border-radius: 12px; overflow: hidden; background: #fff; }
+.catalogue-product-image img { width: 100%; height: 100%; object-fit: contain; }
+.catalogue-product-art { position: absolute; inset: 0; display: grid; place-items: center; isolation: isolate; overflow: hidden; }
+.catalogue-product-art::before, .catalogue-product-art::after { content: ''; position: absolute; z-index: -1; border-radius: 50%; pointer-events: none; }
+.catalogue-product-art::before { width: 62%; aspect-ratio: 1; right: -14%; top: -35%; background: rgb(255 255 255 / 42%); }
+.catalogue-product-art::after { width: 46%; aspect-ratio: 1; left: -17%; bottom: -34%; background: rgb(255 255 255 / 34%); }
+.catalogue-product-art.tone-coral { background: linear-gradient(140deg, #ffe3d7, #ffc6af); color: #a44126; }
+.catalogue-product-art.tone-violet { background: linear-gradient(140deg, #e9e2ff, #d4c6ff); color: #5841a1; }
+.catalogue-product-art.tone-mint { background: linear-gradient(140deg, #ddf3e9, #b9e3d1); color: #26775d; }
+.catalogue-product-art.tone-blue { background: linear-gradient(140deg, #e0edff, #c2d9fc); color: #315b9a; }
+.catalogue-product-art.tone-gold { background: linear-gradient(140deg, #fff0c9, #f6d98f); color: #89601b; }
+.catalogue-product-art.tone-neutral { background: linear-gradient(140deg, #eef0ec, #dce2dc); color: #536259; }
+.catalogue-art-object { width: clamp(64px, 34%, 108px); aspect-ratio: 1; display: grid; place-items: center; border: 1px solid rgb(255 255 255 / 78%); border-radius: 24px; background: rgb(255 255 255 / 72%); box-shadow: 0 12px 28px rgb(43 34 22 / 12%); animation: catalogue-art-float 5s ease-in-out infinite; }
+.catalogue-art-object svg { width: 56%; height: 56%; stroke-width: 1.55; }
+.catalogue-art-orbit { position: absolute; width: 55%; aspect-ratio: 1; border: 1px solid currentColor; border-radius: 50%; opacity: 0.15; animation: catalogue-art-orbit 18s linear infinite; }
+.catalogue-art-spark { position: absolute; width: 10px; height: 10px; top: 22%; right: 25%; border-radius: 50%; background: currentColor; opacity: 0.34; animation: catalogue-art-spark 3s ease-in-out infinite; }
+.catalogue-art-label { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); padding: 4px 9px; border: 1px solid rgb(255 255 255 / 70%); border-radius: 999px; background: rgb(255 255 255 / 54%); color: inherit; font-size: 9px; font-weight: 700; letter-spacing: 0.09em; line-height: 1.2; text-transform: uppercase; white-space: nowrap; }
+@keyframes catalogue-art-float { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-7px) rotate(2deg); } }
+@keyframes catalogue-art-orbit { to { transform: rotate(360deg); } }
+@keyframes catalogue-art-spark { 0%, 100% { transform: scale(0.8); opacity: 0.22; } 50% { transform: scale(1.25); opacity: 0.5; } }
+@media (prefers-reduced-motion: reduce) { .catalogue-art-object, .catalogue-art-orbit, .catalogue-art-spark { animation: none; } }
 .catalogue-stock { position: absolute; left: 10px; top: 10px; z-index: 1; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--bb-ok-line); color: var(--bb-ok); font-size: 11.5px; font-weight: 700; }
 .catalogue-stock::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--bb-ok-dot); }
 .catalogue-stock.unavailable { color: var(--bb-warn); border-color: var(--bb-warn-line); background: var(--bb-warn-bg); }
@@ -153,8 +170,9 @@
 .catalogue-detail-skeleton { height: 320px; }
 .catalogue-detail-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 32px; align-items: start; }
 .catalogue-detail-media { display: grid; gap: 16px; position: sticky; top: 92px; }
-.catalogue-detail-image { aspect-ratio: 4 / 3; border-radius: 20px; border: 1px solid var(--bb-line); box-shadow: var(--bb-shadow-1); }
-.catalogue-detail-image .catalogue-image-placeholder svg { width: 96px; height: 96px; }
+.catalogue-detail-image { aspect-ratio: 4 / 3; border-radius: 20px; box-shadow: var(--bb-shadow-1); }
+.catalogue-detail-image .catalogue-art-object { width: min(34%, 168px); }
+.catalogue-detail-image .catalogue-art-label { bottom: 18px; padding: 6px 12px; font-size: 11px; }
 .catalogue-detail-promises { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .catalogue-detail-promises li { display: flex; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--bb-line); background: #fff; font-size: 12px; color: var(--bb-muted); }
 .catalogue-detail-promises svg { width: 18px; height: 18px; color: var(--bb-primary-mid); flex: none; }
