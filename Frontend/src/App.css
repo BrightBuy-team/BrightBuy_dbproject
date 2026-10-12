@@ -277,6 +277,82 @@ body {
   margin: 0 auto;
 }
 
+:root {
+  --store-bg: #fffaf0;
+  --store-surface: #fffefa;
+  --store-primary: #c84b13;
+  --store-primary-hover: #a63b0d;
+  --store-accent: #ef7908;
+  --store-text: #30241b;
+  --store-text-light: #78695d;
+  --store-border: #eee2cd;
+  color: var(--store-text);
+  background: var(--store-bg);
+}
+body { background: #fffaf0; color: var(--store-text); }
+.store-header { background: #fffefa; }
+.header-container { max-width: 1368px; padding: 14px clamp(18px, 4vw, 48px); gap: 20px; }
+.logo-container { gap: 10px; }
+.logo-icon {
+  border-radius: 10px 10px 10px 3px;
+  background: linear-gradient(145deg, #ff9b08, #d63d0b);
+  box-shadow: 0 5px 12px #d66b1830;
+}
+.logo-text { color: #30241b; letter-spacing: -.8px; }
+.main-nav { gap: clamp(14px, 2vw, 28px); }
+.nav-link { color: #57483c; }
+.nav-link:hover { color: #b84916; }
+.icon-btn { color: #654b39; }
+.cart-badge { background: #ce480f; }
+.hero-section {
+  min-height: 76vh;
+  background-color: #c78320;
+  background-image: radial-gradient(ellipse at 18% 70%, #ffb32b88, transparent 35%),
+    radial-gradient(ellipse at 83% 19%, #fff28c55, transparent 38%),
+    linear-gradient(125deg, #ad6a17 0%, #d58a1e 46%, #c68020 100%);
+  background-attachment: scroll;
+}
+.hero-section::before { background: linear-gradient(125deg, #77400d28, #f5ab2610); }
+.hero-content { max-width: 900px; }
+.hero-badge {
+  border-color: #fff4d17a;
+  background: #fff5d926;
+  color: #fff8e9;
+  text-transform: none;
+}
+.hero-title {
+  font-size: clamp(3.4rem, 7vw, 6rem);
+  letter-spacing: -3px;
+  color: #fffdf5;
+}
+.hero-title span { color: #fff9e9; font-weight: 750; }
+.hero-subtitle { max-width: 680px; font-size: clamp(1.05rem, 2vw, 1.35rem); }
+.reveal-section {
+  min-height: 48vh;
+  padding: clamp(4rem, 9vw, 8rem) 2rem;
+  background: radial-gradient(ellipse at 15% 15%, #f6dba759, transparent 35%), #fffaf0;
+}
+.reveal-text { color: #30241b; font-size: clamp(2.6rem, 6vw, 4.5rem); letter-spacing: -2px; }
+.reveal-highlight { color: #c84b13; }
+.reveal-subtext { color: #78695d; font-size: clamp(1rem, 2vw, 1.25rem); }
+.btn-primary {
+  background: linear-gradient(120deg, #ef7908, #ce400d);
+  color: white;
+  border: 1px solid #d64d12;
+  box-shadow: 0 8px 20px #c84b1330;
+}
+.btn-primary:hover { background: #a63b0d; color: white; }
+.store-footer { background: #fffefa; color: #78695d; border-top: 1px solid #eee2cd; }
+
+@media (max-width: 760px) {
+  .header-container { flex-wrap: wrap; padding: 12px 18px; }
+  .main-nav { order: 3; width: 100%; gap: 18px; }
+  .hero-section { min-height: 68vh; background-attachment: scroll; }
+  .hero-title { letter-spacing: -2px; }
+  .hero-subtitle { margin-bottom: 1.5rem; }
+  .reveal-section { min-height: 40vh; padding: 4rem 1.2rem; }
+}
+
 /* --- CLOUD SECTION --- */
 .cloud-section {
   position: relative;

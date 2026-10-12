@@ -71,11 +71,23 @@ export default function DeliveryApp() {
   }
 
   return (
-    <div className="delivery-container">
+    <div className="delivery-page">
+      <header className="delivery-site-header">
+        <a className="delivery-brand" href="/catalogue.html" aria-label="BrightBuy home">
+          <span className="delivery-brand-mark">b.</span><span>BrightBuy<small>TEXAS RETAIL</small></span>
+        </a>
+        <nav aria-label="Site navigation">
+          <a href="/catalogue.html">Shop</a>
+          <a href="/catalogue.html?view=orders">My orders</a>
+          <a href="/delivery.html" aria-current="page">Track delivery</a>
+          <a className="delivery-sign-in" href="/?view=login">Sign in</a>
+        </nav>
+      </header>
+      <main className="delivery-container">
       <div className="glass-panel delivery-card">
 
-        <header className="delivery-header" style={{ position: 'relative' }}>
-          <a href="/" style={{ position: 'absolute', left: '1rem', top: '1rem', textDecoration: 'none', color: '#2563eb', fontWeight: 'bold' }}>← Back</a>
+        <header className="delivery-header">
+          <a className="delivery-back" href="/catalogue.html">← Back to shop</a>
 
           <div className="icon-wrapper">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -139,6 +151,7 @@ export default function DeliveryApp() {
         )}
 
       </div>
+      </main>
     </div>
   );
 }

@@ -22,23 +22,32 @@ export default function CatalogueHeader({ query, homeHref }: { query: Search; ho
     navigate({ ...query, keyword, page: 1 })
   }
   return <>
-    <header className="catalogue-header" style={{ alignItems: 'center' }}>
-      <a className="catalogue-brand" href={homeHref} aria-label="BrightBuy home"><span className="catalogue-brand-mark">b.</span>BrightBuy<span className="catalogue-brand-dot">●</span></a>
-      <nav className="catalogue-site-navigation" aria-label="Site navigation">
-        <a href="/catalogue.html" style={{color: 'inherit', textDecoration: 'none'}}>Catalogue</a>
-        <a href="/inventory.html" style={{color: 'inherit', textDecoration: 'none'}}>Inventory</a>
-        <a href="/delivery.html" style={{color: 'inherit', textDecoration: 'none'}}>Delivery</a>
-      </nav>
+    <header className="catalogue-header">
+      <a className="catalogue-brand" href={homeHref} aria-label="BrightBuy home"><span className="catalogue-brand-mark">b.</span><span>BrightBuy<small> TEXAS RETAIL</small></span></a>
       <form className="catalogue-search" role="search" onSubmit={search}>
         <label className="catalogue-visually-hidden" htmlFor="catalogue-keyword">Search products</label>
         <input id="catalogue-keyword" name="keyword" type="search" defaultValue={query.keyword} placeholder="Search products, brands, or SKUs" aria-invalid={!!error} aria-describedby={error ? 'search-error' : undefined} />
-        <button type="submit">Search <span aria-hidden="true">↗</span></button>
+        <button type="submit"><span className="catalogue-search-icon" aria-hidden="true">⌕</span><span className="catalogue-search-label">Search</span></button>
       </form>
-      <a className="catalogue-management-link" href="?view=cart" aria-label={`Cart, ${cartCount} items`}>
+      <nav className="catalogue-site-navigation" aria-label="Site navigation">
+        <a href="/catalogue.html">Shop</a>
+        <a href="?view=orders">My orders</a>
+        <a href="/delivery.html">Track delivery</a>
+      </nav>
+      <a className="catalogue-cart" href="?view=cart" aria-label={`Cart, ${cartCount} items`}>
+        <span aria-hidden="true">▱</span>
         Cart (<span id="cart-count">{cartCount}</span>)
       </a>
-      <a className="catalogue-management-link" href="/?view=login">Sign in</a>
-      <a href="?view=orders">My orders</a><a href="?view=staff">Catalogue staff</a><a href="?view=reports">Reports</a><a href="?view=admin">Admin</a>
+      <a className="catalogue-sign-in" href="/?view=login"><span aria-hidden="true">♙</span> Sign in</a>
+      <details className="catalogue-more-links">
+        <summary>More</summary>
+        <div>
+          <a href="/inventory.html">Inventory</a>
+          <a href="?view=staff">Catalogue staff</a>
+          <a href="?view=reports">Reports</a>
+          <a href="?view=admin">Admin</a>
+        </div>
+      </details>
     </header>
     {error && <p className="catalogue-field-error catalogue-search-error" id="search-error" role="alert">{error}</p>}
     <AccountStatus />

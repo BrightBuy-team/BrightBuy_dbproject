@@ -14,8 +14,11 @@ export default function ProductCard({ product, query }: { product: Product; quer
     <div className="catalogue-card-content">
       <p className="catalogue-sku">{product.sku}</p>
       <h3><a href={catalogueHref(query, product.product_id)}>{product.name}</a></h3>
-      <p className="catalogue-product-price">{formatPrice(product.min_price)}{product.max_price !== product.min_price && <><span> – </span>{formatPrice(product.max_price)}</>}</p>
       <p className="catalogue-card-caption">{product.matching_variant_count} matching {product.matching_variant_count === 1 ? 'variant' : 'variants'}<span aria-hidden="true"> · </span>{product.matching_stock_quantity} units available</p>
+      <div className="catalogue-card-footer">
+        <p className="catalogue-product-price">{formatPrice(product.min_price)}{product.max_price !== product.min_price && <><span> – </span>{formatPrice(product.max_price)}</>}</p>
+        <a className="catalogue-card-link" href={catalogueHref(query, product.product_id)} aria-label={`View ${product.name}`}><span aria-hidden="true">→</span></a>
+      </div>
     </div>
   </article>
 }
