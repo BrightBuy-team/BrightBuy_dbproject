@@ -26,7 +26,8 @@ test('loading state is announced and marks the detail region busy', () => {
 })
 test('loaded detail shows product details and the selected variant price', () => {
   const html = render({ data })
-  for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', 'USD', '100.00', 'In Stock', 'Image coming soon']) assert.ok(html.includes(text), text)
+  for (const text of ['Demo phone', 'DEMO-1', 'A useful phone.', 'Mobile Phones', 'USD', '100.00', 'In Stock', 'Smartphone']) assert.ok(html.includes(text), text)
+  assert.match(html, /src="\/products\/smartphone\.jpg"/)
   assert.match(html, /categoryId=4/)
   assert.match(html, /<select id="catalogue-variant"/)
   assert.match(html, /<button[^>]*>Add to Cart/)
@@ -71,8 +72,65 @@ test('back links retain original browse filters on success and failure', () => {
 test('API text is escaped and unsafe image schemes get a fallback', () => {
   const html = render({ data: { ...data, name: '<script>alert(1)</script>', image_url: 'javascript:alert(1)' } })
   assert.match(html, /&lt;script&gt;/)
-  assert.match(html, /Image coming soon/)
+  assert.match(html, /Illustration of &lt;script&gt;alert\(1\)&lt;\/script&gt;/)
   assert.doesNotMatch(html, /<script|javascript:/)
+})
+
+test('unmatched products retain the animated illustration fallback', () => {
+  const cases = [
+    ['BrightBuy Mystery Item', 'BrightBuy'],
+  ]
+  for (const [name, label] of cases) {
+    const html = render({ data: { ...data, name, image_url: null } })
+    assert.match(html, new RegExp(`aria-label="Illustration of ${name}"`))
+    assert.match(html, new RegExp(`>${label}<`))
+    assert.match(html, /catalogue-product-art/)
+  }
+})
+test('known products use bundled matching photos', () => {
+  for (const [name, src, alt] of [
+    ['Apple iPhone 15 Pro', '/products/iphone-15-pro-user.png', 'Apple iPhone 15 Pro'],
+    ['Samsung Galaxy S24 Ultra', '/products/galaxy-s24-ultra-user.jpg', 'Samsung Galaxy S24 Ultra'],
+    ['Sony WH-1000XM5', '/products/headphones-user.jpg', 'Representative Sony over-ear headphones'],
+    ['BrightBuy Pro Laptop', '/products/pro-laptop-user.png', 'Lenovo Legion laptop'],
+    ['BrightBuy Workstation Laptop', '/products/workstation-laptop-user.png', 'Dell laptop computer'],
+    ['BrightBuy Convertible Laptop', '/products/convertible-laptop-user.png', 'ASUS Vivobook laptop'],
+    ['BrightBuy Gaming Laptop', '/products/gaming-laptop-user.png', 'Acer Predator gaming laptop'],
+    ['BrightBuy Air Laptop', '/products/air-laptop-user.png', 'BrightBuy Air Laptop'],
+    ['BrightBuy Smart Lamp', '/products/smart-lamp-user.png', 'Adjustable smart desk lamp'],
+    ['BrightBuy Smart Watch', '/products/smart-watch-user.jpg', 'Smart watch'],
+    ['BrightBuy Fitness Band', '/products/fitness-band-user.png', 'Fitness tracker band'],
+    ['BrightBuy Nova Phone', '/products/huawei-phone-user.png', 'Huawei smartphone, representative image'],
+    ['BrightBuy Lite Phone', '/products/honor-phone-user.png', 'HONOR smartphone, representative image'],
+    ['BrightBuy Mini Phone', '/products/toy-smartphone-user.png', 'Toy-style smartphone, representative image'],
+    ['BrightBuy Max Phone', '/products/oneplus-phone-user.png', 'OnePlus smartphone, representative image'],
+    ['BrightBuy Plus Phone', '/products/sologic-phone-user.png', 'Sologic smartphone, representative image'],
+    ['BrightBuy Portable Speaker', '/products/portable-speaker-user.png', 'Portable Bluetooth speaker'],
+    ['BrightBuy Soundbar', '/products/soundbar-user.png', 'Soundbar, subwoofer and surround speakers'],
+    ['BrightBuy Wireless Earbuds', '/products/wireless-earbuds-user.png', 'Wireless earbuds and charging case'],
+    ['BrightBuy Gaming Headset', '/products/gaming-headset-user.png', 'Over-ear gaming headset with microphone'],
+    ['BrightBuy Studio Headphones', '/products/studio-headphones-user.png', 'Beyerdynamic DT 990 Pro wired headphones'],
+    ['BrightBuy Mechanical Keyboard', '/products/mechanical-keyboard-user.png', 'RGB mechanical keyboard'],
+    ['BrightBuy Wireless Mouse', '/products/wireless-mouse-user.png', 'Wireless computer mouse with USB receiver'],
+    ['BrightBuy USB-C Hub', '/products/usb-c-hub-user.png', 'USB-C hub with multiple ports'],
+    ['BrightBuy Portable SSD', '/products/portable-ssd-user.png', 'Portable solid-state drive'],
+    ['BrightBuy Desktop Monitor', '/products/monitor-user.png', 'Curved desktop monitor'],
+    ['BrightBuy Indoor Camera', '/products/security-camera-user.png', 'Indoor security camera'],
+    ['BrightBuy Webcam', '/products/webcam-4k-user.png', '4K USB webcam with privacy cover'],
+    ['BrightBuy Learning Blocks', '/products/building-blocks-user.png', 'Colorful educational building blocks'],
+    ['BrightBuy Coding Robot Kit', '/products/coding-robot-kit-user.png', 'Programmable construction robot kit'],
+    ['BrightBuy Science Activity Kit', '/products/science-kit-user.png', 'Science activity kit'],
+    ['BrightBuy Alphabet Puzzle', '/products/alphabet-puzzle-user.png', 'Alphabet puzzle'],
+    ['BrightBuy Counting Abacus', '/products/abacus-user.png', 'Counting abacus'],
+    ['BrightBuy RC Racing Car', '/products/rc-car-user.png', 'Remote-controlled toy car'],
+    ['BrightBuy RC Monster Truck', '/products/rc-truck-user.png', 'Remote-controlled monster truck'],
+    ['BrightBuy RC Boat', '/products/rc-boat-user.png', 'Remote-controlled boat'],
+    ['BrightBuy RC Robot', '/products/toy-robot-user.png', 'Toy robot'],
+  ]) {
+    const html = render({ data: { ...data, name, image_url: null } })
+    assert.match(html, new RegExp(`src="${src}"`))
+    assert.match(html, new RegExp(`alt="${alt}"`))
+  }
 })
 test('valid images include meaningful alternative text', () => {
   const html = render({ data: { ...data, image_url: '/phone.png' } })

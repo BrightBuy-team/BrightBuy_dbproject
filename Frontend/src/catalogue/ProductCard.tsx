@@ -1,3 +1,4 @@
+import { ArrowRight } from 'lucide-react'
 import type { Product } from './api'
 import type { Search } from './search'
 import { formatPrice } from './search'
@@ -6,6 +7,7 @@ import ProductImage from './ProductImage'
 
 export default function ProductCard({ product, query }: { product: Product; query: Search }) {
   const inStock = product.matching_stock_quantity > 0
+  const href = catalogueHref(query, product.product_id)
   return <article className="catalogue-card">
     <div className="catalogue-product-image">
       <span className={`catalogue-stock ${inStock ? '' : 'unavailable'}`}>{inStock ? 'In stock' : 'Out of stock'}</span>
@@ -13,11 +15,11 @@ export default function ProductCard({ product, query }: { product: Product; quer
     </div>
     <div className="catalogue-card-content">
       <p className="catalogue-sku">{product.sku}</p>
-      <h3><a href={catalogueHref(query, product.product_id)}>{product.name}</a></h3>
+      <h3><a href={href}>{product.name}</a></h3>
       <p className="catalogue-card-caption">{product.matching_variant_count} matching {product.matching_variant_count === 1 ? 'variant' : 'variants'}<span aria-hidden="true"> · </span>{product.matching_stock_quantity} units available</p>
-      <div className="catalogue-card-footer">
+      <div className="catalogue-card-foot">
         <p className="catalogue-product-price">{formatPrice(product.min_price)}{product.max_price !== product.min_price && <><span> – </span>{formatPrice(product.max_price)}</>}</p>
-        <a className="catalogue-card-link" href={catalogueHref(query, product.product_id)} aria-label={`View ${product.name}`}><span aria-hidden="true">→</span></a>
+        <span className="catalogue-card-action" aria-hidden="true"><ArrowRight /></span>
       </div>
     </div>
   </article>

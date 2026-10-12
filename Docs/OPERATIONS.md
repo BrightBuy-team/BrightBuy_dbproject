@@ -66,6 +66,25 @@ replaces stored procedures, so between the upgrade and the arrival of the new ba
 (a few minutes) actions whose procedure changed can fail on the old backend. Do both
 steps together at a quiet time. The backend's settings do not change between releases.
 
+### The frontend
+
+The frontend is a set of static files. Build it with the address of the backend it will
+talk to, then put the `dist` folder on any static web host:
+
+```bash
+VITE_CATALOGUE_API_URL=https://YOUR_BACKEND_HOST/api/catalogue npm run build --prefix Frontend
+```
+
+- The build has four entry pages: `index.html`, `catalogue.html`, `console.html` and
+  `delivery.html` (`inventory.html` is kept as the old address of the console). They are
+  ordinary pages, so the host needs no rewrite rules.
+- Add the frontend's address to the backend's `BRIGHTBUY_CORS_ORIGINS`.
+- When the frontend and backend are on different sites, the session cookie must be sent
+  cross-site: set `BRIGHTBUY_SECURE_COOKIES=true` and `BRIGHTBUY_COOKIE_SAME_SITE=none`, and
+  serve both over HTTPS. On the same site keep `lax`.
+- The pages load two fonts from Google Fonts. Without a connection to it they fall back to
+  the system font and still work.
+
 ## Upgrading the shared database
 
 Do this from a computer that is allowed to reach the server, with an administrator account.

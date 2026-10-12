@@ -1,0 +1,98 @@
+Bundled product-family photos and image licenses
+
+The iPhone 15 Pro and Galaxy S24 Ultra files depict those exact products.
+Other BrightBuy demo product names are fictional; their photos are representative
+of the product type, not a claim that the pictured brand/model is the demo SKU.
+The Sony WH-1000XM5 uses a representative Sony WH-CH510 photo because an exact
+open-licensed WH-1000XM5 photo could not be verified.
+
+iphone-15-pro.jpg
+  "Apple iPhone 15 Pro" by IPHONE 15, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Apple_iPhone_15_Pro.jpg
+
+galaxy-s24-ultra.jpg
+  "Samsung Galaxy S24 Ultra and Pen with grey Background" by SimonWaldherr, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Samsung_Galaxy_S24_Ultra_and_Pen_with_grey_Background.jpg
+
+smartphone.jpg
+  "Apple iPhone 15" by Ka Kit Pang, Public Domain
+  https://commons.wikimedia.org/wiki/File:Apple_iPhone_15.jpeg
+
+sony-headphones.jpg
+  "Sony WH-CH510 Bluetooth Over-Ear Headphone" by RPSkokie, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Sony_WH-CH510_Bluetooth_Over-Ear_Headphone.jpg
+
+earbuds.jpg
+  "Pixel Buds in charging case with product box" by Robert Nelson, CC BY 2.0
+  https://commons.wikimedia.org/wiki/File:Pixel_Buds_in_charging_case_with_product_box.jpg
+
+portable-speaker.jpg
+  "Beats By Dr. Dre Pill Portable Bluetooth Speaker Black N2" by Beats, CC0
+  https://commons.wikimedia.org/wiki/File:Beats_By_Dr._Dre_Pill_Portable_Bluetooth_Speaker_Black_N2.jpg
+
+smart-watch.jpg
+  "AMOLED Screen Smart Watch" by Project Kei, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:AMOLED_Screen_Smart_Watch.jpg
+
+laptop.jpg
+  "Ruler and laptop on a desk" by Oli Dale, CC0
+  https://commons.wikimedia.org/wiki/File:Ruler_and_laptop_on_a_desk_(Unsplash).jpg
+
+smart-lamp.jpg
+  "Dekala Arches Smart Lamp" by LannyWay, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Dekala_Arches%E2%84%A2_Smart_Lamp.jpg
+
+smart-plug.jpg
+  "Wemo Mini Smart Plug" by Gregory Varnum, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Wemo_Mini_Smart_Plug_(3750).jpg
+
+indoor-camera.jpg
+  "YI 1080P Home Camera Photo" by DeanBarrington, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:YI_1080P_Home_Camera_Photo.jpg
+
+keyboard.jpg
+  "Mechanical Keyboard" by SolarMainframe, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Mechanical_Keyboard.jpg
+
+mouse.jpg
+  "A black wireless computer mouse" by Pixloom, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:A_black_wireless_computer_mouse.jpg
+
+usb-hub.jpg
+  "Lenovo ThinkPad Mini Dock Plus Series 3 with USB 3.0" by Siarhei Besarab, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Lenovo_ThinkPad_Mini_Dock_Plus_Series_3_with_USB_3.0_(Type_4338)_01.jpg
+
+monitor.jpg
+  "Desktop View" by djsmiley2k, CC BY-SA 2.0
+  https://www.flickr.com/photos/21170187@N04/4775276486
+
+webcam.jpg
+  "Fancy webcam on computer screen" by Peter Placzek, CC BY-SA 4.0
+  https://commons.wikimedia.org/wiki/File:Fancy_webcam_on_computer_screen.jpg
+
+building-blocks.jpg
+  "Building blocks design-2" by SAHAYA RAJAN S, CC0
+  https://commons.wikimedia.org/wiki/File:Building_blocks_design-2.jpg
+
+robot-kit.jpg
+  "A Web Connected Arduino Powered Robot" by oomlout, CC BY-SA 2.0
+  https://www.flickr.com/photos/33504192@N00/3062481711
+
+abacus.jpg
+  "Abacus" by cchana, CC BY-SA 2.0
+  https://www.flickr.com/photos/16956705@N05/26072280910
+
+rc-car.jpg
+  "Remote-controlled toy car" by markheseltine, CC BY 2.0
+  https://www.flickr.com/photos/72659440@N00/4704609436
+
+rc-boat.jpg
+  "A Radio controlled model watercraft" by Sergio Valle Duarte, CC BY 3.0
+  https://commons.wikimedia.org/wiki/File:A_Radio_controlled_model_watercraft.jpg
+
+The *-user files in this directory are product photos supplied by the project
+user for this catalogue. They are not part of the Commons/Flickr attributions
+above.
+
+BrightBuy demo products are fictional; where an uploaded branded phone photo
+is used for one of them, its alternative text identifies it as representative.

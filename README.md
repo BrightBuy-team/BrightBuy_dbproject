@@ -8,7 +8,7 @@ warehouse staff maintain products and stock; management runs sales reports.
 |---|---|---|
 | Database | MySQL 8.0, plain SQL: tables, stored procedures, functions, triggers, roles | [Database/](Database/README.md) |
 | Backend | Java 17, Spring Boot, plain JDBC (no ORM, no migration tool) | `Backend/` |
-| Frontend | React, TypeScript, Vite | `Frontend/` |
+| Frontend | React, TypeScript, Vite, Framer Motion | `Frontend/` |
 
 The business rules live in the database: checkout, stock changes, delivery estimates,
 catalogue maintenance, password reset and the reports are stored procedures and functions,
@@ -26,6 +26,7 @@ calls them.
   variants, price changes, product and category maintenance.
 - Management: five reports with CSV export.
 - Administration: creating employee accounts.
+- Three sign-in doors (customer, employee, administrator), each leading to its own pages.
 
 Two outside services are simulated, as the requirements allow for this phase. The **payment
 gateway** accepts only its test cards (below) and never charges anything. The **email service**
@@ -69,15 +70,21 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:5173>. The pages are `/` (home and sign-in), `/catalogue.html`
-(shop, cart, checkout, orders, staff catalogue, reports, admin), `/inventory.html`
-(warehouse) and `/delivery.html` (delivery estimate of an order).
+Open <http://localhost:5173>. The pages are:
+
+| Page | For | Contents |
+|---|---|---|
+| `/` | everyone | Landing page with the three sign-in doors: customer, employee, admin |
+| `/catalogue.html` | guests and customers | Shop, product pages, cart, checkout, orders, saved address |
+| `/console.html` | employees | Staff console. Its sections depend on the role: warehouse staff, management or administrator |
+| `/delivery.html` | customers | Delivery estimate of one of your orders |
 
 ### Accounts and test data
 
 - **Customers** register themselves on the sign-in page.
-- **Administrator**: the one you set in step 2. Sign in with account type *Employee*, open
-  *Admin*, and create warehouse and management accounts there.
+- **Administrator**: the one you set in step 2. Use the *Admin* sign-in, open *Staff accounts*
+  in the console, and create warehouse and management accounts there. Those sign in on the
+  *Employee* door.
 - The sample customers and employees in the seed data exist so the reports have data.
   They hold placeholder password hashes and cannot sign in.
 - **Test cards**: Visa `4242 4242 4242 4242`, Mastercard `5555 5555 5555 4444`,
@@ -116,7 +123,7 @@ products, or set `BRIGHTBUY_MAVEN_OFFLINE=true` when Maven's dependencies are al
 ```text
 Database/    SQL by module (Catalogue, Inventory, Auth, Checkout, Reporting, Shared), tests, installer
 Backend/     Spring Boot application: one package per module, plus config and email
-Frontend/    React pages: catalogue (shop and staff views), inventory, delivery, sign-in
+Frontend/    React pages: landing and sign-in, shop (catalogue), staff console, delivery; shared design system in src/ui
 Docs/        API reference, operations guide, user guide, work log
 scripts/     verify-project.sh
 .github/     CI (tests on pull requests) and deployment of the backend after main is verified

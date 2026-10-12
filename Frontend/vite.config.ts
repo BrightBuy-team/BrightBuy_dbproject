@@ -4,8 +4,8 @@ import { defineConfig } from 'vite'
 
 const page = (name: string) => path.resolve(import.meta.dirname, name)
 
-// Four pages share one build: home and sign-in, the shop, the warehouse
-// console and the delivery lookup.
+// One build, five pages: home and sign-in, the shop, the staff console
+// (inventory.html is its old address), and the delivery lookup.
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -13,6 +13,7 @@ export default defineConfig({
       input: {
         main: page('index.html'),
         catalogue: page('catalogue.html'),
+        console: page('console.html'),
         inventory: page('inventory.html'),
         delivery: page('delivery.html'),
       },
