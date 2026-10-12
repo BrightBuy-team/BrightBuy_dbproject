@@ -24,4 +24,3 @@ public class SalesSummaryJob {
         log.info("sp_populate_sales_summary completed.");
     }
 }
-0
