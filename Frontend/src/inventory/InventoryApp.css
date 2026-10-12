@@ -227,3 +227,129 @@ body {
   background: var(--alert-color);
   color: #fff;
 }
+
+/* Forms */
+.dashboard-header { position: relative; }
+.dashboard-back { position: absolute; left: 2rem; top: 50%; transform: translateY(-50%); text-decoration: none; color: #115e59; font-weight: bold; font-size: 1.2rem; }
+.stock-form { display: flex; gap: 0.5rem; align-items: center; }
+.stock-form input { width: 6rem; }
+.variant-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; align-items: end; }
+.variant-form label { display: grid; gap: 0.35rem; font-size: 0.85rem; font-weight: 600; }
+.stock-form input, .variant-form input { padding: 0.55rem 0.7rem; border: 1px solid #cbd5e1; border-radius: 8px; font: inherit; }
+.variant-form .btn + .btn { margin-left: 0.5rem; }
+
+.dashboard-container {
+  max-width: 1440px;
+  padding: 24px clamp(18px, 4vw, 52px) 60px;
+  color: #30241b;
+}
+.dashboard-header {
+  position: relative;
+  margin: -24px calc(clamp(18px, 4vw, 52px) * -1) 32px;
+  padding: 22px clamp(18px, 4vw, 52px) 20px;
+  border-bottom: 1px solid #eee2cd;
+  background: #fffefa;
+  text-align: left;
+}
+.dashboard-header h1 {
+  color: #30241b;
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  letter-spacing: -1.2px;
+}
+.dashboard-header h1 span { color: #b84b16; text-shadow: none; }
+.dashboard-header p { color: #78695d; font-size: .9rem; }
+.dashboard-header p a { color: #a84612; text-underline-offset: 3px; }
+.dashboard-back {
+  position: static;
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 12px;
+  transform: none;
+  color: #a84612;
+  font-size: .82rem;
+}
+.dashboard-section { margin-bottom: 32px; }
+.dashboard-section h2 { margin-bottom: 14px; color: #3a2b20; font-size: 1.35rem; }
+.glass-card {
+  border: 1px solid #eee3d2;
+  border-radius: 13px;
+  background: #fffefa;
+  box-shadow: 0 5px 18px #5838110d;
+}
+.glass-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px #58381116; }
+.alert-card { border-left: 4px solid #d87525; }
+.badge.critical { border-color: #f1d19e; background: #fff1d4; color: #a84612; }
+.success-card { border-left-color: #45936b; color: #327454; }
+.inventory-table th {
+  background: #fff6e5;
+  color: #8d5129;
+  font-size: .72rem;
+}
+.inventory-table th, .inventory-table td { border-bottom-color: #eee7dc; }
+.inventory-table tr:hover td { background: #fffaf1; }
+.sku-cell { color: #a64b19; background: #fff4df; }
+.stock-indicator.good { color: #327454; }
+.stock-indicator.low { color: #b74426; }
+.btn { border: 1px solid #eadfc9; background: #fffefa; color: #574437; }
+.btn-primary {
+  border-color: #c84b13;
+  background: linear-gradient(120deg, #ef7908, #ce400d);
+  color: white;
+  box-shadow: 0 4px 12px #c84b1320;
+}
+.btn-primary:hover:not(:disabled) { background: #a63b0d; color: white; }
+.btn-alert { border-color: #f0c8b9; background: #fff4ef; color: #a43f23; }
+.dashboard-content [role="alert"] {
+  margin: 0 0 18px;
+  padding: 12px 15px;
+  border: 1px solid #f0c8b9;
+  border-radius: 9px;
+  background: #fff4ef;
+  color: #923a22;
+}
+.dashboard-content [role="status"] {
+  margin-bottom: 18px;
+  padding: 12px 15px;
+  border: 1px solid #cfe4d4;
+  border-radius: 9px;
+  background: #f2faf2;
+  color: #327454;
+}
+.dashboard-container > main:not(.dashboard-content) {
+  width: min(100% - 36px, 520px);
+  margin: 12vh auto;
+  padding: 28px;
+  border: 1px solid #eee3d2;
+  border-radius: 14px;
+  background: #fffefa;
+  box-shadow: 0 12px 36px #58381112;
+}
+body > #root > main:not(.dashboard-content) {
+  width: min(100% - 36px, 520px);
+  margin: 12vh auto;
+  padding: 28px;
+  border: 1px solid #eee3d2;
+  border-radius: 14px;
+  background: #fffefa;
+  box-shadow: 0 12px 36px #58381112;
+  color: #30241b;
+}
+body > #root > main:not(.dashboard-content) a { color: #a84612; font-weight: 650; }
+.stock-form input, .variant-form input {
+  border-color: #e6d9c5;
+  border-radius: 7px;
+  background: #fffdf9;
+  color: #30241b;
+}
+.stock-form input:focus, .variant-form input:focus {
+  border-color: #d37527;
+  outline: 3px solid #f3ca8d70;
+}
+
+@media (max-width: 700px) {
+  .dashboard-container { padding: 18px 16px 40px; }
+  .dashboard-header { margin: -18px -16px 26px; padding: 18px 16px; }
+  .dashboard-header p { line-height: 1.8; }
+  .dashboard-back { margin-bottom: 10px; }
+  .inventory-table th, .inventory-table td { padding: .85rem .8rem; }
+}

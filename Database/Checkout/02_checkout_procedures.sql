@@ -1,160 +1,383 @@
+-- =========================================================
+-- BrightBuy | Cart & Checkout | 02 Procedures
+-- Module owner: Adeesha W.G.I.
+-- Run after Checkout/01, Inventory/02 (fn_delivery_days) and Shared/01.
+-- Safe to reinstall: replaces five routines, changes no rows.
+--
+-- Order placement is one stored procedure and one transaction (CON-3,
+-- SRS 3.3.1): stock is locked, validated and decremented together with the
+-- order, its items, its delivery record and its payment record. Any failure
+-- rolls everything back, so there are no partial orders (SAF-1).
+--
+-- Out of stock (project brief: "add 3 days if the item is out of stock at
+-- the time of order"): a line may ask for more than is in stock. What is in
+-- stock is taken; the rest is recorded as backordered_quantity and the
+-- delivery estimate gets the 3-day delay. Stock never goes below zero.
+--
+-- The cart is a JSON array: [{"variantId": 12, "quantity": 2}, ...].
+-- =========================================================
+USE brightbuy;
+
+DROP PROCEDURE IF EXISTS sp_checkout_validate_cart;
+DROP PROCEDURE IF EXISTS sp_checkout_quote;
+DROP PROCEDURE IF EXISTS sp_delivery_active_drivers;
+DROP PROCEDURE IF EXISTS sp_delivery_assign;
+DROP PROCEDURE IF EXISTS sp_delivery_mark_delivered;
+DROP PROCEDURE IF EXISTS ProcessCheckout;
+DROP PROCEDURE IF EXISTS ProcessCheckoutV2; -- former name
+
 DELIMITER //
-DROP PROCEDURE IF EXISTS ProcessCheckout//
 
-CREATE PROCEDURE ProcessCheckout(
-    IN p_customer_id INT,
-    IN p_cart_json JSON,
-    OUT p_status VARCHAR(255)
+-- Shape check shared by the quote and the checkout.
+-- p_status: OK, INVALID_CART or DUPLICATE_VARIANTS_IN_CART.
+CREATE PROCEDURE sp_checkout_validate_cart(IN p_cart_json JSON, OUT p_status VARCHAR(255))
+validate: BEGIN
+    DECLARE v_count INT;
+    DECLARE v_valid INT;
+
+    SET p_status = 'INVALID_CART';
+    IF p_cart_json IS NULL OR JSON_TYPE(p_cart_json) <> 'ARRAY'
+       OR JSON_LENGTH(p_cart_json) = 0 OR JSON_LENGTH(p_cart_json) > 100 THEN
+        LEAVE validate;
+    END IF;
+    SET v_count = JSON_LENGTH(p_cart_json);
+
+    -- Whole positive numbers only: 1.5 or "2" must not be coerced.
+    SELECT COUNT(*) INTO v_valid
+    FROM JSON_TABLE(p_cart_json, '$[*]' COLUMNS (item JSON PATH '$')) j
+    WHERE JSON_TYPE(JSON_EXTRACT(item, '$.variantId')) = 'INTEGER'
+      AND JSON_TYPE(JSON_EXTRACT(item, '$.quantity')) = 'INTEGER'
+      AND CAST(JSON_UNQUOTE(JSON_EXTRACT(item, '$.variantId')) AS SIGNED) > 0
+      AND CAST(JSON_UNQUOTE(JSON_EXTRACT(item, '$.quantity')) AS SIGNED) BETWEEN 1 AND 100000;
+    IF v_valid <> v_count THEN
+        LEAVE validate;
+    END IF;
+
+    SELECT COUNT(DISTINCT variant_id) INTO v_valid
+    FROM JSON_TABLE(p_cart_json, '$[*]' COLUMNS (variant_id INT PATH '$.variantId')) j;
+    IF v_valid <> v_count THEN
+        SET p_status = 'DUPLICATE_VARIANTS_IN_CART';
+        LEAVE validate;
+    END IF;
+
+    SET p_status = 'OK';
+END //
+
+-- Read-only price check used before a card is authorised (BR-12): the
+-- gateway is asked for exactly the amount the database would charge now.
+-- p_status: OK, INVALID_CART, DUPLICATE_VARIANTS_IN_CART or ITEM_UNAVAILABLE.
+-- Nothing is locked or reserved (AS-10). Stock is not checked here: a line
+-- that is out of stock is still priced, because it can be back-ordered.
+CREATE PROCEDURE sp_checkout_quote(
+    IN  p_cart_json JSON,
+    OUT p_status    VARCHAR(255),
+    OUT p_total     DECIMAL(10,2)
 )
-BEGIN
-    -- Declare Variables 
-    DECLARE v_order_id INT;
-    DECLARE v_total_amount DECIMAL(10,2);
-    DECLARE v_insufficient_stock INT DEFAULT 0;
+READS SQL DATA
+quote: BEGIN
+    DECLARE v_lines INT;
+    DECLARE v_sellable INT;
 
-    -- New Validation Variables After recheck (04 Oct 2026)
-    DECLARE v_cart_count INT DEFAULT 0;
-    DECLARE v_distinct_variants INT DEFAULT 0;
-    DECLARE v_invalid_quantities INT DEFAULT 0;
-    DECLARE v_valid_db_variants INT DEFAULT 0;
+    SET p_total = NULL;
+    CALL sp_checkout_validate_cart(p_cart_json, p_status);
+    IF p_status <> 'OK' THEN
+        LEAVE quote;
+    END IF;
+    SET v_lines = JSON_LENGTH(p_cart_json);
 
-    DECLARE v_error_msg TEXT;
+    SELECT COUNT(*), SUM(j.quantity * v.price)
+    INTO v_sellable, p_total
+    FROM JSON_TABLE(p_cart_json, '$[*]'
+         COLUMNS (variant_id INT PATH '$.variantId', quantity INT PATH '$.quantity')) j
+    JOIN variant v ON v.variant_id = j.variant_id
+    JOIN product p ON p.product_id = v.product_id
+    WHERE p.is_active = TRUE AND v.price > 0;
 
-    -- Declare an exit handler for SQL errors to guarantee atomicity
+    IF v_sellable <> v_lines THEN
+        SET p_status = 'ITEM_UNAVAILABLE';
+        SET p_total = NULL;
+    END IF;
+END //
+
+-- Places an order atomically.
+--   p_delivery_mode  'delivery' (needs a Texas city and an address) or 'pickup'
+--   p_payment_method 'cod'  - payment stays Pending (AS-8); card arguments NULL
+--                    'card' - pass what the gateway returned after authorising
+--                             p_authorised_amount; the order is refused if the
+--                             database total differs from that amount
+-- p_status: SUCCESS, INVALID_CART, DUPLICATE_VARIANTS_IN_CART,
+--   INVALID_PAYMENT_METHOD, INVALID_PAYMENT_DETAILS, INVALID_DELIVERY_MODE,
+--   INVALID_CUSTOMER, INVALID_DELIVERY_ADDRESS, ITEM_UNAVAILABLE,
+--   AUTHORISED_AMOUNT_MISMATCH or SQL_ERROR.
+CREATE PROCEDURE ProcessCheckout(
+    IN  p_customer_id       INT,
+    IN  p_cart_json         JSON,
+    IN  p_delivery_mode     VARCHAR(50),
+    IN  p_payment_method    VARCHAR(50),
+    IN  p_city_id           INT,
+    IN  p_address           VARCHAR(255),
+    IN  p_gateway_token     VARCHAR(64),
+    IN  p_gateway_reference VARCHAR(64),
+    IN  p_card_last_four    VARCHAR(4),
+    IN  p_card_type         VARCHAR(20),
+    IN  p_authorised_amount DECIMAL(10,2),
+    OUT p_status            VARCHAR(255),
+    OUT p_order_id          INT
+)
+checkout: BEGIN
+    DECLARE v_count INT;
+    DECLARE v_id INT;
+    DECLARE v_previous INT DEFAULT 0;
+    DECLARE v_quantity INT;
+    DECLARE v_stock INT;
+    DECLARE v_price DECIMAL(10,2);
+    DECLARE v_total DECIMAL(10,2) DEFAULT 0;
+    DECLARE v_backorder BOOLEAN DEFAULT FALSE;
+    DECLARE v_estimate DATE DEFAULT NULL;
+    DECLARE v_email VARCHAR(150) DEFAULT NULL;
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
-    BEGIN   
-        -- Capture the exact MySQL error message
-        GET DIAGNOSTICS CONDITION 1 v_error_msg = MESSAGE_TEXT;
+    BEGIN
         ROLLBACK;
-        SET p_status = CONCAT('SQL_ERROR: ', v_error_msg);
+        SET p_order_id = NULL;
+        SET p_status = 'SQL_ERROR';
     END;
 
-    -- Check 1: Reject empty carts immediately
-    IF p_cart_json IS NULL OR JSON_LENGTH(p_cart_json) = 0 THEN
-        SET p_status = 'EMPTY_CART';
+    SET p_order_id = NULL;
+    CALL sp_checkout_validate_cart(p_cart_json, p_status);
+    IF p_status <> 'OK' THEN
+        LEAVE checkout;
+    END IF;
+    SET v_count = JSON_LENGTH(p_cart_json);
+
+    IF p_payment_method IS NULL OR p_payment_method NOT IN ('cod', 'card') THEN
+        SET p_status = 'INVALID_PAYMENT_METHOD';
+        LEAVE checkout;
+    END IF;
+    IF (p_payment_method = 'card' AND (
+            p_gateway_token IS NULL OR CHAR_LENGTH(TRIM(p_gateway_token)) = 0
+            OR p_gateway_reference IS NULL OR CHAR_LENGTH(TRIM(p_gateway_reference)) = 0
+            OR p_card_last_four IS NULL OR NOT REGEXP_LIKE(p_card_last_four, '^[0-9]{4}$')
+            OR p_card_type IS NULL OR CHAR_LENGTH(TRIM(p_card_type)) = 0
+            OR p_authorised_amount IS NULL OR p_authorised_amount <= 0))
+       OR (p_payment_method = 'cod' AND (
+            p_gateway_token IS NOT NULL OR p_gateway_reference IS NOT NULL
+            OR p_card_last_four IS NOT NULL OR p_card_type IS NOT NULL
+            OR p_authorised_amount IS NOT NULL)) THEN
+        SET p_status = 'INVALID_PAYMENT_DETAILS';
+        LEAVE checkout;
+    END IF;
+    IF p_delivery_mode IS NULL OR p_delivery_mode NOT IN ('delivery', 'pickup') THEN
+        SET p_status = 'INVALID_DELIVERY_MODE';
+        LEAVE checkout;
+    END IF;
+
+    SELECT email INTO v_email FROM customer WHERE customer_id = p_customer_id;
+    IF v_email IS NULL THEN
+        SET p_status = 'INVALID_CUSTOMER';
+        LEAVE checkout;
+    END IF;
+    IF p_delivery_mode = 'delivery' AND (
+            p_address IS NULL OR CHAR_LENGTH(TRIM(p_address)) < 5
+            OR p_city_id IS NULL OR NOT EXISTS (SELECT 1 FROM city WHERE city_id = p_city_id)) THEN
+        SET p_status = 'INVALID_DELIVERY_ADDRESS';
+        LEAVE checkout;
+    END IF;
+
+    START TRANSACTION;
+
+    -- Lock each variant row in ascending ID order (no deadlocks between two
+    -- carts), then read the locked stock and price. From here to COMMIT no
+    -- other order can change these rows.
+    WHILE v_count > 0 DO
+        SELECT MIN(variant_id) INTO v_id
+        FROM JSON_TABLE(p_cart_json, '$[*]' COLUMNS (variant_id INT PATH '$.variantId')) j
+        WHERE variant_id > v_previous;
+
+        SET v_stock = NULL;
+        SET v_price = NULL;
+        BEGIN
+            DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_stock = NULL;
+            SELECT stock_quantity, price INTO v_stock, v_price
+            FROM variant WHERE variant_id = v_id FOR UPDATE;
+        END;
+        IF v_stock IS NULL OR v_price IS NULL OR v_price <= 0 OR NOT EXISTS (
+                SELECT 1 FROM variant v JOIN product p ON p.product_id = v.product_id
+                WHERE v.variant_id = v_id AND p.is_active = TRUE) THEN
+            ROLLBACK;
+            SET p_status = 'ITEM_UNAVAILABLE';
+            LEAVE checkout;
+        END IF;
+
+        SELECT quantity INTO v_quantity
+        FROM JSON_TABLE(p_cart_json, '$[*]'
+             COLUMNS (variant_id INT PATH '$.variantId', quantity INT PATH '$.quantity')) j
+        WHERE variant_id = v_id;
+        -- More than is in stock: the shortfall is back-ordered.
+        IF v_quantity > v_stock THEN
+            SET v_backorder = TRUE;
+        END IF;
+
+        SET v_total = v_total + v_quantity * v_price;
+        SET v_previous = v_id;
+        SET v_count = v_count - 1;
+    END WHILE;
+
+    -- The card was authorised for the quoted total; a price change since the
+    -- quote must not be charged silently.
+    IF p_payment_method = 'card' AND p_authorised_amount <> v_total THEN
+        ROLLBACK;
+        SET p_status = 'AUTHORISED_AMOUNT_MISMATCH';
+        LEAVE checkout;
+    END IF;
+
+    INSERT INTO orders (customer_id, order_date, order_status, total_amount, delivery_mode, payment_method)
+    VALUES (p_customer_id, NOW(), 'Confirmed', v_total, p_delivery_mode, p_payment_method);
+    SET p_order_id = LAST_INSERT_ID();
+
+    INSERT INTO order_item (order_id, variant_id, quantity, unit_price, backordered_quantity)
+    SELECT p_order_id, j.variant_id, j.quantity, v.price, GREATEST(j.quantity - v.stock_quantity, 0)
+    FROM JSON_TABLE(p_cart_json, '$[*]'
+         COLUMNS (variant_id INT PATH '$.variantId', quantity INT PATH '$.quantity')) j
+    JOIN variant v ON v.variant_id = j.variant_id;
+
+    -- 5 or 7 days by city, plus 3 when a line was out of stock at this moment
+    -- (BR-8). Buying the last unit in stock is not out of stock.
+    IF p_delivery_mode = 'delivery' THEN
+        SET v_estimate = DATE_ADD(CURDATE(), INTERVAL fn_delivery_days(p_city_id, v_backorder) DAY);
+    END IF;
+    INSERT INTO delivery (order_id, city_id, address_line, delivery_mode, est_delivery_date, delivery_status)
+    VALUES (p_order_id,
+            IF(p_delivery_mode = 'delivery', p_city_id, NULL),
+            IF(p_delivery_mode = 'delivery', TRIM(p_address), NULL),
+            p_delivery_mode, v_estimate, 'Pending');
+
+    IF p_payment_method = 'card' THEN
+        INSERT INTO payment (order_id, payment_method, payment_status, amount, payment_date,
+                             gateway_token, gateway_reference, card_last_four, card_type)
+        VALUES (p_order_id, 'card', 'Paid', v_total, NOW(),
+                TRIM(p_gateway_token), TRIM(p_gateway_reference), p_card_last_four, TRIM(p_card_type));
     ELSE
-        -- Begin the transaction with ACID properties
-        START TRANSACTION;
+        INSERT INTO payment (order_id, payment_method, payment_status, amount, payment_date)
+        VALUES (p_order_id, 'cod', 'Pending', v_total, NULL);
+    END IF;
 
-        -- Extract cart statistics
-        SELECT 
-            COUNT(*), 
-            COUNT(DISTINCT variant_id),
-            COUNT(CASE WHEN quantity IS NULL OR quantity <= 0 THEN 1 END)
-        INTO
-            v_cart_count, v_distinct_variants, v_invalid_quantities
-        FROM JSON_TABLE(
-            p_cart_json, 
-            '$[*]' COLUMNS(
-                variant_id INT PATH '$.variantId', 
-                quantity INT PATH '$.quantity'
-            )
-        ) AS cart;
+    -- Only the units that were in stock leave it, so stock never goes below zero.
+    UPDATE variant v
+    JOIN order_item i ON i.variant_id = v.variant_id AND i.order_id = p_order_id
+    SET v.stock_quantity = v.stock_quantity - (i.quantity - i.backordered_quantity);
 
-        -- Check 2 & 3: Reject negative/zero quantities and duplicate variant IDs
-        IF v_invalid_quantities > 0 THEN
-            SET p_status = 'INVALID_QUANTITY';
-            ROLLBACK;
-        ELSEIF v_cart_count != v_distinct_variants THEN
-            SET p_status = 'DUPLICATE_VARIANTS_IN_CART';
-            ROLLBACK;
-        ELSE
-            -- Apply row-level locks safely by redirecting output to a dummy variable
-            -- This prevents other users from buying these items until transaction is complete
-            SELECT COUNT(variant_id) INTO @dummy_lock
-            FROM variant
-            WHERE variant_id IN (
-                SELECT variant_id 
-                FROM JSON_TABLE(
-                    p_cart_json, 
-                    '$[*]' COLUMNS(variant_id INT PATH '$.variantId')
-                ) AS cart
-            )
-            FOR UPDATE; 
-            
-            -- This is the place where we lock the database row until we update it. 
-            -- Others can't change this until finished via 'COMMIT' or 'ROLLBACK'.
+    COMMIT;
+    SET p_status = 'SUCCESS';
 
-            -- Check 4: Prevent purchasing unknown variants or invalid prices
-            SELECT COUNT(*) INTO v_valid_db_variants
-            FROM JSON_TABLE(
-                p_cart_json, 
-                '$[*]' COLUMNS(variant_id INT PATH '$.variantId')
-            ) AS cart
-            JOIN variant v ON cart.variant_id = v.variant_id
-            WHERE v.price > 0;
+    -- Order confirmation. The order is already committed, so a problem with
+    -- the email queue can never roll it back (DEP-2, SAF-8).
+    BEGIN
+        DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+        CALL sp_email_enqueue(v_email, 'order_confirmation',
+            CONCAT('BrightBuy order #', p_order_id, ' confirmed'),
+            CONCAT('Thank you for your order. Order #', p_order_id, ' for USD ', v_total, ' is confirmed. ',
+                   IF(v_backorder, 'Part of it is out of stock and will follow. ', ''),
+                   IF(p_delivery_mode = 'delivery',
+                      CONCAT('Estimated delivery: ', DATE_FORMAT(v_estimate, '%Y-%m-%d'), '. '),
+                      'Collect it at the store. '),
+                   IF(p_payment_method = 'card',
+                      CONCAT('Paid by card ending ', p_card_last_four, '.'),
+                      'Pay cash on delivery.')),
+            p_order_id);
+    END;
+END //
 
-            IF v_valid_db_variants != v_cart_count THEN
-                SET p_status = 'UNKNOWN_VARIANT_OR_INVALID_PRICE';
-                ROLLBACK;
-            ELSE
-                -- Validate stock quantities
-                -- Check if any requested quantity in the JSON is greater than the available stock_quantity
-                SELECT COUNT(*) INTO v_insufficient_stock
-                FROM JSON_TABLE(
-                    p_cart_json,
-                    '$[*]' COLUMNS(
-                        variant_id INT PATH '$.variantId',
-                        quantity INT PATH '$.quantity'
-                    )
-                ) AS cart_data 
-                JOIN variant v ON cart_data.variant_id = v.variant_id
-                WHERE cart_data.quantity > v.stock_quantity;
+CREATE PROCEDURE sp_delivery_active_drivers()
+BEGIN
+    SELECT employee_id, CONCAT(first_name, ' ', last_name) AS name
+      FROM employee
+     WHERE role = 'DeliveryDriver' AND is_active = TRUE
+     ORDER BY first_name, last_name, employee_id;
+END //
 
-                -- Branching Logic : Rollback or Proceed
-                IF v_insufficient_stock > 0 THEN
-                    -- If even one item lacks stock, cancel everything and release the locks
-                    ROLLBACK;
-                    SET p_status = 'INSUFFICIENT_STOCK';
-                ELSE
-                    -- Calculate the total amount for the order based on variant prices
-                    SELECT SUM(cart_data.quantity * v.price) INTO v_total_amount
-                    FROM JSON_TABLE(
-                        p_cart_json,
-                        '$[*]' COLUMNS(
-                            variant_id INT PATH '$.variantId',
-                            quantity INT PATH '$.quantity'
-                        )
-                    ) AS cart_data
-                    JOIN variant v ON cart_data.variant_id = v.variant_id;
+CREATE PROCEDURE sp_delivery_assign(IN p_delivery_id INT, IN p_employee_id INT)
+assign_delivery: BEGIN
+    DECLARE v_status VARCHAR(50);
+    DECLARE v_mode VARCHAR(50);
+    DECLARE v_order_status VARCHAR(50);
+    DECLARE v_driver_active BOOLEAN DEFAULT FALSE;
+    DECLARE v_found BOOLEAN DEFAULT TRUE;
 
-                    -- Insert the main order record 
-                    INSERT INTO orders (customer_id, order_date, order_status, total_amount)
-                    VALUES (p_customer_id, NOW(), 'Pending_Payment', v_total_amount);
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_found = FALSE;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
 
-                    -- Capture the auto generated order_id to use for the items 
-                    SET v_order_id = LAST_INSERT_ID();
+    START TRANSACTION;
+    SELECT d.delivery_status, d.delivery_mode, o.order_status
+      INTO v_status, v_mode, v_order_status
+      FROM delivery d JOIN orders o ON o.order_id = d.order_id
+     WHERE d.delivery_id = p_delivery_id FOR UPDATE;
+    IF NOT v_found THEN
+        SIGNAL SQLSTATE '45004' SET MESSAGE_TEXT = 'Delivery not found';
+    END IF;
+    IF NOT (v_status <=> 'Pending') OR NOT (v_mode <=> 'delivery')
+       OR (v_order_status <=> 'Cancelled') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Only pending deliveries can be assigned';
+    END IF;
+    IF p_employee_id IS NOT NULL THEN
+        SET v_found = TRUE;
+        SELECT is_active INTO v_driver_active
+          FROM employee
+         WHERE employee_id = p_employee_id AND role = 'DeliveryDriver'
+         FOR UPDATE;
+        IF NOT v_found OR NOT v_driver_active THEN
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'An active delivery driver is required';
+        END IF;
+    END IF;
 
-                    -- Deduct the stock quantities atomically
-                    UPDATE variant v
-                    JOIN JSON_TABLE(
-                        p_cart_json,
-                        '$[*]' COLUMNS(
-                            variant_id INT PATH '$.variantId',
-                            quantity INT PATH '$.quantity'
-                        )
-                    ) AS cart_data ON v.variant_id = cart_data.variant_id
-                    SET v.stock_quantity = v.stock_quantity - cart_data.quantity;
+    UPDATE delivery SET assigned_employee_id = p_employee_id WHERE delivery_id = p_delivery_id;
+    COMMIT;
+END //
 
-                    -- Insert the individual order items with their locked-in prices
-                    INSERT INTO order_item(order_id, variant_id, quantity, unit_price)
-                    SELECT v_order_id, cart_data.variant_id, cart_data.quantity, v.price
-                    FROM JSON_TABLE(
-                        p_cart_json,
-                        '$[*]' COLUMNS(
-                            variant_id INT PATH '$.variantId',
-                            quantity INT PATH '$.quantity'
-                        )
-                    ) AS cart_data
-                    JOIN variant v ON cart_data.variant_id = v.variant_id;
+CREATE PROCEDURE sp_delivery_mark_delivered(IN p_delivery_id INT, IN p_employee_id INT)
+mark_delivery: BEGIN
+    DECLARE v_status VARCHAR(50);
+    DECLARE v_assigned_employee_id INT;
+    DECLARE v_mode VARCHAR(50);
+    DECLARE v_order_status VARCHAR(50);
+    DECLARE v_driver_active BOOLEAN DEFAULT FALSE;
+    DECLARE v_found BOOLEAN DEFAULT TRUE;
 
-                    -- Commit the transaction to disk
-                    COMMIT;
-                    SET p_status = 'SUCCESS';
-                END IF; -- closes the insufficient stock check
-            END IF; -- closes the unknown variant check
-        END IF; -- closes the invalid quantity/duplicate check
-    END IF; -- closes the empty cart check
+    DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_found = FALSE;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+        RESIGNAL;
+    END;
+
+    START TRANSACTION;
+    SELECT d.delivery_status, d.assigned_employee_id, d.delivery_mode, o.order_status
+      INTO v_status, v_assigned_employee_id, v_mode, v_order_status
+      FROM delivery d JOIN orders o ON o.order_id = d.order_id
+     WHERE d.delivery_id = p_delivery_id FOR UPDATE;
+    IF NOT v_found THEN
+        SIGNAL SQLSTATE '45004' SET MESSAGE_TEXT = 'Delivery not found';
+    END IF;
+    IF NOT (v_status <=> 'Pending') OR NOT (v_assigned_employee_id <=> p_employee_id)
+       OR NOT (v_mode <=> 'delivery') OR (v_order_status <=> 'Cancelled') THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Delivery is not assigned to this driver and pending';
+    END IF;
+    SET v_found = TRUE;
+    SELECT is_active INTO v_driver_active
+      FROM employee
+     WHERE employee_id = p_employee_id AND role = 'DeliveryDriver'
+     FOR UPDATE;
+    IF NOT v_found OR NOT v_driver_active THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'An active delivery driver is required';
+    END IF;
+
+    UPDATE delivery
+       SET delivery_status = 'Delivered', delivered_by_employee_id = p_employee_id, delivered_at = NOW()
+     WHERE delivery_id = p_delivery_id;
+    COMMIT;
 END //
 
 DELIMITER ;

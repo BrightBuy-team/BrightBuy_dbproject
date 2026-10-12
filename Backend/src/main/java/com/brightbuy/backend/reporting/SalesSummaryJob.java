@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+/** Rebuilds the last seven days of the sales_summary table every night at 00:05. */
 @Component
 public class SalesSummaryJob {
     private static final Logger log = LoggerFactory.getLogger(SalesSummaryJob.class);
@@ -17,7 +18,7 @@ public class SalesSummaryJob {
     }
 
     @Scheduled(cron = "0 5 0 * * *")
-    public void updateYesterdaySummary() {
+    public void updateLastSevenDaysSummary() {
         log.info("Refreshing sales summary for the previous 7 days...");
         jdbcTemplate.update("CALL sp_populate_sales_summary(?)", 7);
         log.info("sp_populate_sales_summary completed.");

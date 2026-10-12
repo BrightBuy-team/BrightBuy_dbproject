@@ -1,99 +1,118 @@
 #!/usr/bin/env bash
-# BrightBuy combined database install for a FRESH development/test server.
-# Runs every module's SQL in dependency order and stops on the first error.
-# Reads teammates' files without changing them. Details: INSTALL.md.
+# BrightBuy database installer. Runs every module's SQL in dependency order
+# and stops on the first error. See Database/README.md.
 #
-# Usage (all arguments are passed to the mysql client):
-#   ./install_all.sh --login-path=brightbuy_admin
-#   MYSQL_PWD='...' ./install_all.sh -u root -h 127.0.0.1
+#   Fresh install (local development and test databases only):
+#     bash Database/install_all.sh --docker CONTAINER
+#     MYSQL_PWD=... bash Database/install_all.sh --local
 #
-# Do not use a plain "-p": the client would ask for the password once per file.
+#   Upgrade a database that already holds data (no seeds, no deletes):
+#     bash Database/install_all.sh --upgrade --docker CONTAINER
+#     MYSQL_PWD=... bash Database/install_all.sh --upgrade --local
+#     MYSQL_PWD=... BRIGHTBUY_BACKUP_TAKEN=yes \
+#       MYSQL_HOST=... MYSQL_USER=... bash Database/install_all.sh --upgrade --remote
+#
+# --local and --remote read MYSQL_HOST, MYSQL_PORT and MYSQL_USER; the password
+# comes from MYSQL_PWD (or a client login path), never from a file in this
+# repository. A fresh install is refused on anything but this computer.
 set -euo pipefail
-cd "$(dirname "$0")"
+task_root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-MYSQL_BIN="${MYSQL_BIN:-mysql}"
-MYSQL_ARGS=("$@")
-DB=brightbuy
-INVENTORY_DDL="Inventory/Inventory_Delivery_DDL.sql"
+task_usage() {
+  echo 'Usage: bash Database/install_all.sh [--upgrade] --docker CONTAINER | --local | --remote' >&2
+  exit 2
+}
 
-fail() { echo "install_all: $*" >&2; exit 1; }
-sql() { "$MYSQL_BIN" ${MYSQL_ARGS[@]+"${MYSQL_ARGS[@]}"} "$@"; }
-run_file() { echo "==> $1"; sql "$DB" < "$1"; }
+task_mode=install
+if [[ "${1:-}" == --upgrade ]]; then task_mode=upgrade; shift; fi
 
-# --- Preflight -------------------------------------------------------------
-command -v "$MYSQL_BIN" >/dev/null || fail "mysql client not found (set MYSQL_BIN)"
+case "${1:-}" in
+  --docker)
+    [[ -n "${2:-}" && $# == 2 ]] || task_usage
+    # The container's own MYSQL_ROOT_PASSWORD stays inside the container.
+    task_client=(docker exec -i "$2" sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" exec mysql -u root "$@"' sh)
+    ;;
+  --local)
+    [[ $# == 1 ]] || task_usage
+    task_host="${MYSQL_HOST:-127.0.0.1}"
+    [[ "$task_host" == 127.0.0.1 || "$task_host" == localhost ]] \
+      || { echo '--local only accepts a database on this computer.' >&2; exit 2; }
+    task_client=(mysql --protocol=TCP --host="$task_host" --port="${MYSQL_PORT:-3306}" --user="${MYSQL_USER:-root}")
+    ;;
+  --remote)
+    [[ $# == 1 && "$task_mode" == upgrade ]] \
+      || { echo '--remote is only available with --upgrade; fresh installs are local only.' >&2; exit 2; }
+    [[ -n "${MYSQL_HOST:-}" && -n "${MYSQL_USER:-}" ]] \
+      || { echo 'Set MYSQL_HOST and MYSQL_USER (and MYSQL_PWD) for --remote.' >&2; exit 2; }
+    [[ "${BRIGHTBUY_BACKUP_TAKEN:-}" == yes ]] \
+      || { echo 'Take and test a backup first, then set BRIGHTBUY_BACKUP_TAKEN=yes.' >&2; exit 2; }
+    task_client=(mysql --protocol=TCP --host="$MYSQL_HOST" --port="${MYSQL_PORT:-3306}" --user="$MYSQL_USER"
+      --ssl-mode="${MYSQL_SSL_MODE:-REQUIRED}")
+    ;;
+  *) task_usage ;;
+esac
 
-FILES=(
-  "Catalogue/00_create_database.sql" "Catalogue/01_catalogue_tables.sql"
-  "Catalogue/02_catalogue_indexes.sql" "Catalogue/03_catalogue_seed_data.sql"
-  "$INVENTORY_DDL" "Inventory/Inventory_Delivery_sample_data.sql"
-  "Inventory/Inventory_Delivery_logic.sql"
-  "User and Auth/user auth schema.sql" "User and Auth/user auth procedures.sql"
-  "User and Auth/user auth seed.sql"
-  "Checkout/01_checkout_schema.sql" "Checkout/02_checkout_procedures.sql"
-  "Catalogue/05_variant_integration.sql" "Catalogue/05b_catalogue_variant_seed.sql"
-  "Catalogue/06_catalogue_procedures.sql" "Catalogue/08_catalogue_maintenance_procedures.sql"
-  "Management reporting/01_management_reporting_tables.sql"
-  "Management reporting/02_management_reporting_procedures.sql"
-  "Catalogue/09_catalogue_roles.sql"
+# Tables. Every script here is safe to rerun: it only adds what is missing.
+task_tables=(
+  Catalogue/01_catalogue_tables.sql
+  Inventory/01_inventory_schema.sql
+  Shared/01_email_outbox.sql
+  Auth/01_auth_schema.sql
+  Checkout/01_checkout_schema.sql
+  Reporting/01_reporting_tables.sql
 )
-for file in "${FILES[@]}"; do [ -f "$file" ] || fail "missing file: $file"; done
+# Development and demonstration data. Never run by an upgrade.
+task_seeds=(
+  Catalogue/02_catalogue_seed.sql
+  Inventory/03_inventory_seed.sql
+  Auth/03_auth_seed.sql
+  Catalogue/03_catalogue_variant_seed.sql
+  Checkout/03_checkout_seed.sql
+)
+# Views, procedures, functions and triggers. Each replaces its own objects.
+task_routines=(
+  Auth/02_auth_procedures.sql
+  Catalogue/04_catalogue_procedures.sql
+  Catalogue/05_catalogue_maintenance_procedures.sql
+  Inventory/02_inventory_logic.sql
+  Checkout/02_checkout_procedures.sql
+  Reporting/02_reporting_procedures.sql
+  Shared/02_audit_log.sql
+  Shared/03_database_roles.sql
+)
 
-# The inventory DDL is split around its delivery table (see INSTALL.md). If its
-# owner reorganises the file, stop here instead of installing the wrong part.
-[ "$(grep -c '^-- Delivery Table' "$INVENTORY_DDL")" = 1 ] \
-  || fail "$INVENTORY_DDL: expected one '-- Delivery Table' marker; update this script"
-[ "$(grep -c '^-- Variant Audit Table' "$INVENTORY_DDL")" = 1 ] \
-  || fail "$INVENTORY_DDL: expected one '-- Variant Audit Table' marker; update this script"
-[ "$(grep -c '^CREATE TABLE' "$INVENTORY_DDL")" = 5 ] \
-  || fail "$INVENTORY_DDL: expected five CREATE TABLE statements; update this script"
+task_run() {
+  echo "Installing $1"
+  "${task_client[@]}" brightbuy < "$task_root/$1"
+}
 
-sql -e "SELECT 1" >/dev/null || fail "cannot connect with the given mysql options"
-existing="$(sql -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$DB'")"
-[ "$existing" = 0 ] || fail "database '$DB' already has $existing tables; this script is for a fresh install only"
+task_tables_present="$("${task_client[@]}" --batch --skip-column-names \
+  -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='brightbuy'")"
 
-# --- Install ---------------------------------------------------------------
-echo "==> Catalogue/00_create_database.sql"
-sql < "Catalogue/00_create_database.sql"
-run_file "Catalogue/01_catalogue_tables.sql"
-run_file "Catalogue/02_catalogue_indexes.sql"
-run_file "Catalogue/03_catalogue_seed_data.sql"
+if [[ "$task_mode" == install ]]; then
+  [[ "$task_tables_present" == 0 ]] \
+    || { echo 'Refusing a populated brightbuy database. Use a fresh instance, or --upgrade.' >&2; exit 3; }
+  echo 'Installing 00_create_database.sql'
+  "${task_client[@]}" < "$task_root/00_create_database.sql"
+  for task_script in "${task_tables[@]}" "${task_seeds[@]}" "${task_routines[@]}"; do task_run "$task_script"; done
+  "${task_client[@]}" brightbuy -e 'CALL sp_populate_sales_summary(7);'
+else
+  [[ "$task_tables_present" != 0 ]] \
+    || { echo 'No brightbuy tables found: nothing to upgrade. Run a fresh install instead.' >&2; exit 3; }
+  task_run Shared/04_upgrade_existing_database.sql
+  for task_script in "${task_tables[@]}" "${task_routines[@]}"; do task_run "$task_script"; done
+fi
 
-echo "==> $INVENTORY_DDL (city, warehouse, variant)"
-awk '/^-- Delivery Table/ { exit } { print }' "$INVENTORY_DDL" | sql "$DB"
-run_file "Inventory/Inventory_Delivery_sample_data.sql"
+echo 'Running Shared/05_release_checks.sql'
+task_checks="$("${task_client[@]}" --batch brightbuy < "$task_root/Shared/05_release_checks.sql")"
+if printf '%s\n' "$task_checks" | grep -q "$(printf '\t')BLOCK"; then
+  printf '%s\n' "$task_checks" | grep "$(printf '\t')BLOCK" >&2
+  echo 'Release checks reported BLOCK. Resolve the items above.' >&2
+  exit 4
+fi
 
-run_file "User and Auth/user auth schema.sql"
-run_file "User and Auth/user auth procedures.sql"
-run_file "User and Auth/user auth seed.sql"
-
-run_file "Checkout/01_checkout_schema.sql"
-run_file "Checkout/02_checkout_procedures.sql"
-
-echo "==> $INVENTORY_DDL (variant_audit)"
-awk '/^-- Variant Audit Table/ { keep = 1 } keep && !/^--[^ ]/ { print }' "$INVENTORY_DDL" | sql "$DB"
-run_file "Inventory/Inventory_Delivery_logic.sql"
-
-run_file "Catalogue/05_variant_integration.sql"
-run_file "Catalogue/05b_catalogue_variant_seed.sql"
-run_file "Catalogue/06_catalogue_procedures.sql"
-run_file "Catalogue/08_catalogue_maintenance_procedures.sql"
-
-run_file "Management reporting/01_management_reporting_tables.sql"
-run_file "Management reporting/02_management_reporting_procedures.sql"
-
-run_file "Catalogue/09_catalogue_roles.sql"
-
-# --- Summary ---------------------------------------------------------------
-echo "==> Installed. Object counts in '$DB':"
-sql --table "$DB" -e "
-SELECT 'tables' AS object, COUNT(*) AS total FROM information_schema.tables
-  WHERE table_schema = '$DB' AND table_type = 'BASE TABLE'
-UNION ALL SELECT 'views', COUNT(*) FROM information_schema.views WHERE table_schema = '$DB'
-UNION ALL SELECT 'procedures and functions', COUNT(*) FROM information_schema.routines WHERE routine_schema = '$DB'
-UNION ALL SELECT 'triggers', COUNT(*) FROM information_schema.triggers WHERE trigger_schema = '$DB'
-UNION ALL SELECT 'products', COUNT(*) FROM product
-UNION ALL SELECT 'variants', COUNT(*) FROM variant
-UNION ALL SELECT 'cities', COUNT(*) FROM city
-UNION ALL SELECT 'customers', COUNT(*) FROM customer
-UNION ALL SELECT 'employees', COUNT(*) FROM employee;"
+if [[ "$task_mode" == install ]]; then
+  echo 'Fresh installation complete: all release checks passed.'
+else
+  echo 'Upgrade complete: no customer, order, product or stock row was deleted, no seed was run, all release checks passed.'
+fi
