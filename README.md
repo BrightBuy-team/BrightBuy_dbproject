@@ -24,6 +24,10 @@ calls them.
   An item that is out of stock can still be ordered: it is back-ordered and delivery takes 3 days longer.
 - Warehouse: one central warehouse; stock updates with an audit trail, low-stock list, new
   variants, price changes, product and category maintenance.
+- Product photos: staff can upload a photo for a product; it is stored in Azure Blob Storage and
+  the database keeps only its address.
+- Delivery: warehouse staff or an administrator assign a pending delivery to a delivery driver;
+  the driver sees their own deliveries and marks each one delivered.
 - Management: five reports with CSV export.
 - Administration: creating employee accounts.
 - Three sign-in doors (customer, employee, administrator), each leading to its own pages.
@@ -129,14 +133,19 @@ scripts/     verify-project.sh
 .github/     CI (tests on pull requests) and deployment of the backend after main is verified
 ```
 
-## Team
+## Team and contributions
 
-| Member | Module |
-|---|---|
-| Mihisara LHK | Product catalogue and search |
-| Adeesha W.G.I. | Cart, checkout and orders; deployment |
-| Nirmal U.K.N | Inventory and delivery |
-| Atapattu D.M. | Users and authentication |
-| Senadheera S.D.A.P | Management reporting |
+Group 14. Each member owns one module end to end: its tables, constraints, triggers and stored
+routines in `Database/`, the backend package that calls them, and the pages that use it.
+
+| Member | Module | Contribution |
+|---|---|---|
+| Mihisara LHK | Product catalogue and search | Tables `category`, `product`, `product_category`; the three triggers that keep the category hierarchy at two levels; the view `catalogue_public_variants`; the search, category list and product detail procedures and the seven catalogue maintenance procedures; catalogue indexes including full-text search; seed data (40 products, 10 categories, 48 variants); the three catalogue SQL test suites. Catalogue API, storefront and staff console pages. Also the back-order handling in `ProcessCheckout`, the database installer, upgrade and release-check scripts, and the project verification script. |
+| Adeesha W.G.I. | Cart, checkout and orders; deployment | Tables `orders`, `order_item`, `delivery`, `payment`; `ProcessCheckout` and the cart validation and quote procedures; checkout API and pages; the Azure database and deployment pipeline. |
+| Nirmal U.K.N | Inventory and delivery | Tables `city`, `warehouse`, `variant`, `variant_audit`; the stock procedures and stock-history triggers; the delivery estimate functions; inventory and delivery pages. |
+| Atapattu D.M. | Users and authentication | Tables `customer`, `employee`, `login_attempts`, `password_reset_token`; registration, sign-in, rate limit and password reset routines; role checks. |
+| Senadheera S.D.A.P | Management reporting | Tables `sales_summary`, `report_access_log`; the five report procedures and the nightly summary procedure; report pages with CSV export. |
+
+The shared tables `email_outbox` and `audit_log` and their triggers were built by the whole team.
 
 Never commit passwords, keys or `.env` files. Only the `.env.example` templates belong in the repository.
