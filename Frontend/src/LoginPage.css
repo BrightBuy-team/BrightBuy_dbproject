@@ -298,3 +298,78 @@ a.login-branding { text-decoration: none; }
 .login-portals button span { position: relative; z-index: 1; }
 .login-portals button.active { color: #ffffff; }
 .login-portal-pill { position: absolute !important; inset: 0; z-index: 0 !important; border-radius: 9px; background: linear-gradient(135deg, #c2410c 0%, #ea580c 100%); box-shadow: 0 4px 10px rgba(194, 65, 12, 0.35); }
+
+/* Secondary action buttons (Create an account, Forgot password, Back to sign in) */
+.login-secondary-actions {
+  display: flex;
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+  width: 100%;
+}
+
+.login-secondary-btn {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem 1rem;
+  min-height: 44px;
+  background-color: #1a1a1a;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  line-height: 1.25;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  transition: all 0.2s ease;
+}
+
+.login-secondary-btn:hover {
+  background-color: #2a2a2a;
+  border-color: #ea580c;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28);
+}
+
+.login-secondary-btn:active {
+  transform: translateY(0);
+}
+
+.login-secondary-btn:focus-visible {
+  outline: 2px solid #ea580c;
+  outline-offset: 2px;
+}
+
+.login-browse {
+  margin-top: 1.5rem;
+  margin-bottom: 0;
+  text-align: center;
+  font-size: 0.95rem;
+}
+
+.login-browse a {
+  color: #9a3412;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.login-browse a:hover {
+  color: #c2410c;
+}
+
+@media (max-width: 480px) {
+  .login-secondary-actions {
+    flex-direction: column;
+    gap: 0.65rem;
+  }
+
+  .login-secondary-btn {
+    width: 100%;
+  }
+}

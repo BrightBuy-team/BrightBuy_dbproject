@@ -180,12 +180,30 @@ export default function LoginPage() {
           <button disabled={busy}>{busy ? 'Please wait…' : { login: 'Sign in', register: 'Register and sign in', forgot: 'Send reset code', reset: 'Change password' }[view]}</button>
         </motion.form>
       </AnimatePresence>
-      {view === 'login' ? <>
-        {portal === 'customer' && <button onClick={() => show('register')}>Create an account</button>}
-        <button onClick={() => show('forgot')}>Forgot your password?</button>
-      </> : <button onClick={() => show('login')}>Back to sign in</button>}
-      {view === 'forgot' && <button onClick={() => show('reset')}>I already have a code</button>}
-      <p><a href="/catalogue.html">Browse without signing in</a></p>
+      <div className="login-secondary-actions">
+        {view === 'login' ? (
+          <>
+            {portal === 'customer' && (
+              <button type="button" className="login-secondary-btn" onClick={() => show('register')}>
+                Create an account
+              </button>
+            )}
+            <button type="button" className="login-secondary-btn" onClick={() => show('forgot')}>
+              Forgot your password?
+            </button>
+          </>
+        ) : (
+          <button type="button" className="login-secondary-btn" onClick={() => show('login')}>
+            Back to sign in
+          </button>
+        )}
+        {view === 'forgot' && (
+          <button type="button" className="login-secondary-btn" onClick={() => show('reset')}>
+            I already have a code
+          </button>
+        )}
+      </div>
+      <p className="login-browse"><a href="/catalogue.html">Browse without signing in</a></p>
     </div></section>
   </main>
 }
